@@ -14,6 +14,14 @@ Shared agent context file for this repo (course deliverable: "repo setup w/ shar
 - Every milestone is a PR requiring ≥1 teammate review/approval — don't merge your own PRs.
 - Grading weighs **process and verification**, not just working code: be able to explain how AI-generated code was checked, not just that it runs.
 
+## Shared brain & ownership
+
+- **`brain/` is the team's shared memory** (Obsidian-compatible notes, see `brain/README.md`). At the start of a session read `brain/AI Wardrobe - Requirements & Decisions.md` and `brain/AI Logic Ownership.md`; run `git fetch --all` to see other branches/sessions. When a decision is made or status changes, update `brain/` in the same commit/PR as the code. The repo is public — never put course materials, grades, secrets or identifiable photos in it.
+- **Tech lead:** Manuel (owns this file, contracts/schema, review standards, integration).
+- **AI logic is owned by Manuel + Claude:** vision-tagging prompt/schema/accuracy, outfit scoring, preference learning, quiz mapping, tuning, evaluation and their tests. Keep it in pure, well-tested modules behind agreed contracts; log every prompt/weight change with before/after metrics in `brain/AI Logic Ownership.md`. Manuel reviews all of it and Thanh reviews PRs — never self-merge.
+- **Thanh owns product/plumbing:** migrations + RLS, auth, households, UI, weather client, deletion flows, CI/CD + deploy.
+- Decisions D1–D15 are in the decisions note and override anything older in `docs/` (e.g. household-scoped garments, per-user location, top+bottom+shoes outfit, review-and-edit tagging). `docs/` still needs updating to match.
+
 ## What this project is
 
 **Problem:** People wear a small fraction of what they own because tracking what's clean, what matches, and what hasn't been worn lately is hard to do from memory — leading to wasted time each morning and underused clothes.
@@ -104,5 +112,5 @@ Supabase migrations should live in `supabase/migrations/` and be the source of t
 
 ## Related
 
-- Obsidian project note: `C:\OBS Class Vault\02 Software Engineering with AI\Projects\AI Wardrobe Stylist - Capstone Project.md`
+- Project notes: `brain/AI Wardrobe Stylist - Capstone Project.md`
 - GitHub: https://github.com/tphan1-23/AI-Wardrobe-Stylist
