@@ -20,7 +20,7 @@ Shared agent context file for this repo (course deliverable: "repo setup w/ shar
 - **Tech lead:** Manuel (owns this file, contracts/schema, review standards, integration).
 - **AI logic is owned by Manuel + Claude:** vision-tagging prompt/schema/accuracy, outfit scoring, preference learning, quiz mapping, tuning, evaluation and their tests. Keep it in pure, well-tested modules behind agreed contracts; log every prompt/weight change with before/after metrics in `brain/AI Logic Ownership.md`. Manuel reviews all of it and Thanh reviews PRs — never self-merge.
 - **Thanh owns product/plumbing:** migrations + RLS, auth, households, UI, weather client, deletion flows, CI/CD + deploy.
-- Decisions D1–D15 are in the decisions note and override anything older in `docs/` (e.g. household-scoped garments, per-user location, top+bottom+shoes outfit, review-and-edit tagging). `docs/` still needs updating to match.
+- Decisions D1–D16 are in the decisions note and override anything older in `docs/` (e.g. household-scoped garments, per-user location, top+bottom+shoes outfit, review-and-edit tagging). `docs/` still needs updating to match.
 
 ## What this project is
 
@@ -57,7 +57,7 @@ Next real work is Milestone 1: pick a starting slice (likely photo upload + auth
 
 ## Tech stack (all free tier — keep it that way)
 
-- **Frontend:** React, hosted on Vercel or Netlify
+- **Frontend:** Expo (React Native), primarily for iPhone, tested via Expo Go (decision D16; replaces the earlier React-on-Vercel plan; an Expo web export can still be hosted if a web demo is needed)
 - **Backend / DB:** Supabase (Postgres + auth + file storage, free tier)
 - **Vision tagging:** a free-tier multimodal model (e.g. Gemini) for garment classification from photos
 - **Weather:** OpenWeatherMap free tier
