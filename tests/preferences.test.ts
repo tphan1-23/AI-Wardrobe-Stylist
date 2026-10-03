@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   COLOR_WEIGHT,
-  LEARNING_RATE,
+  DOWN_RESISTANCE,
+  LEARNING_RATE_DOWN,
+  LEARNING_RATE_UP,
   OCCASION_TYPES,
   STYLE_TYPES,
   STYLE_WEIGHT,
@@ -91,16 +93,16 @@ describe("applyFeedback", () => {
 
   it("raises type and color weights on thumbs up and lowers them on thumbs down", () => {
     const up = applyFeedback([], outfit, "up");
-    expect(weightOf(up, "type:jeans")).toBeCloseTo(LEARNING_RATE, 5);
-    expect(weightOf(up, "color:white")).toBeCloseTo(LEARNING_RATE, 5);
+    expect(weightOf(up, "type:jeans")).toBeCloseTo(LEARNING_RATE_UP, 5);
+    expect(weightOf(up, "color:white")).toBeCloseTo(LEARNING_RATE_UP, 5);
     const down = applyFeedback([], outfit, "down");
-    expect(weightOf(down, "type:jeans")).toBeCloseTo(-LEARNING_RATE, 5);
+    expect(weightOf(down, "type:jeans")).toBeCloseTo(-LEARNING_RATE_DOWN, 5);
   });
 
   it("updates a shared color once, not once per item, and skips season tags", () => {
     const up = applyFeedback([], outfit, "up");
     expect(up.filter((e) => e.tag === "color:blue")).toHaveLength(1);
-    expect(weightOf(up, "color:blue")).toBeCloseTo(LEARNING_RATE, 5);
+    expect(weightOf(up, "color:blue")).toBeCloseTo(LEARNING_RATE_UP, 5);
     expect(up.some((e) => e.tag.startsWith("season:"))).toBe(false);
   });
 
@@ -108,8 +110,27 @@ describe("applyFeedback", () => {
     const current = [{ tag: "color:blue", weight: 0.5 }];
     const snapshot = structuredClone(current);
     const up = applyFeedback(current, outfit, "up");
-    expect(weightOf(up, "color:blue")).toBeCloseTo(0.5 + LEARNING_RATE * 0.5, 5);
+    expect(weightOf(up, "color:blue")).toBeCloseTo(0.5 + LEARNING_RATE_UP * 0.5, 5);
     expect(current).toEqual(snapshot);
+  });
+
+  it("teaches faster from a thumbs-down than a thumbs-up", () => {
+    const [up] = applyFeedback([], [garment({ type: "jeans", color: "navy" })], "up");
+    const [down] = applyFeedback([], [garment({ type: "jeans", color: "navy" })], "down");
+    expect(Math.abs(down!.weight)).toBeGreaterThan(Math.abs(up!.weight));
+  });
+
+  it("lets a well-liked tag resist one thumbs-down, but not a disliked one", () => {
+    const jeans = [garment({ type: "jeans", color: "navy" })];
+    const dropOf = (w: number) => w - applyFeedback([{ tag: "type:jeans", weight: w }], jeans, "down").find((e) => e.tag === "type:jeans")!.weight;
+    const unresisted = (w: number) => LEARNING_RATE_DOWN * (1 + w);
+    // liked tag loses less than the plain rule would take away
+    expect(dropOf(0.8)).toBeGreaterThan(0);
+    expect(dropOf(0.8)).toBeLessThan(unresisted(0.8));
+    expect(unresisted(0.8) - dropOf(0.8)).toBeCloseTo(unresisted(0.8) * DOWN_RESISTANCE * 0.8, 3);
+    // a neutral or disliked tag gets the full step
+    expect(dropOf(0)).toBeCloseTo(unresisted(0), 4);
+    expect(dropOf(-0.5)).toBeCloseTo(unresisted(-0.5), 4);
   });
 
   it("returns only the touched tags, sorted", () => {

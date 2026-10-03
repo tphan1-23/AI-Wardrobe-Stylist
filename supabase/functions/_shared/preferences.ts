@@ -7,7 +7,12 @@ import type { Garment, Occasion, PreferenceEntry, QuizAnswers, StyleVibe, Feedba
 export const COLOR_WEIGHT = 0.6;
 export const STYLE_WEIGHT = 0.4;
 export const OCCASION_WEIGHT = 0.2;
-export const LEARNING_RATE = 0.1;
+// A thumbs-down teaches faster than a thumbs-up, and tags already earned by
+// thumbs-ups resist a single thumbs-down (whole-outfit feedback blames innocent
+// items too). Values chosen by simulation, see brain/AI Logic Ownership.md.
+export const LEARNING_RATE_UP = 0.1;
+export const LEARNING_RATE_DOWN = 0.2;
+export const DOWN_RESISTANCE = 0.5;
 
 // Garments carry no style/occasion tags, so quiz answers are expressed as
 // affinity for the garment types that fit them (the tags scoring can match).
@@ -66,7 +71,10 @@ export function applyFeedback(
   return [...tags].sort().map((tag) => {
     const w = weights.get(tag) ?? 0;
     // Steps shrink near the bounds, so weights approach but never reach +/-1.
-    const next = feedback === "up" ? w + LEARNING_RATE * (1 - w) : w - LEARNING_RATE * (1 + w);
+    const next =
+      feedback === "up"
+        ? w + LEARNING_RATE_UP * (1 - w)
+        : w - LEARNING_RATE_DOWN * (1 + w) * (1 - DOWN_RESISTANCE * Math.max(0, w));
     return { tag, weight: round4(next) };
   });
 }
