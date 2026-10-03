@@ -7,6 +7,7 @@ export default defineConfig({
     include: ["tests/**/*.test.ts"],
     coverage: {
       provider: "v8",
+      reporter: ["text", "json-summary"],
       include: [
         "supabase/functions/_shared/**/*.ts",
         "frontend/src/services/auth.ts",
