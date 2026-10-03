@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "AI Wardrobe Stylist",
-    "slug": "ai-wardrobe-stylist",
+    "name": "DressWell",
+    "slug": "dresswell",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",

@@ -54,7 +54,7 @@ export function AuthScreen() {
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <Text style={styles.title}>AI Wardrobe Stylist</Text>
+      <Text style={styles.title}>DressWell</Text>
       <Text style={styles.subtitle}>{isSignUp ? "Create your account" : "Welcome back"}</Text>
 
       {isSignUp && (
