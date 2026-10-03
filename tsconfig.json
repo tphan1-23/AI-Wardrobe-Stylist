@@ -8,7 +8,7 @@
     "noEmit": true,
     "skipLibCheck": true,
     "allowImportingTsExtensions": true,
-    "types": []
+    "types": ["node"]
   },
   "include": ["supabase/functions/_shared/**/*.ts", "tests/**/*.ts"]
 }
