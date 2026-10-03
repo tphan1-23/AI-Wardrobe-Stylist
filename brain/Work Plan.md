@@ -40,6 +40,15 @@ Nobody merges their own PR. Review comments should be real; the course grades th
 ## What `feat/expo-app` should deliver (Thanh)
 **Progress (2026-10-03):** step 1 done (Expo SDK 57 app). Step 2 done (`frontend/src/services/supabase.ts`, reads `frontend/.env.local`). Step 4 done in code: `services/auth.ts` (pure logic, injected client) + `AuthScreen`/`HomeScreen`/`useSession`; 21 unit tests, 100% coverage on `auth.ts`, added to the 80% gate. **Not yet verified on a device or against a real Supabase project** (step 3 migration run still to confirm). Next: step 3 report, step 5 household, then 6 and 7. Closet + clean/dirty (step 7) is the planned single core feature for the Milestone 2 PR.
 
+**App name:** the Expo app is branded **DressWell** (display name and slug in `frontend/app.json`); the repo and docs keep the working title AI Wardrobe Stylist.
+
+**Running the app (Thanh):** create `frontend/.env.local` (gitignored) with `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY`, then `cd frontend && npx expo start --tunnel -c` and scan the QR code in Expo Go. Gotchas found:
+- The URL must be the bare project URL (`https://<ref>.supabase.co`). Pasting the REST address ending in `/rest/v1/` makes sign-up fail with "invalid path specified in request URL".
+- Use the anon/publishable key only, never the service_role/secret key.
+- On a guest Wi-Fi (devices isolated) plain LAN mode cannot reach the laptop; use `--tunnel` or a phone hotspot.
+- Expo reads env files only at startup, so restart after editing them.
+- With "Confirm email" on in Supabase, sign-up returns no session and the app shows "check your email".
+
 Order matters; stop at any point with a working, tested slice.
 1. Create the Expo TypeScript app in `frontend/` (replace the `.gitkeep` placeholders as files appear). Run on iPhone via Expo Go.
 2. Supabase client (`@supabase/supabase-js`, AsyncStorage session) reading `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY`.

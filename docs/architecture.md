@@ -2,7 +2,7 @@
 
 ## Overview
 
-AI Wardrobe Stylist is an Expo (React Native) app, tested on iPhone via Expo Go (decision D16), talking directly to Supabase (Postgres + Auth + Storage) for
+AI Wardrobe Stylist is an Expo (React Native) app branded DressWell, tested on iPhone via Expo Go (decision D16), talking directly to Supabase (Postgres + Auth + Storage) for
 data and auth, plus three Supabase Edge Functions that do the AI-specific work: tagging a garment
 photo, scoring a daily outfit, and updating a user's preference vector from feedback. There is no
 separate custom backend server — Supabase is the backend.
