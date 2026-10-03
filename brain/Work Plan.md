@@ -26,7 +26,7 @@ Commits are authored by whoever owns the slice (their own git identity). Team co
 | `chore/tooling-contracts` | main | Manuel | pushed, PR not opened | TypeScript + Vitest (80% gate), tag schema, shared types/contracts |
 | `feat/data-layer` | tooling-contracts | Thanh | pushed, PR not opened | `0001_init.sql` (tables, RLS, storage, `create_household`/`join_household`/`accept_suggestion`), `.env.example`, CI |
 | `feat/ai-core` | data-layer | Manuel + Claude | in progress | scoring engine (done), preference learning (next), tag validation, tests |
-| `feat/expo-app` | data-layer | Thanh | starting | Expo app in `frontend/` (see below) |
+| `feat/expo-app` | data-layer | Thanh | in progress | Expo app in `frontend/`; steps 1, 2 and 4 done (see progress below) |
 
 Chain: `chore/tooling-contracts` → `feat/data-layer` → (`feat/ai-core`, `feat/expo-app`). Work on branches that descend from `feat/data-layer` so the types, schema and CI are present. If you rebase/merge, pull `origin/feat/data-layer` first.
 
@@ -38,6 +38,8 @@ Chain: `chore/tooling-contracts` → `feat/data-layer` → (`feat/ai-core`, `fea
 Nobody merges their own PR. Review comments should be real; the course grades the review record.
 
 ## What `feat/expo-app` should deliver (Thanh)
+**Progress (2026-10-03):** step 1 done (Expo SDK 57 app). Step 2 done (`frontend/src/services/supabase.ts`, reads `frontend/.env.local`). Step 4 done in code: `services/auth.ts` (pure logic, injected client) + `AuthScreen`/`HomeScreen`/`useSession`; 21 unit tests, 100% coverage on `auth.ts`, added to the 80% gate. **Not yet verified on a device or against a real Supabase project** (step 3 migration run still to confirm). Next: step 3 report, step 5 household, then 6 and 7. Closet + clean/dirty (step 7) is the planned single core feature for the Milestone 2 PR.
+
 Order matters; stop at any point with a working, tested slice.
 1. Create the Expo TypeScript app in `frontend/` (replace the `.gitkeep` placeholders as files appear). Run on iPhone via Expo Go.
 2. Supabase client (`@supabase/supabase-js`, AsyncStorage session) reading `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY`.
