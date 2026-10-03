@@ -76,7 +76,7 @@ requirement; garments and suggestions stay scoped to the individual `user_id` wi
 
 ## Core flows
 
-1. **Onboarding:** user signs up with email + password (Supabase Auth; the name is stored in user metadata and a database trigger creates the `users` profile row) → completes cold-start quiz → quiz answers seed
+1. **Onboarding:** user signs up with email + password (Supabase Auth; the name is stored in user metadata and a database trigger creates the `users` profile row) → creates a household (`create_household`) or joins one with an invite code (`join_household`) and sets a location → completes cold-start quiz → quiz answers seed
    `preference_vector`.
 2. **Adding a garment:** user uploads a photo → stored in Supabase Storage → `analyze-garment` tags
    it → new `garments` row.

@@ -38,7 +38,7 @@ Chain: `chore/tooling-contracts` → `feat/data-layer` → (`feat/ai-core`, `fea
 Nobody merges their own PR. Review comments should be real; the course grades the review record.
 
 ## What `feat/expo-app` should deliver (Thanh)
-**Progress (2026-10-03):** step 1 done (Expo SDK 57 app). Step 2 done (`frontend/src/services/supabase.ts`, reads `frontend/.env.local`). Step 4 done in code: `services/auth.ts` (pure logic, injected client) + `AuthScreen`/`HomeScreen`/`useSession`; 21 unit tests, 100% coverage on `auth.ts`, added to the 80% gate. **Not yet verified on a device or against a real Supabase project** (step 3 migration run still to confirm). Next: step 3 report, step 5 household, then 6 and 7. Closet + clean/dirty (step 7) is the planned single core feature for the Milestone 2 PR.
+**Progress (2026-10-03):** step 1 done (Expo SDK 57 app). Step 2 done (`frontend/src/services/supabase.ts`, reads `frontend/.env.local`). Step 4 done and **verified on a device** (sign-up and log-in work in Expo Go): `services/auth.ts` (pure logic, injected client) + `AuthScreen`/`useSession`; 21 unit tests. Step 5 done in code, **not yet verified on a device**: `services/household.ts` (create/join household via the RPCs, load profile and household, save name/location) + `useProfile`, `HouseholdScreen`, `HomeScreen` (shows invite code, saves location); 24 more unit tests. Both services are at 100% coverage under the 80% gate (54 tests total). **Step 3 is still open:** `0001_init.sql` has not yet been applied to the real Supabase project, so household screens fail with "Could not find the table public.users" until it is. The migration was tested locally against embedded Postgres (PGlite, with stand-ins for `auth`/`storage`) and applies cleanly, including the signup trigger, `create_household`, `join_household` and the bad-code error; the `storage.objects` policies could not be verified outside Supabase. Next: apply and confirm the migration, verify step 5 on the phone, then steps 6 and 7. Closet + clean/dirty (step 7) is the planned single core feature for the Milestone 2 PR.
 
 **App name:** the Expo app is branded **DressWell** (display name and slug in `frontend/app.json`); the repo and docs keep the working title AI Wardrobe Stylist.
 
@@ -47,6 +47,9 @@ Nobody merges their own PR. Review comments should be real; the course grades th
 - Use the anon/publishable key only, never the service_role/secret key.
 - On a guest Wi-Fi (devices isolated) plain LAN mode cannot reach the laptop; use `--tunnel` or a phone hotspot.
 - Expo reads env files only at startup, so restart after editing them.
+- Supabase's GitHub integration typically applies migrations only from the production branch (main), which is likely why nothing ran. Until `feat/data-layer` is merged, run `supabase/migrations/0001_init.sql` by hand in Dashboard -> SQL Editor (once; a second run fails with "type already exists"). If it errors, split it: lines 1-149 first (everything the app needs), then the storage section (line 151 to the end) on its own.
+- Accounts created before the migration have no profile row (the trigger did not exist yet). Backfill once: `insert into users (id, name) select id, coalesce(raw_user_meta_data ->> 'name', '') from auth.users on conflict (id) do nothing;`
+- If tables exist but the app still says it cannot find them, run `notify pgrst, 'reload schema';`
 - With "Confirm email" on in Supabase, sign-up returns no session and the app shows "check your email".
 
 Order matters; stop at any point with a working, tested slice.
