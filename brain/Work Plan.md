@@ -62,6 +62,11 @@ Later: quiz screen, daily suggestion screen (call `generate-outfit`, accept via 
 - Do not change the schema without updating `types.ts` and the sync test (`tests/migration.test.ts`).
 - Tests: `npm test`, `npm run test:coverage` (gate 80% on `_shared`), `npm run typecheck`. CI runs the same.
 
+## Contract changes (read before coding against `types.ts`)
+Pull `feat/ai-core` (or its merge) to get these; they affect the app.
+- **`GenerateOutfitResponse`** has a third status, `exhausted` (re-roll ran out of unseen combinations). Handle `ok` / `incomplete` / `exhausted` in the suggestion screen.
+- **`AnalyzeGarmentResponse`** is now `{ tags: Partial<GarmentTags>, confidence, needs_review, warnings }`. Fields the model got wrong or missed are absent from `tags`; fields that are absent or low-confidence are listed in `needs_review`. **The review screen must highlight those fields and require the user to fill/confirm them before saving**, and a stub of `analyze-garment` should return this shape (e.g. all four tags present, `needs_review: []`).
+
 ## Known unknowns (blockers to watch)
 - Supabase project not created; migration and RLS untested on a real database.
 - Gemini model/version and key not chosen; edge functions not deployed (Deno not installed locally).

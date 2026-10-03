@@ -90,9 +90,14 @@ export interface AnalyzeGarmentRequest {
   image_path: string;
 }
 
+// Fields the model got wrong, left out or was unsure about are absent from
+// `tags` or listed in `needs_review`; the review screen must make the user
+// fill/confirm them before the garment is saved.
 export interface AnalyzeGarmentResponse {
-  tags: GarmentTags;
-  confidence: Record<keyof GarmentTags, number>; // 0..1 per field
+  tags: Partial<GarmentTags>;
+  confidence: Partial<Record<keyof GarmentTags, number>>; // 0..1 per field
+  needs_review: (keyof GarmentTags)[];
+  warnings: string[];
 }
 
 // ---- Edge function: generate-outfit ---------------------------------------
