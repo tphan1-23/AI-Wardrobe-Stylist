@@ -12,7 +12,7 @@ import type {
   WeatherSnapshot,
 } from "./types.ts";
 
-export const WEIGHTS = { weather: 0.5, preference: 0.3, repeat: 0.4 } as const;
+export const WEIGHTS = { weather: 0.5, preference: 0.5, repeat: 0.25 } as const;
 export const REPEAT_WINDOW_DAYS = 7;
 export const MAX_CANDIDATES_PER_SLOT = 15;
 const COMFORT_OFFSET_C: Record<TempComfort, number> = { runs_cold: -3, neutral: 0, runs_hot: 3 };
@@ -61,7 +61,7 @@ export function daysBetween(from: ISODate, to: ISODate): number {
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
 
 function preferenceScore(g: Garment, weights: Map<string, number>): number {
-  const tags = garmentTags(g);
+  const tags = garmentTags(g).filter((t) => !t.startsWith("season:"));
   const sum = tags.reduce((acc, tag) => acc + (weights.get(tag) ?? 0), 0);
   return clamp(sum / tags.length, -1, 1);
 }

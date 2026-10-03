@@ -197,6 +197,17 @@ describe("scoreOutfit", () => {
     expect(avoidsRed.status === "ok" && avoidsRed.outfit.top).toBe("blue-tee");
   });
 
+  it("keeps avoiding a strongly disliked item even when it is the freshest option", () => {
+    const closet = [
+      garment({ id: "red-fresh", type: "t_shirt", color: "red", last_worn_date: null }),
+      garment({ id: "blue-worn", type: "t_shirt", color: "blue", last_worn_date: "2026-10-04" }),
+      garment({ id: "bottom", type: "jeans" }),
+      garment({ id: "shoes", type: "sneakers" }),
+    ];
+    const result = scoreOutfit(input(closet, { preferences: [{ tag: "color:red", weight: -0.95 }] }));
+    expect(result.status === "ok" && result.outfit.top).toBe("blue-worn");
+  });
+
   it("does not let preferences override clear weather mismatches", () => {
     const closet = [
       garment({ id: "loved-tee", type: "t_shirt", color: "red", warmth: 1 }),

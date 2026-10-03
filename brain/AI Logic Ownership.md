@@ -35,11 +35,14 @@ _Add one row per experiment. Never change a prompt or weight without logging it.
 | Date | Change | Metric before → after | Decision |
 |---|---|---|---|
 | 2026-10-03 | Initial scoring engine (`_shared/scoring.ts`): item score = 0.5·weather fit (80% warmth, 20% season, sandals −0.5 in rain) + 0.3·preference (mean of type/color/season tag weights, clamped ±1) − 0.4·repeat (linear over 7 days, 1.0 if worn today); outfit = mean of 3 items; top 15 candidates per slot. | No real data yet. 29 tests, 100% coverage; 8 deliberate mutations (weights zeroed, dirty/other items allowed, rain/comfort/worn-today ignored) were all caught. | Weights are first guesses, untuned. Tune only against logged user feedback or simulated users. |
+| 2026-10-03 | Added preference learning (`_shared/preferences.ts`): quiz → type/color weights (style +0.4, occasion +0.2, favorite color +0.6, avoided color −0.6 wins over favorite); feedback step 0.1 with soft bounds on `type:`/`color:` tags only. Simulated user (30 days, 4 attempts/day, re-roll on thumbs down) exposed a defect: the learned dislike (red weight −0.9995) was **ignored** because preference (0.3, diluted by an unlearnable `season:` tag) lost to the repeat penalty (0.4), so never-worn red items looked "fresh". | Disliked attempts, days 1–15 → 16–30 (color scenario): **44 → 51** (worse). Season tag excluded from preference mean: 43 → 42. Grid over weights (2 scenarios: dislikes red / dislikes shorts, all deterministic): pref 0.3/repeat 0.4: 40→43 and 21→3; 0.5/0.4: 36→18 and 8→0; 0.5/0.3: 19→0 and 6→0 but item reuse 50; **0.5/0.25: 14→0 and 5→0, reuse 8 and 35**; 0.4/0.25: 22→0 and 7→0. | Adopted preference 0.5, repeat 0.25, season excluded from preference mean. Regression tests added. **Caveat:** two synthetic scenarios, ~9–10 item closets, fixed taste — evidence of direction, not of real-user accuracy. Revisit with real feedback. |
 
 ## Known limitations of the scoring engine
 - Season is derived from the date assuming the northern hemisphere.
 - No color coordination or layering (stretch goals); outfit score is a plain mean, so one badly matched item can be offset by two good ones.
-- Preferences only know `type:`, `color:`, `season:` tags; quiz style/occasion tags have nothing to match yet (needs garment style/occasion tags or a mapping in preference learning).
+- Quiz style/occasion answers are expressed as `type:` affinities (garments have no style/occasion tags), so they only steer toward types, not more.
+- Whole-outfit feedback has credit-assignment noise: thumbs down on a red outfit also nudges the blue/white items in it down; it washes out over time but slows learning.
+- Item reuse is high in small closets (few valid choices per slot); the repeat penalty cannot fix a closet that is too small.
 
 ## Open items
 - [ ] Choose Gemini model/version and fix the tag schema (blocks the eval set)
