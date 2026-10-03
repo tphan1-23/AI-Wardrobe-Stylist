@@ -34,7 +34,12 @@ _Add one row per experiment. Never change a prompt or weight without logging it.
 
 | Date | Change | Metric before → after | Decision |
 |---|---|---|---|
-| | | | |
+| 2026-10-03 | Initial scoring engine (`_shared/scoring.ts`): item score = 0.5·weather fit (80% warmth, 20% season, sandals −0.5 in rain) + 0.3·preference (mean of type/color/season tag weights, clamped ±1) − 0.4·repeat (linear over 7 days, 1.0 if worn today); outfit = mean of 3 items; top 15 candidates per slot. | No real data yet. 29 tests, 100% coverage; 8 deliberate mutations (weights zeroed, dirty/other items allowed, rain/comfort/worn-today ignored) were all caught. | Weights are first guesses, untuned. Tune only against logged user feedback or simulated users. |
+
+## Known limitations of the scoring engine
+- Season is derived from the date assuming the northern hemisphere.
+- No color coordination or layering (stretch goals); outfit score is a plain mean, so one badly matched item can be offset by two good ones.
+- Preferences only know `type:`, `color:`, `season:` tags; quiz style/occasion tags have nothing to match yet (needs garment style/occasion tags or a mapping in preference learning).
 
 ## Open items
 - [ ] Choose Gemini model/version and fix the tag schema (blocks the eval set)

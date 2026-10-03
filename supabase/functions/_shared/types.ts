@@ -103,19 +103,17 @@ export interface GenerateOutfitRequest {
   exclude_suggestion_ids?: UUID[]; // re-roll after thumbs down (D9)
 }
 
+// Pure result of the scoring engine (no persistence).
+export type OutfitResult =
+  | { status: "ok"; outfit: Outfit; score: number; reasoning: string }
+  | { status: "incomplete"; missing_slots: Exclude<Slot, "other">[]; reasoning: string }
+  // Every valid combination was already rejected (re-roll ran out of options).
+  | { status: "exhausted"; reasoning: string };
+
+// The edge function persists an "ok" result and adds the suggestion id.
 export type GenerateOutfitResponse =
-  | {
-      status: "ok";
-      suggestion_id: UUID;
-      outfit: Outfit;
-      score: number;
-      reasoning: string;
-    }
-  | {
-      status: "incomplete";
-      missing_slots: Exclude<Slot, "other">[];
-      reasoning: string;
-    };
+  | (Extract<OutfitResult, { status: "ok" }> & { suggestion_id: UUID })
+  | Exclude<OutfitResult, { status: "ok" }>;
 
 // ---- Accepting a suggestion (marks items worn, D3) --------------------------
 
