@@ -151,6 +151,13 @@ describe("loadOverview", () => {
     expect(await loadOverview(gateway({ loadProfile: async () => err("boom") }))).toEqual({ ok: false, error: "boom" });
     expect(await loadOverview(gateway({ loadHousehold: async () => err("denied") }))).toEqual({ ok: false, error: "denied" });
   });
+
+  it("explains a missing profile or household instead of showing a raw database error", async () => {
+    const noProfile = await loadOverview(gateway({ loadProfile: async () => ({ data: null, error: null }) }));
+    expect(noProfile).toEqual({ ok: false, error: "Your profile could not be found. Log out and sign in again." });
+    const noHousehold = await loadOverview(gateway({ loadHousehold: async () => ({ data: null, error: null }) }));
+    expect(noHousehold).toEqual({ ok: false, error: "Your household could not be found." });
+  });
 });
 
 describe("supabaseGateway adapter", () => {
@@ -162,7 +169,7 @@ describe("supabaseGateway adapter", () => {
         select: (c: string) => (calls.ops.push(["select", c]), q),
         update: (v: Record<string, unknown>) => (calls.ops.push(["update", v]), q),
         eq: (c: string, v: string) => (calls.ops.push(["eq", c, v]), q),
-        single: async () => reply,
+        maybeSingle: async () => reply,
         then: (res: (r: Reply) => unknown) => Promise.resolve(reply).then(res),
       };
       return q as never;

@@ -8,7 +8,7 @@ interface Query {
   select(columns: string): Query;
   update(values: Record<string, unknown>): Query;
   eq(column: string, value: string): Query;
-  single(): Result;
+  maybeSingle(): Result;
   then: Result["then"];
 }
 
@@ -40,7 +40,7 @@ export function supabaseGateway(client: SupabaseLike): HouseholdGateway {
     async loadProfile() {
       const id = await currentUserId();
       if (typeof id !== "string") return { data: null, error: id };
-      return typed<ProfileRow>(await client.from("users").select("household_id, name, location").eq("id", id).single());
+      return typed<ProfileRow>(await client.from("users").select("household_id, name, location").eq("id", id).maybeSingle());
     },
     async updateLocation(location) {
       const id = await currentUserId();
@@ -49,7 +49,7 @@ export function supabaseGateway(client: SupabaseLike): HouseholdGateway {
     },
     async loadHousehold(householdId) {
       return typed<HouseholdRow>(
-        await client.from("households").select("id, name, invite_code").eq("id", householdId).single(),
+        await client.from("households").select("id, name, invite_code").eq("id", householdId).maybeSingle(),
       );
     },
   };

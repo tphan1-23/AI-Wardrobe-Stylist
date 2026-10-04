@@ -83,11 +83,14 @@ export function onboardingStep(profile: Pick<ProfileRow, "household_id" | "locat
   return "ready";
 }
 
-async function guarded<T>(call: () => Promise<GatewayResult<T>>): Promise<Result<T>> {
+async function guarded<T>(
+  call: () => Promise<GatewayResult<T>>,
+  emptyMessage = "The server returned no data. Please try again.",
+): Promise<Result<T>> {
   try {
     const { data, error } = await call();
     if (error) return { ok: false, error: friendlyHouseholdError(error.message) };
-    if (data === null || data === undefined) return { ok: false, error: "The server returned no data. Please try again." };
+    if (data === null || data === undefined) return { ok: false, error: emptyMessage };
     return { ok: true, value: data };
   } catch {
     return { ok: false, error: NETWORK_ERROR };
@@ -124,13 +127,13 @@ export interface Overview {
 }
 
 export async function loadOverview(gateway: HouseholdGateway): Promise<Result<Overview>> {
-  const profile = await guarded(() => gateway.loadProfile());
+  const profile = await guarded(() => gateway.loadProfile(), "Your profile could not be found. Log out and sign in again.");
   if (!profile.ok) return profile;
   const householdId = profile.value.household_id;
   if (!householdId) {
     return { ok: true, value: { profile: profile.value, household: null, step: onboardingStep(profile.value) } };
   }
-  const household = await guarded(() => gateway.loadHousehold(householdId));
+  const household = await guarded(() => gateway.loadHousehold(householdId), "Your household could not be found.");
   if (!household.ok) return household;
   return { ok: true, value: { profile: profile.value, household: household.value, step: onboardingStep(profile.value) } };
 }
