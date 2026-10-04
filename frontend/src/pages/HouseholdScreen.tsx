@@ -1,78 +1,85 @@
 import { useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import { Button } from "../components/common/Button";
+import { Screen } from "../components/common/Screen";
+import { StepIndicator } from "../components/common/StepIndicator";
+import { TextField } from "../components/common/TextField";
 import { createHousehold, joinHousehold } from "../services/household";
 import { gateway } from "../services/supabase";
+import { colors, fonts, radius, size, type } from "../theme";
 
-type Mode = "create" | "join";
+type Which = "create" | "join";
 
 export function HouseholdScreen({ onDone }: { onDone: () => void }) {
-  const [mode, setMode] = useState<Mode>("create");
-  const [value, setValue] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [name, setName] = useState("");
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState<Which | null>(null);
+  const [error, setError] = useState<{ which: Which; message: string } | null>(null);
 
-  const isCreate = mode === "create";
-
-  function switchMode() {
-    setMode(isCreate ? "join" : "create");
-    setValue("");
+  async function submit(which: Which) {
+    setBusy(which);
     setError(null);
-  }
-
-  async function submit() {
-    setBusy(true);
-    setError(null);
-    const result = isCreate ? await createHousehold(gateway, value) : await joinHousehold(gateway, value);
-    setBusy(false);
+    const result = which === "create" ? await createHousehold(gateway, name) : await joinHousehold(gateway, code);
+    setBusy(null);
     if (result.ok) onDone();
-    else setError(result.error);
+    else setError({ which, message: result.error });
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>{isCreate ? "Create your household" : "Join a household"}</Text>
-      <Text style={styles.subtitle}>
-        {isCreate
-          ? "A household shares one closet. You can invite others with a code."
-          : "Ask a household member for their invite code."}
-      </Text>
+    <Screen title="Your household" subtitle="Closets are shared, so everyone in the household sees the same clothes.">
+      <StepIndicator step={1} total={2} />
 
-      <TextInput
-        style={styles.input}
-        placeholder={isCreate ? "Household name" : "Invite code"}
-        value={value}
-        onChangeText={setValue}
-        autoCapitalize={isCreate ? "words" : "none"}
-        autoCorrect={false}
-      />
+      <View style={styles.card}>
+        <Text style={type.cardTitle}>Create a household</Text>
+        <TextField
+          label="Household name"
+          value={name}
+          onChangeText={setName}
+          placeholder="e.g. Maple Street"
+          autoCapitalize="words"
+          error={error?.which === "create" ? error.message : null}
+        />
+        <Button label="Create" onPress={() => submit("create")} busy={busy === "create"} disabled={busy === "join"} />
+      </View>
 
-      {error && <Text style={styles.error}>{error}</Text>}
+      <View style={styles.divider}>
+        <View style={styles.rule} />
+        <Text style={styles.or}>or</Text>
+        <View style={styles.rule} />
+      </View>
 
-      <Pressable style={[styles.button, busy && styles.buttonDisabled]} onPress={submit} disabled={busy}>
-        {busy ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.buttonText}>{isCreate ? "Create household" : "Join household"}</Text>
-        )}
-      </Pressable>
-
-      <Pressable onPress={switchMode} disabled={busy}>
-        <Text style={styles.link}>
-          {isCreate ? "Have an invite code? Join instead" : "Start a new household instead"}
-        </Text>
-      </Pressable>
-    </View>
+      <View style={styles.card}>
+        <Text style={type.cardTitle}>Join with an invite code</Text>
+        <TextField
+          label="Invite code"
+          value={code}
+          onChangeText={setCode}
+          placeholder="8 characters"
+          autoCapitalize="none"
+          autoCorrect={false}
+          error={error?.which === "join" ? error.message : null}
+        />
+        <Button
+          label="Join"
+          variant="secondary"
+          onPress={() => submit("join")}
+          busy={busy === "join"}
+          disabled={busy === "create"}
+        />
+      </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff", justifyContent: "center", padding: 24, gap: 12 },
-  title: { fontSize: 24, fontWeight: "700", textAlign: "center" },
-  subtitle: { fontSize: 15, color: "#555", textAlign: "center", marginBottom: 12 },
-  input: { borderWidth: 1, borderColor: "#ccc", borderRadius: 8, padding: 12, fontSize: 16 },
-  button: { backgroundColor: "#111", borderRadius: 8, padding: 14, alignItems: "center" },
-  buttonDisabled: { opacity: 0.6 },
-  buttonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
-  link: { color: "#0a5bd8", textAlign: "center", marginTop: 8 },
-  error: { color: "#b00020" },
+  card: {
+    borderWidth: size.border,
+    borderColor: colors.ink,
+    borderRadius: radius.card,
+    padding: 20,
+    gap: 16,
+  },
+  divider: { flexDirection: "row", alignItems: "center", gap: 12 },
+  rule: { flex: 1, height: 1, backgroundColor: colors.line },
+  or: { fontFamily: fonts.semibold, fontSize: 14, color: colors.muted },
 });

@@ -81,6 +81,19 @@ export function friendlyAuthError(message: string): string {
   return message;
 }
 
+export type AuthField = "name" | "email" | "password" | "form";
+
+// Which input an error message belongs to, so the screen can mark that field.
+export function fieldForError(message: string): AuthField {
+  const text = message.toLowerCase();
+  if (text.includes("incorrect email or password")) return "password";
+  if (text.includes("your name")) return "name";
+  if (text.includes("confirm your email")) return "form";
+  if (text.includes("email")) return "email";
+  if (text.includes("password")) return "password";
+  return "form";
+}
+
 const NETWORK_ERROR = "Could not reach the server. Check your connection and try again.";
 
 export async function signUp(client: AuthClient, input: SignUpInput): Promise<AuthResult> {

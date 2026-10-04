@@ -1,5 +1,11 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { InstrumentSans_400Regular } from "@expo-google-fonts/instrument-sans/400Regular";
+import { InstrumentSans_500Medium } from "@expo-google-fonts/instrument-sans/500Medium";
+import { InstrumentSans_600SemiBold } from "@expo-google-fonts/instrument-sans/600SemiBold";
+import { InstrumentSans_700Bold } from "@expo-google-fonts/instrument-sans/700Bold";
+import { useFonts } from "expo-font";
 import { StatusBar } from "expo-status-bar";
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { Button } from "./src/components/common/Button";
 import { useOverview } from "./src/hooks/useOverview";
 import { useSession } from "./src/hooks/useSession";
 import { AuthScreen } from "./src/pages/AuthScreen";
@@ -8,11 +14,12 @@ import { HouseholdScreen } from "./src/pages/HouseholdScreen";
 import { LocationScreen } from "./src/pages/LocationScreen";
 import { signOut } from "./src/services/auth";
 import { supabase } from "./src/services/supabase";
+import { colors, fonts } from "./src/theme";
 
 function Loading() {
   return (
     <View style={styles.center}>
-      <ActivityIndicator />
+      <ActivityIndicator color={colors.ink} />
     </View>
   );
 }
@@ -27,34 +34,40 @@ function SignedIn() {
     return (
       <View style={styles.center}>
         <Text style={styles.error}>{error ?? "Something went wrong."}</Text>
-        <Pressable onPress={refresh}>
-          <Text style={styles.link}>Try again</Text>
-        </Pressable>
-        <Pressable onPress={() => signOut(supabase.auth)}>
-          <Text style={styles.link}>Log out</Text>
-        </Pressable>
+        <View style={styles.actions}>
+          <Button label="Try again" onPress={refresh} />
+          <Button label="Log out" variant="secondary" onPress={() => signOut(supabase.auth)} />
+        </View>
       </View>
     );
   }
 
   if (overview.step === "household") return <HouseholdScreen onDone={refresh} />;
-  if (overview.step === "location") return <LocationScreen submitLabel="Continue" onDone={refresh} />;
+  if (overview.step === "location") {
+    return <LocationScreen step={{ current: 2, total: 2 }} submitLabel="Continue" onDone={refresh} />;
+  }
   return <HomeScreen overview={overview} onChanged={refresh} />;
 }
 
 export default function App() {
+  const [fontsLoaded] = useFonts({
+    InstrumentSans_400Regular,
+    InstrumentSans_500Medium,
+    InstrumentSans_600SemiBold,
+    InstrumentSans_700Bold,
+  });
   const { session, loading } = useSession();
 
   return (
     <>
-      {loading ? <Loading /> : session ? <SignedIn key={session.user.id} /> : <AuthScreen />}
-      <StatusBar style="auto" />
+      {!fontsLoaded || loading ? <Loading /> : session ? <SignedIn key={session.user.id} /> : <AuthScreen />}
+      <StatusBar style="dark" />
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  center: { flex: 1, backgroundColor: "#fff", alignItems: "center", justifyContent: "center", gap: 12, padding: 24 },
-  error: { color: "#b00020", textAlign: "center" },
-  link: { color: "#0a5bd8" },
+  center: { flex: 1, backgroundColor: colors.paper, alignItems: "center", justifyContent: "center", gap: 16, padding: 24 },
+  error: { fontFamily: fonts.semibold, fontSize: 16, color: colors.ink, textAlign: "center" },
+  actions: { alignSelf: "stretch", gap: 12 },
 });

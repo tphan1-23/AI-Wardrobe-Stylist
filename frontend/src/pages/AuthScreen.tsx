@@ -1,16 +1,14 @@
 import { useState } from "react";
-import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
-import { signIn, signUp } from "../services/auth";
+import { StyleSheet, Text, View } from "react-native";
+import { Button } from "../components/common/Button";
+import { ErrorLine } from "../components/common/ErrorLine";
+import { Icon } from "../components/common/Icon";
+import { Screen } from "../components/common/Screen";
+import { Segmented } from "../components/common/Segmented";
+import { TextField } from "../components/common/TextField";
+import { fieldForError, signIn, signUp, type AuthField } from "../services/auth";
 import { supabase } from "../services/supabase";
+import { colors, fonts, type } from "../theme";
 
 type Mode = "sign_in" | "sign_up";
 
@@ -20,13 +18,14 @@ export function AuthScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ field: AuthField; message: string } | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const isSignUp = mode === "sign_up";
+  const errorFor = (field: AuthField) => (error?.field === field ? error.message : null);
 
-  function switchMode() {
-    setMode(isSignUp ? "sign_in" : "sign_up");
+  function changeMode(next: Mode) {
+    setMode(next);
     setError(null);
     setNotice(null);
   }
@@ -41,81 +40,95 @@ export function AuthScreen() {
     setBusy(false);
 
     if (!result.ok) {
-      setError(result.error);
+      setError({ field: fieldForError(result.error), message: result.error });
     } else if (result.status === "confirmation_required") {
-      setNotice("Check your email to confirm your account, then sign in.");
+      setNotice("Check your email to confirm your account, then log in.");
       setMode("sign_in");
     }
     // On success the session listener in App swaps to the signed-in screen.
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
-      <Text style={styles.title}>DressWell</Text>
-      <Text style={styles.subtitle}>{isSignUp ? "Create your account" : "Welcome back"}</Text>
+    <Screen top={72}>
+      <View style={styles.brand}>
+        <Icon name="logo" size={32} />
+        <Text style={styles.brandName}>DressWell</Text>
+      </View>
 
-      {isSignUp && (
-        <TextInput
-          style={styles.input}
-          placeholder="Name"
-          value={name}
-          onChangeText={setName}
-          autoCapitalize="words"
-          textContentType="name"
-        />
-      )}
-      <TextInput
-        style={styles.input}
-        placeholder="Email"
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        autoCorrect={false}
-        keyboardType="email-address"
-        textContentType="emailAddress"
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Password"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        autoCapitalize="none"
-        textContentType={isSignUp ? "newPassword" : "password"}
-      />
-
-      {error && <Text style={styles.error}>{error}</Text>}
-      {notice && <Text style={styles.notice}>{notice}</Text>}
-
-      <Pressable style={[styles.button, busy && styles.buttonDisabled]} onPress={submit} disabled={busy}>
-        {busy ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.buttonText}>{isSignUp ? "Sign up" : "Log in"}</Text>
-        )}
-      </Pressable>
-
-      <Pressable onPress={switchMode} disabled={busy}>
-        <Text style={styles.link}>
-          {isSignUp ? "Already have an account? Log in" : "New here? Create an account"}
+      <View>
+        <Text accessibilityRole="header" style={type.display}>
+          {isSignUp ? "Create your account" : "Welcome back"}
         </Text>
-      </Pressable>
-    </KeyboardAvoidingView>
+        <Text style={[type.body, styles.subtitle]}>
+          {isSignUp ? "Sign up to start your digital closet." : "Log in to see what to wear today."}
+        </Text>
+      </View>
+
+      <Segmented
+        value={mode}
+        onChange={changeMode}
+        options={[
+          { value: "sign_in", label: "Log in" },
+          { value: "sign_up", label: "Sign up" },
+        ]}
+      />
+
+      <View style={styles.form}>
+        {isSignUp && (
+          <TextField
+            label="Name"
+            value={name}
+            onChangeText={setName}
+            placeholder="Your name"
+            autoCapitalize="words"
+            textContentType="name"
+            error={errorFor("name")}
+          />
+        )}
+        <TextField
+          label="Email"
+          value={email}
+          onChangeText={setEmail}
+          placeholder="you@example.com"
+          autoCapitalize="none"
+          autoCorrect={false}
+          keyboardType="email-address"
+          textContentType="emailAddress"
+          error={errorFor("email")}
+        />
+        <TextField
+          label="Password"
+          value={password}
+          onChangeText={setPassword}
+          placeholder="Password"
+          secureTextEntry
+          autoCapitalize="none"
+          textContentType={isSignUp ? "newPassword" : "password"}
+          error={errorFor("password")}
+        />
+        {error?.field === "form" && <ErrorLine message={error.message} />}
+        {notice && (
+          <View style={styles.notice}>
+            <Icon name="check" />
+            <Text style={styles.noticeText}>{notice}</Text>
+          </View>
+        )}
+        <Button label={isSignUp ? "Sign up" : "Log in"} onPress={submit} busy={busy} />
+      </View>
+
+      <Text style={styles.footer}>
+        {isSignUp ? "Already have an account? Choose Log in above." : "New here? Choose Sign up above."}
+      </Text>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff", justifyContent: "center", padding: 24, gap: 12 },
-  title: { fontSize: 28, fontWeight: "700", textAlign: "center" },
-  subtitle: { fontSize: 16, color: "#555", textAlign: "center", marginBottom: 12 },
-  input: { borderWidth: 1, borderColor: "#ccc", borderRadius: 8, padding: 12, fontSize: 16 },
-  button: { backgroundColor: "#111", borderRadius: 8, padding: 14, alignItems: "center" },
-  buttonDisabled: { opacity: 0.6 },
-  buttonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
-  link: { color: "#0a5bd8", textAlign: "center", marginTop: 8 },
-  error: { color: "#b00020" },
-  notice: { color: "#1b6e2b" },
+  brand: { flexDirection: "row", alignItems: "center", gap: 10 },
+  brandName: { fontFamily: fonts.bold, fontSize: 24, letterSpacing: -0.48, color: colors.ink },
+  subtitle: { marginTop: 8 },
+  form: { gap: 20 },
+  notice: { flexDirection: "row", alignItems: "center", gap: 6 },
+  noticeText: { flex: 1, fontFamily: fonts.semibold, fontSize: 14, color: colors.ink },
+  footer: { ...type.caption, fontSize: 14, textAlign: "center", marginTop: "auto" },
 });

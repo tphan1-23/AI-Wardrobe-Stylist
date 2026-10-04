@@ -1,15 +1,23 @@
 import { useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { Button } from "../components/common/Button";
+import { Screen } from "../components/common/Screen";
+import { StepIndicator } from "../components/common/StepIndicator";
+import { TextField } from "../components/common/TextField";
 import { saveLocation } from "../services/household";
 import { gateway } from "../services/supabase";
 
 interface Props {
   initialLocation?: string;
   submitLabel?: string;
+  // Set during onboarding to show the progress bar.
+  step?: { current: number; total: number };
+  // Present when the screen can be left without saving (changing an existing location).
+  onBack?: () => void;
   onDone: () => void;
 }
 
-export function LocationScreen({ initialLocation = "", submitLabel = "Save location", onDone }: Props) {
+export function LocationScreen({ initialLocation = "", submitLabel = "Save location", step, onBack, onDone }: Props) {
   const [location, setLocation] = useState(initialLocation);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,31 +32,24 @@ export function LocationScreen({ initialLocation = "", submitLabel = "Save locat
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Where are you?</Text>
-      <Text style={styles.subtitle}>We use your location to check the weather for your daily outfit.</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="City or ZIP code"
+    <Screen title="Where are you?" subtitle="We use your city or ZIP code to check the weather for your daily outfit.">
+      {step && <StepIndicator step={step.current} total={step.total} />}
+      <TextField
+        label="City or ZIP code"
         value={location}
         onChangeText={setLocation}
+        placeholder="City or ZIP"
         autoCorrect={false}
+        error={error}
       />
-      {error && <Text style={styles.error}>{error}</Text>}
-      <Pressable style={[styles.button, busy && styles.buttonDisabled]} onPress={submit} disabled={busy}>
-        {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>{submitLabel}</Text>}
-      </Pressable>
-    </View>
+      <View style={styles.actions}>
+        <Button label={submitLabel} onPress={submit} busy={busy} />
+        {onBack && <Button label="Back" variant="secondary" onPress={onBack} disabled={busy} />}
+      </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff", justifyContent: "center", padding: 24, gap: 12 },
-  title: { fontSize: 24, fontWeight: "700", textAlign: "center" },
-  subtitle: { fontSize: 15, color: "#555", textAlign: "center", marginBottom: 12 },
-  input: { borderWidth: 1, borderColor: "#ccc", borderRadius: 8, padding: 12, fontSize: 16 },
-  button: { backgroundColor: "#111", borderRadius: 8, padding: 14, alignItems: "center" },
-  buttonDisabled: { opacity: 0.6 },
-  buttonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
-  error: { color: "#b00020" },
+  actions: { marginTop: "auto", gap: 12 },
 });

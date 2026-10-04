@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   MIN_PASSWORD_LENGTH,
+  fieldForError,
   friendlyAuthError,
   normalizeEmail,
   signIn,
@@ -159,5 +160,35 @@ describe("signOut", () => {
   it("handles network failures", async () => {
     const client = fakeClient({ signOut: vi.fn().mockRejectedValue(new Error("offline")) });
     expect((await signOut(client)).ok).toBe(false);
+  });
+});
+
+describe("fieldForError", () => {
+  it.each([
+    ["Incorrect email or password.", "password"],
+    ["Enter your name.", "name"],
+    ["Enter your email address.", "email"],
+    ["Enter a valid email address.", "email"],
+    ["An account with this email already exists.", "email"],
+    ["Enter a password.", "password"],
+    ["Password must be at least 8 characters.", "password"],
+    ["Confirm your email, then sign in.", "form"],
+    ["Too many attempts. Please wait a moment and try again.", "form"],
+    ["Could not reach the server. Check your connection and try again.", "form"],
+  ])("puts %j on the %s field", (message, field) => {
+    expect(fieldForError(message)).toBe(field);
+  });
+
+  it("agrees with every message the validators and friendly mapper can produce", () => {
+    const messages = [
+      validateName(""), validateEmail(""), validateEmail("x"), validatePassword(""), validatePassword("short"),
+      friendlyAuthError("Invalid login credentials"), friendlyAuthError("User already registered"),
+    ];
+    for (const m of messages) expect(fieldForError(m ?? "")).not.toBeUndefined();
+    expect(fieldForError(validateName("")!)).toBe("name");
+    expect(fieldForError(validateEmail("x")!)).toBe("email");
+    expect(fieldForError(validatePassword("short")!)).toBe("password");
+    expect(fieldForError(friendlyAuthError("Invalid login credentials"))).toBe("password");
+    expect(fieldForError(friendlyAuthError("User already registered"))).toBe("email");
   });
 });
