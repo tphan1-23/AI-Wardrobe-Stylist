@@ -2,16 +2,16 @@
 
 ## Overview
 
-AI Wardrobe Stylist is a React frontend talking directly to Supabase (Postgres + Auth + Storage) for
+AI Wardrobe Stylist is an Expo (React Native) app branded DressWell, tested on iPhone via Expo Go (decision D16), talking directly to Supabase (Postgres + Auth + Storage) for
 data and auth, plus three Supabase Edge Functions that do the AI-specific work: tagging a garment
 photo, scoring a daily outfit, and updating a user's preference vector from feedback. There is no
 separate custom backend server — Supabase is the backend.
 
 ```
 ┌────────────┐      ┌───────────────────────────────────────────┐
-│  React SPA │──────▶│                  Supabase                  │
-│ (Vercel/   │      │  ┌───────────┐ ┌────────┐ ┌──────────────┐ │
-│  Netlify)  │◀──────│  │ Postgres  │ │  Auth  │ │ File Storage │ │
+│ Expo (RN)  │──────▶│                  Supabase                  │
+│ app on     │      │  ┌───────────┐ ┌────────┐ ┌──────────────┐ │
+│ iPhone     │◀──────│  │ Postgres  │ │  Auth  │ │ File Storage │ │
 └────────────┘      │  └───────────┘ └────────┘ └──────────────┘ │
       │              │  ┌─────────────────────────────────────┐  │
       │              │  │           Edge Functions             │  │
@@ -27,7 +27,7 @@ separate custom backend server — Supabase is the backend.
 └────────────┘                  └──────────────────┘
 ```
 
-## Frontend (`frontend/src/`)
+## Frontend (`frontend/`, Expo app; code in `frontend/src/`)
 
 | Folder | Responsibility |
 |---|---|
@@ -36,9 +36,9 @@ separate custom backend server — Supabase is the backend.
 | `components/onboarding/` | Cold-start quiz, seeds `preference_vector` |
 | `components/outfit/` | Daily suggestion display, thumbs up/down feedback |
 | `components/common/` | Shared UI primitives |
-| `services/` | Supabase client, weather client, calls to edge functions |
-| `hooks/` | Data-fetching/state hooks wrapping `services/` |
-| `pages/` | Route-level screens composing the above |
+| `services/` | `supabase.ts` (client, AsyncStorage session), `auth.ts` (pure sign-up/log-in/log-out logic, unit-tested), weather client, calls to edge functions |
+| `hooks/` | Data-fetching/state hooks wrapping `services/` (`useSession` tracks the auth session) |
+| `pages/` | Screens composing the above (`AuthScreen` sign-up/log-in, `HomeScreen` placeholder) |
 
 The frontend talks to Postgres directly through the Supabase client SDK (auto-generated REST/RPC
 via PostgREST) for plain CRUD, and calls the three edge functions below for anything that needs
@@ -76,7 +76,7 @@ requirement; garments and suggestions stay scoped to the individual `user_id` wi
 
 ## Core flows
 
-1. **Onboarding:** user signs up (Supabase Auth) → completes cold-start quiz → quiz answers seed
+1. **Onboarding:** user signs up with email + password (Supabase Auth; the name is stored in user metadata and a database trigger creates the `users` profile row) → creates a household (`create_household`) or joins one with an invite code (`join_household`) and sets a location → completes cold-start quiz → quiz answers seed
    `preference_vector`.
 2. **Adding a garment:** user uploads a photo → stored in Supabase Storage → `analyze-garment` tags
    it → new `garments` row.

@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "allowImportingTsExtensions": true,
+    "types": ["node"]
+  },
+  "include": ["supabase/functions/_shared/**/*.ts", "frontend/src/services/auth.ts", "frontend/src/services/household.ts", "frontend/src/services/householdGateway.ts", "frontend/src/layout.ts", "tests/**/*.ts"]
+}

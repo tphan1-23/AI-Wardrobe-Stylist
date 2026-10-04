@@ -16,11 +16,11 @@ Shared agent context file for this repo (course deliverable: "repo setup w/ shar
 
 ## Shared brain & ownership
 
-- **`brain/` is the team's shared memory** (Obsidian-compatible notes, see `brain/README.md`). At the start of a session read `brain/AI Wardrobe - Requirements & Decisions.md` and `brain/AI Logic Ownership.md`; run `git fetch --all` to see other branches/sessions. When a decision is made or status changes, update `brain/` in the same commit/PR as the code. The repo is public — never put course materials, grades, secrets or identifiable photos in it.
+- **`brain/` is the team's shared memory** (Obsidian-compatible notes, see `brain/README.md`). At the start of a session read `brain/Work Plan.md`, `brain/AI Wardrobe - Requirements & Decisions.md` and `brain/AI Logic Ownership.md`; run `git fetch --all` to see other branches/sessions. When a decision is made or status changes, update `brain/` in the same commit/PR as the code. The repo is public — never put course materials, grades, secrets or identifiable photos in it.
 - **Tech lead:** Manuel (owns this file, contracts/schema, review standards, integration).
 - **AI logic is owned by Manuel + Claude:** vision-tagging prompt/schema/accuracy, outfit scoring, preference learning, quiz mapping, tuning, evaluation and their tests. Keep it in pure, well-tested modules behind agreed contracts; log every prompt/weight change with before/after metrics in `brain/AI Logic Ownership.md`. Manuel reviews all of it and Thanh reviews PRs — never self-merge.
 - **Thanh owns product/plumbing:** migrations + RLS, auth, households, UI, weather client, deletion flows, CI/CD + deploy.
-- Decisions D1–D15 are in the decisions note and override anything older in `docs/` (e.g. household-scoped garments, per-user location, top+bottom+shoes outfit, review-and-edit tagging). `docs/` still needs updating to match.
+- Decisions D1–D16 are in the decisions note and override anything older in `docs/` (e.g. household-scoped garments, per-user location, top+bottom+shoes outfit, review-and-edit tagging). `docs/` still needs updating to match.
 
 ## What this project is
 
@@ -32,12 +32,12 @@ Full proposal: `SWE with AI Final Project Proposals - Thanh Phan & Manuel Edward
 
 ## Current status
 
-**Skeleton only — no application code yet.** The repo currently has:
-- Folder scaffold for frontend/backend (all `.gitkeep` placeholders, no components/pages/services implemented)
-- Empty `docs/architecture.md`, `docs/api_endpoints.md`, `AGENTS.md`, `usedPrompts.md`, `.env.example` — all need to be filled in
-- Two commits: initial README, then the skeleton scaffold (2026-09-19, Thanh Phan)
+Read `brain/Work Plan.md` first: it has the branch map, PR order, who owns what, and what each branch should deliver.
 
-Next real work is Milestone 1: pick a starting slice (likely photo upload + auth + basic closet view), stand up the frontend/backend scaffolding for real, and get a thin vertical slice deployable.
+- Done: shared tooling and contracts (`chore/tooling-contracts`), Supabase schema + RLS + CI (`feat/data-layer`), outfit scoring engine with tests (`feat/ai-core`).
+- In progress: Expo app (`feat/expo-app`, Thanh) and preference learning / tag validation (`feat/ai-core`, Manuel + Claude).
+- Not verified yet: the migration has never run on a real Supabase project; CI has not run on GitHub.
+- Goal now: Milestone 2 (core feature + >80% coverage, teammate-reviewed PRs).
 
 ## MVP scope (must ship for the capstone)
 
@@ -57,7 +57,7 @@ Next real work is Milestone 1: pick a starting slice (likely photo upload + auth
 
 ## Tech stack (all free tier — keep it that way)
 
-- **Frontend:** React, hosted on Vercel or Netlify
+- **Frontend:** Expo (React Native), primarily for iPhone, tested via Expo Go (decision D16; replaces the earlier React-on-Vercel plan; an Expo web export can still be hosted if a web demo is needed)
 - **Backend / DB:** Supabase (Postgres + auth + file storage, free tier)
 - **Vision tagging:** a free-tier multimodal model (e.g. Gemini) for garment classification from photos
 - **Weather:** OpenWeatherMap free tier
@@ -66,7 +66,8 @@ Next real work is Milestone 1: pick a starting slice (likely photo upload + auth
 ## Repo structure
 
 ```
-frontend/src/
+frontend/   # Expo (React Native) app, see Work Plan; layout below is the original sketch and may change
+  src/
   components/
     closet/       # closet inventory UI
     common/        # shared UI primitives
