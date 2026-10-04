@@ -1,202 +1,219 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  MAX_HOUSEHOLD_NAME_LENGTH,
+  MAX_LOCATION_LENGTH,
   createHousehold,
   friendlyHouseholdError,
-  getHousehold,
-  getProfile,
   joinHousehold,
+  loadOverview,
   normalizeInviteCode,
-  updateProfile,
+  onboardingStep,
+  saveLocation,
   validateHouseholdName,
   validateInviteCode,
-  type HouseholdClient,
+  validateLocation,
+  type GatewayResult,
+  type HouseholdGateway,
+  type HouseholdRow,
+  type ProfileRow,
 } from "../frontend/src/services/household.ts";
+import { supabaseGateway, type SupabaseLike } from "../frontend/src/services/householdGateway.ts";
 
-type Reply = { data?: unknown; error?: { message: string } | null };
+const ok = <T>(data: T): GatewayResult<T> => ({ data, error: null });
+const err = (message: string): GatewayResult<never> => ({ data: null, error: { message } });
 
-// Fake client that records every call. `reply` is what the server answers.
-function fakeClient(reply: Reply = {}) {
-  const calls = { rpc: [] as unknown[], select: [] as unknown[], eq: [] as unknown[], update: [] as unknown[] };
-  const result = { data: reply.data ?? null, error: reply.error ?? null };
-  const client: HouseholdClient = {
-    rpc: vi.fn((fn: string, args: Record<string, unknown>) => {
-      calls.rpc.push({ fn, args });
-      return Promise.resolve(result);
-    }),
-    from: vi.fn((table: string) => ({
-      select: (columns: string) => ({
-        eq: (column: string, value: string) => {
-          calls.select.push({ table, columns });
-          calls.eq.push({ column, value });
-          return { maybeSingle: () => Promise.resolve(result) };
-        },
-      }),
-      update: (values: Record<string, unknown>) => ({
-        eq: (column: string, value: string) => {
-          calls.update.push({ table, values });
-          calls.eq.push({ column, value });
-          return Promise.resolve({ error: result.error });
-        },
-      }),
-    })),
+function gateway(overrides: Partial<HouseholdGateway> = {}): HouseholdGateway {
+  return {
+    createHousehold: vi.fn(async () => ok("house-1")),
+    joinHousehold: vi.fn(async () => ok("house-2")),
+    loadProfile: vi.fn(async () => ok<ProfileRow>({ household_id: "house-1", name: "Ana", location: "Conway" })),
+    updateLocation: vi.fn(async () => ok(null)),
+    loadHousehold: vi.fn(async () => ok<HouseholdRow>({ id: "house-1", name: "Home", invite_code: "3fa91c0b" })),
+    ...overrides,
   };
-  return { client, calls };
 }
 
-function throwingClient(): HouseholdClient {
-  const boom = () => {
-    throw new Error("offline");
-  };
-  return { rpc: boom, from: boom } as unknown as HouseholdClient;
-}
-
-const profileRow = { id: "u1", household_id: "h1", name: "Thanh", location: "Conway" };
-const householdRow = { id: "h1", name: "Home", invite_code: "abcd1234" };
-
-describe("validation helpers", () => {
-  it("normalizes invite codes", () => {
-    expect(normalizeInviteCode("  ABCD1234 ")).toBe("abcd1234");
+describe("validation", () => {
+  it("validates household names", () => {
+    expect(validateHouseholdName("The Smiths")).toBeNull();
+    expect(validateHouseholdName("   ")).toContain("Enter a name");
+    expect(validateHouseholdName("x".repeat(MAX_HOUSEHOLD_NAME_LENGTH))).toBeNull();
+    expect(validateHouseholdName("x".repeat(MAX_HOUSEHOLD_NAME_LENGTH + 1))).toContain("at most");
   });
 
-  it("validates household name and invite code", () => {
-    expect(validateHouseholdName("  ")).toMatch(/name for your household/i);
-    expect(validateHouseholdName("Home")).toBeNull();
-    expect(validateInviteCode("   ")).toMatch(/invite code/i);
-    expect(validateInviteCode("abcd1234")).toBeNull();
+  it("normalizes and validates invite codes", () => {
+    expect(normalizeInviteCode("  3FA91C0B ")).toBe("3fa91c0b");
+    expect(validateInviteCode(" 3FA91C0B ")).toBeNull();
+    expect(validateInviteCode("")).toContain("Enter the invite code");
+    for (const bad of ["abc", "3fa91c0bb", "3fa91c0g", "3fa9 1c0b", "../etc/pw"]) {
+      expect(validateInviteCode(bad)).toContain("8 letters and numbers");
+    }
   });
 
-  it("maps the invalid invite code error and passes others through", () => {
-    expect(friendlyHouseholdError("invalid invite code")).toMatch(/doesn't match any household/i);
-    expect(friendlyHouseholdError("boom")).toBe("boom");
-  });
-});
-
-describe("getProfile", () => {
-  it("loads the profile for the user id", async () => {
-    const { client, calls } = fakeClient({ data: profileRow });
-    expect(await getProfile(client, "u1")).toEqual({ ok: true, data: profileRow });
-    expect(calls.select).toEqual([{ table: "users", columns: "id, household_id, name, location" }]);
-    expect(calls.eq).toEqual([{ column: "id", value: "u1" }]);
+  it("validates locations", () => {
+    expect(validateLocation(" Conway, AR ")).toBeNull();
+    expect(validateLocation("")).toContain("city or ZIP");
+    expect(validateLocation("y".repeat(MAX_LOCATION_LENGTH + 1))).toContain("at most");
   });
 
-  it("reports a missing profile", async () => {
-    const { client } = fakeClient({ data: null });
-    expect(await getProfile(client, "u1")).toEqual({ ok: false, error: "Your profile could not be found." });
-  });
-
-  it("returns server errors", async () => {
-    const { client } = fakeClient({ error: { message: "denied" } });
-    expect(await getProfile(client, "u1")).toEqual({ ok: false, error: "denied" });
-  });
-
-  it("handles network failures", async () => {
-    expect(await getProfile(throwingClient(), "u1")).toMatchObject({
-      ok: false,
-      error: expect.stringMatching(/could not reach/i),
-    });
+  it("turns server messages into friendly ones and passes unknown ones through", () => {
+    expect(friendlyHouseholdError("invalid invite code")).toContain("not found");
+    expect(friendlyHouseholdError("JWT expired")).toContain("sign in again");
+    expect(friendlyHouseholdError("not authenticated")).toContain("sign in again");
+    expect(friendlyHouseholdError("something odd")).toBe("something odd");
   });
 });
 
-describe("getHousehold", () => {
-  it("loads the household including its invite code", async () => {
-    const { client, calls } = fakeClient({ data: householdRow });
-    expect(await getHousehold(client, "h1")).toEqual({ ok: true, data: householdRow });
-    expect(calls.select).toEqual([{ table: "households", columns: "id, name, invite_code" }]);
-  });
-
-  it("reports a missing household", async () => {
-    const { client } = fakeClient({ data: null });
-    expect(await getHousehold(client, "h1")).toEqual({ ok: false, error: "Your household could not be found." });
-  });
-
-  it("returns server errors", async () => {
-    const { client } = fakeClient({ error: { message: "denied" } });
-    expect(await getHousehold(client, "h1")).toEqual({ ok: false, error: "denied" });
-  });
-
-  it("handles network failures", async () => {
-    expect((await getHousehold(throwingClient(), "h1")).ok).toBe(false);
+describe("onboardingStep", () => {
+  it("walks household -> location -> ready", () => {
+    expect(onboardingStep({ household_id: null, location: null })).toBe("household");
+    expect(onboardingStep({ household_id: null, location: "Conway" })).toBe("household");
+    expect(onboardingStep({ household_id: "h", location: null })).toBe("location");
+    expect(onboardingStep({ household_id: "h", location: "   " })).toBe("location");
+    expect(onboardingStep({ household_id: "h", location: "Conway" })).toBe("ready");
   });
 });
 
-describe("createHousehold", () => {
-  it("rejects an empty name without calling the server", async () => {
-    const { client, calls } = fakeClient();
-    expect((await createHousehold(client, "  ")).ok).toBe(false);
-    expect(calls.rpc).toHaveLength(0);
+describe("createHousehold / joinHousehold", () => {
+  it("creates a household with a trimmed name", async () => {
+    const g = gateway();
+    expect(await createHousehold(g, "  The Smiths ")).toEqual({ ok: true, value: "house-1" });
+    expect(g.createHousehold).toHaveBeenCalledWith("The Smiths");
   });
 
-  it("calls create_household with the trimmed name and returns the id", async () => {
-    const { client, calls } = fakeClient({ data: "h1" });
-    expect(await createHousehold(client, "  Home ")).toEqual({ ok: true, data: "h1" });
-    expect(calls.rpc).toEqual([{ fn: "create_household", args: { p_name: "Home" } }]);
+  it("does not call the server for invalid input", async () => {
+    const g = gateway();
+    expect(await createHousehold(g, " ")).toMatchObject({ ok: false });
+    expect(await joinHousehold(g, "nope")).toMatchObject({ ok: false });
+    expect(g.createHousehold).not.toHaveBeenCalled();
+    expect(g.joinHousehold).not.toHaveBeenCalled();
   });
 
-  it("returns server errors", async () => {
-    const { client } = fakeClient({ error: { message: "boom" } });
-    expect(await createHousehold(client, "Home")).toEqual({ ok: false, error: "boom" });
+  it("joins with a normalized invite code", async () => {
+    const g = gateway();
+    expect(await joinHousehold(g, " 3FA91C0B ")).toEqual({ ok: true, value: "house-2" });
+    expect(g.joinHousehold).toHaveBeenCalledWith("3fa91c0b");
   });
 
-  it("handles network failures", async () => {
-    expect((await createHousehold(throwingClient(), "Home")).ok).toBe(false);
-  });
-});
-
-describe("joinHousehold", () => {
-  it("rejects an empty code without calling the server", async () => {
-    const { client, calls } = fakeClient();
-    expect((await joinHousehold(client, " ")).ok).toBe(false);
-    expect(calls.rpc).toHaveLength(0);
+  it("shows a friendly message for an unknown invite code", async () => {
+    const g = gateway({ joinHousehold: async () => err("invalid invite code") });
+    const res = await joinHousehold(g, "3fa91c0b");
+    expect(res).toMatchObject({ ok: false, error: expect.stringContaining("not found") });
   });
 
-  it("calls join_household with a normalized code", async () => {
-    const { client, calls } = fakeClient({ data: "h1" });
-    expect(await joinHousehold(client, " ABCD1234 ")).toEqual({ ok: true, data: "h1" });
-    expect(calls.rpc).toEqual([{ fn: "join_household", args: { p_code: "abcd1234" } }]);
-  });
-
-  it("shows a friendly message for a wrong code", async () => {
-    const { client } = fakeClient({ error: { message: "invalid invite code" } });
-    expect(await joinHousehold(client, "nope")).toEqual({
-      ok: false,
-      error: "That invite code doesn't match any household.",
-    });
-  });
-
-  it("handles network failures", async () => {
-    expect((await joinHousehold(throwingClient(), "abcd1234")).ok).toBe(false);
+  it("reports network failures and empty responses", async () => {
+    const down = gateway({ createHousehold: async () => { throw new Error("offline"); }, joinHousehold: async () => { throw new Error("offline"); } });
+    expect(await createHousehold(down, "Home")).toMatchObject({ ok: false, error: expect.stringContaining("Could not reach") });
+    expect(await joinHousehold(down, "3fa91c0b")).toMatchObject({ ok: false, error: expect.stringContaining("Could not reach") });
+    const empty = gateway({ createHousehold: async () => ({ data: null, error: null }) });
+    expect(await createHousehold(empty, "Home")).toMatchObject({ ok: false, error: expect.stringContaining("no data") });
   });
 });
 
-describe("updateProfile", () => {
-  it("rejects an empty name without calling the server", async () => {
-    const { client, calls } = fakeClient();
-    expect((await updateProfile(client, "u1", { name: " ", location: "x" })).ok).toBe(false);
-    expect(calls.update).toHaveLength(0);
+describe("saveLocation", () => {
+  it("saves the trimmed location and returns it", async () => {
+    const g = gateway();
+    expect(await saveLocation(g, " Conway, AR ")).toEqual({ ok: true, value: "Conway, AR" });
+    expect(g.updateLocation).toHaveBeenCalledWith("Conway, AR");
   });
 
-  it("saves the trimmed name and location for the user", async () => {
-    const { client, calls } = fakeClient();
-    expect(await updateProfile(client, "u1", { name: " Thanh ", location: " Conway " })).toEqual({
-      ok: true,
-      data: null,
-    });
-    expect(calls.update).toEqual([{ table: "users", values: { name: "Thanh", location: "Conway" } }]);
-    expect(calls.eq).toEqual([{ column: "id", value: "u1" }]);
+  it("rejects invalid input without calling the server", async () => {
+    const g = gateway();
+    expect(await saveLocation(g, "  ")).toMatchObject({ ok: false });
+    expect(g.updateLocation).not.toHaveBeenCalled();
   });
 
-  it("stores an empty location as null", async () => {
-    const { client, calls } = fakeClient();
-    await updateProfile(client, "u1", { name: "Thanh", location: "  " });
-    expect(calls.update).toEqual([{ table: "users", values: { name: "Thanh", location: null } }]);
+  it("surfaces server and network errors", async () => {
+    expect(await saveLocation(gateway({ updateLocation: async () => err("permission denied") }), "Conway")).toEqual({ ok: false, error: "permission denied" });
+    expect(await saveLocation(gateway({ updateLocation: async () => { throw new Error("x"); } }), "Conway")).toMatchObject({ ok: false, error: expect.stringContaining("Could not reach") });
+  });
+});
+
+describe("loadOverview", () => {
+  it("returns profile, household and the ready step", async () => {
+    const res = await loadOverview(gateway());
+    expect(res).toMatchObject({ ok: true, value: { step: "ready", household: { invite_code: "3fa91c0b" } } });
   });
 
-  it("returns server errors", async () => {
-    const { client } = fakeClient({ error: { message: "denied" } });
-    expect(await updateProfile(client, "u1", { name: "T", location: "" })).toEqual({ ok: false, error: "denied" });
+  it("skips the household lookup when the user has none", async () => {
+    const g = gateway({ loadProfile: async () => ok<ProfileRow>({ household_id: null, name: "Ana", location: null }) });
+    const res = await loadOverview(g);
+    expect(res).toMatchObject({ ok: true, value: { step: "household", household: null } });
+    expect(g.loadHousehold).not.toHaveBeenCalled();
   });
 
-  it("handles network failures", async () => {
-    expect((await updateProfile(throwingClient(), "u1", { name: "T", location: "" })).ok).toBe(false);
+  it("asks for a location when the household exists but location is missing", async () => {
+    const g = gateway({ loadProfile: async () => ok<ProfileRow>({ household_id: "house-1", name: "Ana", location: null }) });
+    expect(await loadOverview(g)).toMatchObject({ ok: true, value: { step: "location" } });
+  });
+
+  it("fails cleanly if either lookup fails", async () => {
+    expect(await loadOverview(gateway({ loadProfile: async () => err("boom") }))).toEqual({ ok: false, error: "boom" });
+    expect(await loadOverview(gateway({ loadHousehold: async () => err("denied") }))).toEqual({ ok: false, error: "denied" });
+  });
+});
+
+describe("supabaseGateway adapter", () => {
+  type Reply = { data: unknown; error: { message: string } | null };
+  function fakeClient(reply: Reply, user: { id: string } | null = { id: "user-1" }, authError: string | null = null) {
+    const calls: { rpc: [string, Record<string, unknown>][]; ops: unknown[][] } = { rpc: [], ops: [] };
+    const query = (): never => {
+      const q = {
+        select: (c: string) => (calls.ops.push(["select", c]), q),
+        update: (v: Record<string, unknown>) => (calls.ops.push(["update", v]), q),
+        eq: (c: string, v: string) => (calls.ops.push(["eq", c, v]), q),
+        single: async () => reply,
+        then: (res: (r: Reply) => unknown) => Promise.resolve(reply).then(res),
+      };
+      return q as never;
+    };
+    const client: SupabaseLike = {
+      rpc: async (fn, args) => (calls.rpc.push([fn, args]), reply),
+      from: (table) => (calls.ops.push(["from", table]), query()),
+      auth: { getUser: async () => ({ data: { user }, error: authError ? { message: authError } : null }) },
+    };
+    return { client, calls };
+  }
+
+  it("calls the create/join RPCs with the right argument names", async () => {
+    const { client, calls } = fakeClient({ data: "house-9", error: null });
+    const g = supabaseGateway(client);
+    expect(await g.createHousehold("Home")).toEqual({ data: "house-9", error: null });
+    expect(await g.joinHousehold("3fa91c0b")).toEqual({ data: "house-9", error: null });
+    expect(calls.rpc).toEqual([["create_household", { p_name: "Home" }], ["join_household", { p_code: "3fa91c0b" }]]);
+  });
+
+  it("drops data when the server returns an error", async () => {
+    const { client } = fakeClient({ data: "ignored", error: { message: "invalid invite code" } });
+    expect(await supabaseGateway(client).joinHousehold("3fa91c0b")).toEqual({ data: null, error: { message: "invalid invite code" } });
+  });
+
+  it("reads only the signed-in user's own row", async () => {
+    const { client, calls } = fakeClient({ data: { household_id: "h", name: "Ana", location: null }, error: null });
+    expect((await supabaseGateway(client).loadProfile()).data).toMatchObject({ name: "Ana" });
+    expect(calls.ops).toEqual([["from", "users"], ["select", "household_id, name, location"], ["eq", "id", "user-1"]]);
+  });
+
+  it("updates only the signed-in user's own row, and only the location", async () => {
+    const { client, calls } = fakeClient({ data: null, error: null });
+    await supabaseGateway(client).updateLocation("Conway");
+    expect(calls.ops).toEqual([["from", "users"], ["update", { location: "Conway" }], ["eq", "id", "user-1"]]);
+  });
+
+  it("loads the household by id", async () => {
+    const { client, calls } = fakeClient({ data: { id: "h", name: "Home", invite_code: "3fa91c0b" }, error: null });
+    expect((await supabaseGateway(client).loadHousehold("h")).data).toMatchObject({ invite_code: "3fa91c0b" });
+    expect(calls.ops).toContainEqual(["from", "households"]);
+    expect(calls.ops).toContainEqual(["eq", "id", "h"]);
+  });
+
+  it("reports an unauthenticated user instead of querying", async () => {
+    const signedOut = fakeClient({ data: null, error: null }, null);
+    const g = supabaseGateway(signedOut.client);
+    expect(await g.loadProfile()).toEqual({ data: null, error: { message: "not authenticated" } });
+    expect(await g.updateLocation("x")).toEqual({ data: null, error: { message: "not authenticated" } });
+    expect(signedOut.calls.ops).toEqual([]);
+    const authFail = fakeClient({ data: null, error: null }, null, "network down");
+    expect(await supabaseGateway(authFail.client).loadProfile()).toEqual({ data: null, error: { message: "network down" } });
   });
 });

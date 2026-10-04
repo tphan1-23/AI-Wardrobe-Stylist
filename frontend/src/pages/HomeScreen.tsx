@@ -1,31 +1,29 @@
 import { useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { signOut } from "../services/auth";
-import { updateProfile, type Household, type Profile } from "../services/household";
-import { householdClient, supabase } from "../services/supabase";
+import type { Overview } from "../services/household";
+import { supabase } from "../services/supabase";
+import { LocationScreen } from "./LocationScreen";
 
 interface Props {
-  profile: Profile;
-  household: Household | null;
-  onProfileChanged: () => void;
+  overview: Overview;
+  onChanged: () => void;
 }
 
-export function HomeScreen({ profile, household, onProfileChanged }: Props) {
-  const [location, setLocation] = useState(profile.location ?? "");
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+export function HomeScreen({ overview, onChanged }: Props) {
+  const { profile, household } = overview;
+  const [editingLocation, setEditingLocation] = useState(false);
 
-  async function saveLocation() {
-    setBusy(true);
-    setMessage(null);
-    const result = await updateProfile(householdClient, profile.id, { name: profile.name, location });
-    setBusy(false);
-    if (result.ok) {
-      setMessage("Location saved.");
-      onProfileChanged();
-    } else {
-      setMessage(result.error);
-    }
+  if (editingLocation) {
+    return (
+      <LocationScreen
+        initialLocation={profile.location ?? ""}
+        onDone={() => {
+          setEditingLocation(false);
+          onChanged();
+        }}
+      />
+    );
   }
 
   return (
@@ -41,18 +39,13 @@ export function HomeScreen({ profile, household, onProfileChanged }: Props) {
         </View>
       )}
 
-      <Text style={styles.label}>Your location (used for weather)</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="City or ZIP"
-        value={location}
-        onChangeText={setLocation}
-        autoCorrect={false}
-      />
-      <Pressable style={[styles.button, busy && styles.buttonDisabled]} onPress={saveLocation} disabled={busy}>
-        {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Save location</Text>}
-      </Pressable>
-      {message && <Text style={styles.message}>{message}</Text>}
+      <View style={styles.card}>
+        <Text style={styles.label}>Your location (used for weather)</Text>
+        <Text style={styles.value}>{profile.location}</Text>
+        <Pressable onPress={() => setEditingLocation(true)}>
+          <Text style={styles.link}>Change location</Text>
+        </Pressable>
+      </View>
 
       <Pressable onPress={() => signOut(supabase.auth)}>
         <Text style={styles.link}>Log out</Text>
@@ -67,11 +60,7 @@ const styles = StyleSheet.create({
   card: { borderWidth: 1, borderColor: "#ddd", borderRadius: 12, padding: 16, gap: 4 },
   cardTitle: { fontSize: 18, fontWeight: "600" },
   label: { fontSize: 13, color: "#666" },
+  value: { fontSize: 18, fontWeight: "600" },
   code: { fontSize: 22, fontWeight: "700", letterSpacing: 2 },
-  input: { borderWidth: 1, borderColor: "#ccc", borderRadius: 8, padding: 12, fontSize: 16 },
-  button: { backgroundColor: "#111", borderRadius: 8, padding: 14, alignItems: "center" },
-  buttonDisabled: { opacity: 0.6 },
-  buttonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
-  message: { textAlign: "center", color: "#555" },
-  link: { color: "#0a5bd8", textAlign: "center", marginTop: 12 },
+  link: { color: "#0a5bd8", textAlign: "center", marginTop: 8 },
 });

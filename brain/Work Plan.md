@@ -30,15 +30,28 @@ Commits are authored by whoever owns the slice (their own git identity). Team co
 
 Chain: `chore/tooling-contracts` → `feat/data-layer` → (`feat/ai-core`, `feat/expo-app`). Work on branches that descend from `feat/data-layer` so the types, schema and CI are present. If you rebase/merge, pull `origin/feat/data-layer` first.
 
-## PR and review order
-1. `chore/tooling-contracts` → `main` (Thanh reviews).
-2. `feat/data-layer` → `main` after 1 merges (Manuel reviews).
-3. `feat/ai-core` → `main` (Thanh reviews).
-4. `feat/expo-app` → `main` (Manuel reviews).
-Nobody merges their own PR. Review comments should be real; the course grades the review record.
+## Milestone 2 PR (graded) — assignment rules
+Turn in **ONE pull request** on GitHub that:
+1. is approved on GitHub by a team member **other than** the one who submitted it;
+2. contains **ONE core feature** of the project;
+3. includes a **test suite** (unit and/or integration) for that feature's functions;
+4. includes a **test coverage analysis** showing the tests cover **at least 80% of the code in the feature**.
+
+**Decision D17 (2026-10-03):** the graded feature is **auth + household** (sign up / log in / log out, create or join a household, set the weather location). One focused PR from `feat/expo-app`, with the household logic from `feat/household-service` merged into it. Manuel submits, Thanh approves (swap if you prefer — the only rule is submitter ≠ approver). The AI core (`feat/ai-core`: scoring, preference learning, tagging, handlers, Gemini client) is **not** part of this PR; it is saved for a later milestone.
+
+Checklist before opening the PR:
+- [ ] `vitest.config.ts` has the `esbuild: { tsconfigRaw: "{}" }` line (already on `feat/household-service`); CI is green on a clean checkout.
+- [ ] Household screens (create/join, set location) + onboarding gate in `App.tsx` using `onboardingStep` (Thanh).
+- [ ] Coverage report for the feature files only (`frontend/src/services/auth.ts`, `household.ts`, `householdGateway.ts`) committed as `docs/m2-coverage.md`, with the numbers and how to reproduce them.
+- [ ] PR description: feature, how it was verified, coverage summary, what is not covered (React screens) and why, AI-use disclosure.
+- [ ] The other teammate reviews and approves on GitHub (a real review, not a rubber stamp).
+
+Other branches (`chore/tooling-contracts`, `feat/data-layer`, `feat/ai-core`) are foundation or later-milestone work; merge them in whatever order suits, but they are not the graded submission.
 
 ## What `feat/expo-app` should deliver (Thanh)
-**Progress (2026-10-03):** step 1 done (Expo SDK 57 app). Step 2 done (`frontend/src/services/supabase.ts`, reads `frontend/.env.local`). Step 4 done and **verified on a device** (sign-up and log-in work in Expo Go): `services/auth.ts` (pure logic, injected client) + `AuthScreen`/`useSession`; 21 unit tests. Step 5 done in code, **not yet verified on a device**: `services/household.ts` (create/join household via the RPCs, load profile and household, save name/location) + `useProfile`, `HouseholdScreen`, `HomeScreen` (shows invite code, saves location); 24 more unit tests. Both services are at 100% coverage under the 80% gate (54 tests total). **Step 3 is still open:** `0001_init.sql` has not yet been applied to the real Supabase project, so household screens fail with "Could not find the table public.users" until it is. The migration was tested locally against embedded Postgres (PGlite, with stand-ins for `auth`/`storage`) and applies cleanly, including the signup trigger, `create_household`, `join_household` and the bad-code error; the `storage.objects` policies could not be verified outside Supabase. Next: apply and confirm the migration, verify step 5 on the phone, then steps 6 and 7. Closet + clean/dirty (step 7) is the planned single core feature for the Milestone 2 PR.
+**Progress (2026-10-04):** step 1 done (Expo SDK 57 app). Step 2 done (`frontend/src/services/supabase.ts`, reads `frontend/.env.local`). Step 3 done: `0001_init.sql` was applied by hand in the Supabase SQL Editor with no error reported (it also applied cleanly in a local PGlite check). Step 4 done and **verified on a device**: `services/auth.ts` + `AuthScreen`/`useSession`. Step 5 done and **verified on devices** (Thanh and Manuel): the household logic is Manuel's (`services/household.ts` + `householdGateway.ts`, merged from `feat/household-service`, D17); the screens are Thanh's: `useOverview`, `HouseholdScreen` (create/join), `LocationScreen`, `HomeScreen`, and the onboarding gate in `App.tsx` (household, then location, then ready). 53 tests, 100% coverage on the three feature files (`docs/m2-coverage.md`). Next: steps 6 and 7 after the Milestone 2 PR. The graded Milestone 2 feature is auth + household (D17).
+
+**Known gap:** accounts created before the migration had no profile row, so loading the profile failed with the raw message "Cannot coerce the result to a single JSON object" until a one-time backfill was run (see the setup notes below). `householdGateway.loadProfile` uses `.single()`; `.maybeSingle()` would let the friendly "Your profile could not be found" message show instead (Manuel's file, suggested change).
 
 **App name:** the Expo app is branded **DressWell** (display name and slug in `frontend/app.json`); the repo and docs keep the working title AI Wardrobe Stylist.
 

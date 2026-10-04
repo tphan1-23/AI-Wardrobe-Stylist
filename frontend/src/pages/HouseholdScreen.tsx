@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { createHousehold, joinHousehold } from "../services/household";
-import { householdClient } from "../services/supabase";
+import { gateway } from "../services/supabase";
 
 type Mode = "create" | "join";
 
@@ -22,7 +22,7 @@ export function HouseholdScreen({ onDone }: { onDone: () => void }) {
   async function submit() {
     setBusy(true);
     setError(null);
-    const result = isCreate ? await createHousehold(householdClient, value) : await joinHousehold(householdClient, value);
+    const result = isCreate ? await createHousehold(gateway, value) : await joinHousehold(gateway, value);
     setBusy(false);
     if (result.ok) onDone();
     else setError(result.error);
