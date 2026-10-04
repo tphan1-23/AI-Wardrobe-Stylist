@@ -4,6 +4,7 @@ import { InstrumentSans_600SemiBold } from "@expo-google-fonts/instrument-sans/6
 import { InstrumentSans_700Bold } from "@expo-google-fonts/instrument-sans/700Bold";
 import { useFonts } from "expo-font";
 import { StatusBar } from "expo-status-bar";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { Button } from "./src/components/common/Button";
 import { useOverview } from "./src/hooks/useOverview";
@@ -59,10 +60,10 @@ export default function App() {
   const { session, loading } = useSession();
 
   return (
-    <>
+    <SafeAreaProvider>
       {!fontsLoaded || loading ? <Loading /> : session ? <SignedIn key={session.user.id} /> : <AuthScreen />}
       <StatusBar style="dark" />
-    </>
+    </SafeAreaProvider>
   );
 }
 

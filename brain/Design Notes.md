@@ -37,3 +37,6 @@ Source of truth: `docs/Wardrobe App.html` (design board, 11 phone screens at 390
 
 ## Not verified
 Checked by typecheck (frontend and root), the Expo/Metro iOS bundle, and unit tests for the new `fieldForError` logic. **Not checked visually on a device** — compare each screen against the board in Expo Go (`cd frontend && npx expo start --tunnel -c`).
+
+## Fix log
+- **2026-10-04, Dynamic Island:** the Household screen (design offset 20) slid under the Dynamic Island on newer iPhones. `Screen` now uses `react-native-safe-area-context` (the app is wrapped in `SafeAreaProvider`) and pads by `max(design offset, device top inset + 12)`; the rule is the tested function `screenTopPadding` in `frontend/src/layout.ts`. Every screen benefits, not only Household.
