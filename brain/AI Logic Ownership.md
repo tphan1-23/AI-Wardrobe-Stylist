@@ -50,7 +50,7 @@ _Add one row per experiment. Never change a prompt or weight without logging it.
 - Item reuse is high in small closets (few valid choices per slot); the repeat penalty cannot fix a closet that is too small.
 
 ## Known limitations of tagging
-- **Free-tier quota was a hard product constraint (D19 lifts it for now, trial credits expire 2027-01-07; re-check the cost after that):** about 20 photos per day per model (5 per minute). With the three-model fallback roughly 60 a day if the quotas are separate. A user adding a whole closet in one sitting will hit it; the review screen must degrade to manual entry with a clear message, and results must be stored so a photo is never tagged twice.
+- **Free-tier quota was a hard product constraint (D20 lifts it for now, trial credits expire 2027-01-07; re-check the cost after that):** about 20 photos per day per model (5 per minute). With the three-model fallback roughly 60 a day if the quotas are separate. A user adding a whole closet in one sitting will hit it; the review screen must degrade to manual entry with a clear message, and results must be stored so a photo is never tagged twice.
 - Model names are not stable (2.5 retired within months). Keep the fallback list short and re-test it before demos.
 - Latency is 5–50 seconds per photo depending on load; the Add screen needs a loading state.
 - Vocabulary gaps: no entry for clogs/slip-ons/loafers (the clog was called "sandals"), and jackets/coats map to the unused "other" slot.
