@@ -11,6 +11,7 @@ import { Button } from "./src/components/common/Button";
 import { useOverview } from "./src/hooks/useOverview";
 import { useSession } from "./src/hooks/useSession";
 import { AuthScreen } from "./src/pages/AuthScreen";
+import { ConfirmEmailScreen } from "./src/pages/ConfirmEmailScreen";
 import { ForgotPasswordScreen } from "./src/pages/ForgotPasswordScreen";
 import { HomeScreen } from "./src/pages/HomeScreen";
 import { LocationScreen } from "./src/pages/LocationScreen";
@@ -60,6 +61,8 @@ export default function App() {
   // Held here, not in AuthScreen: entering the emailed code signs the user in
   // before the new password is saved, and the reset screen must stay up until then.
   const [resettingPassword, setResettingPassword] = useState(false);
+  // The email whose sign-up code is being entered; confirming signs the user in, which ends this screen.
+  const [confirmingEmail, setConfirmingEmail] = useState<string | null>(null);
 
   function screen() {
     if (!fontsLoaded || loading) return <Loading />;
@@ -69,7 +72,12 @@ export default function App() {
       );
     }
     if (session) return <SignedIn key={session.user.id} />;
-    return <AuthScreen onForgotPassword={() => setResettingPassword(true)} />;
+    if (confirmingEmail !== null) {
+      return <ConfirmEmailScreen email={confirmingEmail} onBack={() => setConfirmingEmail(null)} />;
+    }
+    return (
+      <AuthScreen onForgotPassword={() => setResettingPassword(true)} onConfirmationRequired={setConfirmingEmail} />
+    );
   }
 
   return (
