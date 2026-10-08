@@ -1,6 +1,6 @@
 **Title:** AI core and deployed edge functions: photo tagging, outfit suggestions, preference learning
 
-**Base:** `main` (open this after PRs 1 and 2 are merged, and merge `main` into the branch first) · **Branch:** `feat/ai-core-d18` · **Author:** Manuel (with Claude Code) · **Reviewer:** Thanh
+**Base:** `main` (PRs #2 and #3 are already merged and `main` has been merged into this branch) · **Branch:** `feat/ai-core-d18` · **Author:** Manuel (with Claude Code) · **Reviewer:** Thanh
 
 ## What this adds
 
@@ -24,7 +24,7 @@ Everything AI in the app, as pure, tested modules plus three thin Deno functions
 
 ## How it was checked
 
-- Typecheck clean; **242 tests pass**; coverage **100% of lines, statements and functions, 99.62% of branches** on all gated code.
+- Typecheck clean (root and app); **274 tests pass**; coverage **100% of lines, statements and functions, 99.67% of branches** on all gated code, after merging the latest `main` (which includes personal closets, password reset and Google sign-in).
 - Tests were checked by deliberately breaking the code (dozens of variants, including removed ownership filters, wrong
   fallback rules and re-introduced household assumptions); every real defect made at least one test fail.
 - `deno check` passes on all three entry files; the functions are deployed.
@@ -33,7 +33,6 @@ Everything AI in the app, as pure, tested modules plus three thin Deno functions
   accept marks items worn, cleanup left 0 rows and restored preference weights exactly).
 - **Tagging accuracy** on 23 real clothing photos (one labeller, clean product shots): flash models strict type 95 / color 86 /
   season 73 / warmth 95 %; lenient 100 %. Full numbers, trade-offs and caveats in `brain/AI Logic Ownership.md`.
-- Combined with the branches of PRs 1 and 2 in a throwaway copy: 274 tests pass, typecheck clean.
 
 ## Not covered, and why
 

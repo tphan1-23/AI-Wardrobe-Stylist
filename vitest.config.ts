@@ -11,6 +11,7 @@ export default defineConfig({
       include: [
         "supabase/functions/_shared/**/*.ts",
         "frontend/src/services/auth.ts",
+        "frontend/src/services/socialAuth.ts",
         "frontend/src/services/household.ts",
         "frontend/src/services/householdGateway.ts",
         "frontend/src/layout.ts",

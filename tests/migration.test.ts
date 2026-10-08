@@ -30,6 +30,24 @@ describe("migration 0001_init stays in sync with the tag schema", () => {
   });
 });
 
+describe("migration 0003_social_login_names", () => {
+  const names = readFileSync(new URL("../supabase/migrations/0003_social_login_names.sql", import.meta.url), "utf8");
+
+  it("reads the Google full_name when no name is set", () => {
+    expect(names).toMatch(/nullif\(new\.raw_user_meta_data ->> 'name', ''\),\s+nullif\(new\.raw_user_meta_data ->> 'full_name', ''\)/);
+  });
+
+  it("only fills an empty profile name, never overwrites one", () => {
+    expect(names).toMatch(/where id = new\.id\s+and name = ''/);
+  });
+
+  it("runs every security-definer function with a fixed search_path", () => {
+    const definers = names.match(/security definer[^\n]*/g) ?? [];
+    expect(definers.length).toBe(2);
+    for (const line of definers) expect(line).toContain("set search_path = public");
+  });
+});
+
 describe("migration 0002_personal_closets (D18)", () => {
   const personal = readFileSync(new URL("../supabase/migrations/0002_personal_closets.sql", import.meta.url), "utf8");
 
