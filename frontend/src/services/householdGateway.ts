@@ -46,6 +46,9 @@ export function supabaseGateway(client: SupabaseLike): HouseholdGateway {
       if (typeof id !== "string") return { data: null, error: id };
       return typed<ProfileRow>(await client.from("users").select("id, household_id, name, location").eq("id", id).maybeSingle());
     },
+    async ensureProfile() {
+      return typed<unknown>(await client.rpc("ensure_profile"));
+    },
     async updateLocation(location) {
       const id = await currentUserId();
       if (typeof id !== "string") return { data: null, error: id };

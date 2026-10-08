@@ -4,10 +4,12 @@ import {
   MIN_PASSWORD_LENGTH,
   checkPasswordRequirements,
   fieldForError,
+  confirmSignUp,
   friendlyAuthError,
   normalizeEmail,
   normalizeResetCode,
   requestPasswordReset,
+  resendSignUpCode,
   resetPassword,
   signIn,
   signOut,
@@ -31,6 +33,7 @@ function fakeClient(overrides: Partial<AuthClient> = {}): AuthClient {
     signOut: vi.fn().mockResolvedValue({ error: null }),
     resetPasswordForEmail: vi.fn().mockResolvedValue({ error: null }),
     verifyOtp: vi.fn().mockResolvedValue(ok),
+    resend: vi.fn().mockResolvedValue({ error: null }),
     updateUser: vi.fn().mockResolvedValue({ error: null }),
     ...overrides,
   };
@@ -344,5 +347,53 @@ describe("fieldForError", () => {
     expect(fieldForError(validatePassword("short")!)).toBe("password");
     expect(fieldForError(friendlyAuthError("Invalid login credentials"))).toBe("password");
     expect(fieldForError(friendlyAuthError("User already registered"))).toBe("email");
+  });
+});
+
+describe("confirmSignUp", () => {
+  const input = { email: " A@B.co ", code: "123 456" };
+
+  it("confirms with the emailed code and leaves the user signed in", async () => {
+    const client = fakeClient();
+    expect(await confirmSignUp(client, input)).toEqual({ ok: true, status: "signed_in" });
+    expect(client.verifyOtp).toHaveBeenCalledWith({ email: "a@b.co", token: "123456", type: "signup" });
+  });
+
+  it("checks the input before asking the server", async () => {
+    const client = fakeClient();
+    expect(await confirmSignUp(client, { ...input, email: "nope" })).toMatchObject({ ok: false });
+    expect(await confirmSignUp(client, { ...input, code: "" })).toMatchObject({ ok: false, error: expect.stringContaining("code") });
+    expect(await confirmSignUp(client, { ...input, code: "12ab56" })).toMatchObject({ ok: false });
+    expect(client.verifyOtp).not.toHaveBeenCalled();
+  });
+
+  it("explains a wrong or expired code", async () => {
+    const client = fakeClient({
+      verifyOtp: vi.fn().mockResolvedValue({ data: { user: null, session: null }, error: { message: "Token has expired or is invalid" } }),
+    });
+    expect(await confirmSignUp(client, input)).toEqual({ ok: false, error: "That code is wrong or has expired. Request a new one." });
+  });
+
+  it("handles network failures", async () => {
+    const client = fakeClient({ verifyOtp: vi.fn().mockRejectedValue(new Error("offline")) });
+    expect(await confirmSignUp(client, input)).toMatchObject({ ok: false, error: expect.stringContaining("Could not reach") });
+  });
+});
+
+describe("resendSignUpCode", () => {
+  it("asks for a new signup code for the normalized email", async () => {
+    const client = fakeClient();
+    expect(await resendSignUpCode(client, " A@B.co ")).toEqual({ ok: true });
+    expect(client.resend).toHaveBeenCalledWith({ type: "signup", email: "a@b.co" });
+  });
+
+  it("rejects a bad email without calling the server, and maps errors", async () => {
+    const client = fakeClient();
+    expect(await resendSignUpCode(client, "")).toMatchObject({ ok: false });
+    expect(client.resend).not.toHaveBeenCalled();
+    const limited = fakeClient({ resend: vi.fn().mockResolvedValue({ error: { message: "email rate limit exceeded" } }) });
+    expect(await resendSignUpCode(limited, "a@b.co")).toEqual({ ok: false, error: "Too many attempts. Please wait a moment and try again." });
+    const down = fakeClient({ resend: vi.fn().mockRejectedValue(new Error("offline")) });
+    expect(await resendSignUpCode(down, "a@b.co")).toMatchObject({ ok: false, error: expect.stringContaining("Could not reach") });
   });
 });

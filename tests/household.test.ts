@@ -30,6 +30,7 @@ function gateway(overrides: Partial<HouseholdGateway> = {}): HouseholdGateway {
     joinHousehold: vi.fn(async () => ok("house-2")),
     leaveHousehold: vi.fn(async () => ok(null)),
     loadProfile: vi.fn(async () => ok<ProfileRow>(profile())),
+    ensureProfile: vi.fn(async () => ok(null)),
     updateLocation: vi.fn(async () => ok(null)),
     loadHousehold: vi.fn(async () => ok<HouseholdRow>({ id: "house-1", name: "Home", invite_code: "3fa91c0b" })),
     loadMembers: vi.fn(async () => ok<MemberRow[]>([{ id: "user-1", name: "Ana" }, { id: "user-2", name: "Ben" }])),
@@ -191,9 +192,40 @@ describe("loadOverview", () => {
     expect(await loadOverview(gateway({ loadMembers: async () => err("nope") }))).toEqual({ ok: false, error: "nope" });
   });
 
-  it("explains a missing profile or household instead of showing a raw database error", async () => {
-    const noProfile = await loadOverview(gateway({ loadProfile: async () => ({ data: null, error: null }) }));
-    expect(noProfile).toEqual({ ok: false, error: "Your profile could not be found. Log out and sign in again." });
+  it("recreates a missing profile once and carries on", async () => {
+    const loadProfile = vi.fn().mockResolvedValueOnce({ data: null, error: null }).mockResolvedValueOnce(ok(profile()));
+    const g = gateway({ loadProfile });
+    expect(await loadOverview(g)).toMatchObject({ ok: true, value: { profile: { name: "Ana" } } });
+    expect(g.ensureProfile).toHaveBeenCalledTimes(1);
+    expect(loadProfile).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not try to repair when the profile loads, or when loading it fails", async () => {
+    const fine = gateway();
+    await loadOverview(fine);
+    expect(fine.ensureProfile).not.toHaveBeenCalled();
+    const broken = gateway({ loadProfile: async () => err("boom") });
+    expect(await loadOverview(broken)).toEqual({ ok: false, error: "boom" });
+    expect(broken.ensureProfile).not.toHaveBeenCalled();
+  });
+
+  it("gives a clear message, and never loops, when the repair does not help", async () => {
+    const stillMissing = gateway({ loadProfile: vi.fn(async () => ({ data: null, error: null })) });
+    expect(await loadOverview(stillMissing)).toEqual({ ok: false, error: "Your profile could not be found. Log out and sign in again." });
+    expect(stillMissing.ensureProfile).toHaveBeenCalledTimes(1);
+    expect(stillMissing.loadProfile).toHaveBeenCalledTimes(2);
+  });
+
+  it("reports failures of the repair itself, of the second load, and network drops", async () => {
+    const missing = { loadProfile: vi.fn(async () => ({ data: null, error: null })) };
+    expect(await loadOverview(gateway({ ...missing, ensureProfile: async () => err("permission denied") }))).toEqual({ ok: false, error: "permission denied" });
+    const secondFails = vi.fn().mockResolvedValueOnce({ data: null, error: null }).mockResolvedValueOnce(err("late failure"));
+    expect(await loadOverview(gateway({ loadProfile: secondFails }))).toEqual({ ok: false, error: "late failure" });
+    const down = gateway({ ...missing, ensureProfile: async () => { throw new Error("offline"); } });
+    expect(await loadOverview(down)).toMatchObject({ ok: false, error: expect.stringContaining("Could not reach") });
+  });
+
+  it("explains a missing household instead of showing a raw database error", async () => {
     const noHousehold = await loadOverview(gateway({ loadHousehold: async () => ({ data: null, error: null }) }));
     expect(noHousehold).toEqual({ ok: false, error: "Your household could not be found." });
   });
@@ -234,6 +266,12 @@ describe("supabaseGateway adapter", () => {
     const { client, calls } = fakeClient({ data: null, error: null });
     expect(await supabaseGateway(client).leaveHousehold()).toEqual({ data: null, error: null });
     expect(calls.rpc).toEqual([["leave_household", undefined]]);
+  });
+
+  it("asks the database to create the caller's own missing profile, with no arguments", async () => {
+    const { client, calls } = fakeClient({ data: null, error: null });
+    expect(await supabaseGateway(client).ensureProfile()).toEqual({ data: null, error: null });
+    expect(calls.rpc).toEqual([["ensure_profile", undefined]]);
   });
 
   it("lists household members by name", async () => {

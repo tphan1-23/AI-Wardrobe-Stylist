@@ -43,7 +43,9 @@ export interface AuthClient {
   signOut(): Promise<{ error: AuthError | null }>;
   // Password reset by emailed code: request it, trade it for a session, set the new password.
   resetPasswordForEmail(email: string): Promise<{ error: AuthError | null }>;
-  verifyOtp(params: { email: string; token: string; type: "recovery" }): Promise<AuthResponse>;
+  // "signup" confirms a new account with the emailed code (Confirm signup template shows {{ .Token }}).
+  verifyOtp(params: { email: string; token: string; type: "recovery" | "signup" }): Promise<AuthResponse>;
+  resend(params: { type: "signup"; email: string }): Promise<{ error: AuthError | null }>;
   updateUser(attributes: { password?: string; data?: Record<string, unknown> }): Promise<{ error: AuthError | null }>;
 }
 
@@ -241,6 +243,43 @@ export async function resetPassword(client: AuthClient, input: ResetPasswordInpu
     if (verified.error) return { ok: false, error: friendlyAuthError(verified.error.message) };
 
     const { error } = await client.updateUser({ password: input.newPassword });
+    if (error) return { ok: false, error: friendlyAuthError(error.message) };
+    return { ok: true };
+  } catch {
+    return { ok: false, error: NETWORK_ERROR };
+  }
+}
+
+export interface ConfirmSignUpInput {
+  email: string;
+  code: string;
+}
+
+// Confirms a new account with the code emailed at sign-up. Success leaves the user signed in.
+// (Expo Go cannot open email links, which is why a code is used, like the password reset.)
+export async function confirmSignUp(client: AuthClient, input: ConfirmSignUpInput): Promise<AuthResult> {
+  const problem = validateEmail(input.email) ?? validateResetCode(input.code);
+  if (problem) return { ok: false, error: problem };
+
+  try {
+    const { error } = await client.verifyOtp({
+      email: normalizeEmail(input.email),
+      token: normalizeResetCode(input.code),
+      type: "signup",
+    });
+    if (error) return { ok: false, error: friendlyAuthError(error.message) };
+    return { ok: true, status: "signed_in" };
+  } catch {
+    return { ok: false, error: NETWORK_ERROR };
+  }
+}
+
+export async function resendSignUpCode(client: AuthClient, email: string): Promise<ResetResult> {
+  const problem = validateEmail(email);
+  if (problem) return { ok: false, error: problem };
+
+  try {
+    const { error } = await client.resend({ type: "signup", email: normalizeEmail(email) });
     if (error) return { ok: false, error: friendlyAuthError(error.message) };
     return { ok: true };
   } catch {
