@@ -29,3 +29,48 @@ describe("migration 0001_init stays in sync with the tag schema", () => {
     expect(sql).toMatch(/values \('garments', 'garments', false\)/);
   });
 });
+
+describe("migration 0002_personal_closets (D18)", () => {
+  const personal = readFileSync(new URL("../supabase/migrations/0002_personal_closets.sql", import.meta.url), "utf8");
+
+  it("moves garments from household ownership to user ownership", () => {
+    expect(personal).toContain("alter table garments drop column household_id");
+    expect(personal).toContain("alter table garments rename column added_by to owner_id");
+  });
+
+  it("drops every household-scoped garment and photo policy from 0001 before replacing it", () => {
+    const old = [...sql.matchAll(/create policy (garment\w+) on (garments|storage\.objects)/g)];
+    expect(old.length).toBeGreaterThan(0);
+    for (const [, name, table] of old) expect(personal).toContain(`drop policy ${name} on ${table}`);
+    expect(personal).not.toMatch(/create policy[^;]*household_id = current_household_id\(\)/);
+  });
+
+  it("lets only the owner write garments and photos; members may only read", () => {
+    for (const action of ["insert", "update", "delete"]) {
+      expect(personal).toMatch(new RegExp(`create policy garments_owner_${action} on garments\\s+for ${action}[^;]*owner_id = auth\\.uid\\(\\)`));
+    }
+    expect(personal).toMatch(/create policy garments_visible_read on garments\s+for select using \(owner_id in \(select visible_closet_owner_ids\(\)\)\)/);
+    for (const action of ["insert", "delete"]) {
+      expect(personal).toMatch(new RegExp(`create policy garment_photos_${action} on storage\\.objects[^;]*foldername\\(name\\)\\)\\[1\\] = auth\\.uid\\(\\)::text`));
+    }
+  });
+
+  it("adds leave_household, which deletes the household once it is empty", () => {
+    expect(personal).toMatch(/create function leave_household\(\) returns void/);
+    expect(personal).toMatch(/update users set household_id = null where id = auth\.uid\(\)/);
+    expect(personal).toMatch(/delete from households h\s+where h\.id = hid and not exists/);
+  });
+
+  it("refuses to create or join while already in a household", () => {
+    for (const fn of ["create_household", "join_household"]) {
+      const body = new RegExp(`create or replace function ${fn}[\\s\\S]*?end \\$\\$;`).exec(personal)?.[0] ?? "";
+      expect(body, fn).toContain("raise exception 'already in a household'");
+    }
+  });
+
+  it("runs every security-definer function with a fixed search_path", () => {
+    const definers = personal.match(/security definer[^\n]*/g) ?? [];
+    expect(definers.length).toBeGreaterThan(0);
+    for (const line of definers) expect(line).toContain("set search_path = public");
+  });
+});

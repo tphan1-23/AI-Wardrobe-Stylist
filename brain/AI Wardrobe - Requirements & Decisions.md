@@ -15,7 +15,7 @@ Running log of requirements-gathering Q&A. Each decision should also be reflecte
 
 | # | Date | Topic | Decision | Notes |
 |---|---|---|---|---|
-| D1 | 2026-10-02 | Household model | **Shared closet, per-person profiles.** One household closet visible to all members; each member keeps their own preferences, preference vector and suggestions. | Resolves conflict: `api_endpoints.md` scoped RLS by household, `architecture.md` scoped garments by user. Garments should be household-scoped; `suggestions`/`preference_vector` stay per-user. |
+| D1 | 2026-10-02 | Household model | **Superseded by D18.** **Shared closet, per-person profiles.** One household closet visible to all members; each member keeps their own preferences, preference vector and suggestions. | Resolves conflict: `api_endpoints.md` scoped RLS by household, `architecture.md` scoped garments by user. Garments should be household-scoped; `suggestions`/`preference_vector` stay per-user. |
 | D2 | 2026-10-02 | Outfit definition (MVP) | **Top + bottom + shoes required** for every suggestion. | Implies users must upload shoes for a usable suggestion; need a fallback/empty-state when a slot has no clean item. One-piece garments (dresses) still need a rule. |
 | D3 | 2026-10-02 | Worn / dirty lifecycle | **Accepting a suggestion marks items worn** (sets `last_worn_date`); **user manually marks items dirty / clean.** | No auto-dirty. Open: what counts as "accepting" (thumbs up vs. separate action) and whether manual "wore something else" is needed. |
 | D4 | 2026-10-02 | Tag errors | **Review & edit screen** after upload: AI-proposed tags are prefilled and editable; user confirms before the garment is saved. | Gives a human-verification step (course emphasis). Tag schema must support editing. |
@@ -33,13 +33,14 @@ Running log of requirements-gathering Q&A. Each decision should also be reflecte
 | D15 | 2026-10-02 | Shared "brain" in GitHub | Project notes live in the repo under `brain/` so both teammates (and any Claude Code session/branch) read and update the same notes with every push. | Repo is **public** — only project notes + proposal go here, never course materials, grades, credentials or personal data. |
 | D16 | 2026-10-03 | Client platform | **Expo (React Native) app, tested on iPhone via Expo Go.** The app is mainly for iPhone. Supersedes the "React web on Vercel" part of the stack (D6 phone-first web, D11 Vercel deploy). | Contracts, AI core and Supabase backend are unchanged (pure TS). Photo capture via `expo-image-picker`/camera; Supabase JS works in React Native. Expo can also export a web build (`expo export -p web`) if M3 needs a hosted demo on Vercel. Thanh's UI slice moves to `frontend/` as an Expo app. Open: Expo web build as fallback, Apple developer account only needed for TestFlight, not Expo Go. |
 | D17 | 2026-10-03 | Milestone 2 graded PR | **One PR, one core feature: auth + household** (sign-up/log-in/log-out, create/join household, weather location), with unit tests and a committed coverage analysis of at least 80% of that feature's code. Manuel submits, Thanh approves on GitHub. Assignment rules: one PR, approved by a teammate other than the submitter, one core feature, tests, coverage analysis. | Chosen by Manuel over my recommendation (outfit suggestion, which stays on `feat/ai-core` for a later milestone). The household logic was written by Manuel + Claude on `feat/household-service` (authored as Manuel) so both authors have commits in the PR. |
+| D18 | 2026-10-08 | Personal closets (supersedes D1) | **Every account gets its own closet; a household is optional and only shares closets.** Garments belong to the person who added them (`owner_id`). Household members can **view** each other's garments and photos; only the owner can change or delete them. Joining or leaving never moves clothes, it only changes who can see them. One household at a time (leave before joining another). The last member to leave deletes the household. No special owner role. Daily suggestions use the user's **own** closet only. | Proposed by Thanh; implemented on `feat/personal-closets` (`0002_personal_closets.sql`, `leave_household` RPC, members list, optional household screen). Onboarding no longer requires a household. **Needs Manuel's review:** `types.ts` `Garment` changes (`household_id`/`added_by` → `owner_id`), and `feat/ai-core` scoring/`generate-outfit` must read garments by `owner_id`. Possible later: partners marking each other's items dirty, "remove member". |
 
 ## Draft requirements (from decisions so far)
 
 ### Functional
-- FR1 Sign up / log in with email + password; create or join a household.
+- FR1 Sign up / log in with email + password; optionally create, join or leave a household (D18).
 - FR2 Upload a garment photo; AI proposes `type`, `color`, `season`, `warmth`; user reviews/edits before saving (D4).
-- FR3 Household closet view shared by all members; filter by type/status (D1).
+- FR3 Personal closet view; household members can also view each other's closets (read-only); filter by type/status (D18).
 - FR4 Manually mark items dirty / clean (D3).
 - FR5 First-use quiz seeds per-user preference vector (D8).
 - FR6 Daily suggestion = top + bottom + shoes, all clean, weather-appropriate for the user's location, avoids recent repeats, scored against the user's preference vector (D2, D5).
@@ -48,7 +49,7 @@ Running log of requirements-gathering Q&A. Each decision should also be reflecte
 - FR9 Delete garment / photo / account (D10).
 
 ### Non-functional
-- NFR1 Mobile-first responsive UI (D6). NFR2 Free-tier only (Supabase, Gemini, OpenWeatherMap, Vercel). NFR3 Per-household data isolation via RLS, including Storage (D10). NFR4 >80% automated test coverage, CI on every PR (D11). NFR5 Secrets only server-side (vision key in edge function); `.env.example` kept current. NFR6 Every milestone as a teammate-reviewed PR; per-person AI Audit Log.
+- NFR1 Mobile-first responsive UI (D6). NFR2 Free-tier only (Supabase, Gemini, OpenWeatherMap, Vercel). NFR3 Per-user data isolation via RLS, readable by household members only, including Storage (D10, D18). NFR4 >80% automated test coverage, CI on every PR (D11). NFR5 Secrets only server-side (vision key in edge function); `.env.example` kept current. NFR6 Every milestone as a teammate-reviewed PR; per-person AI Audit Log.
 
 ## Impact on existing repo docs (not yet applied)
 - `docs/architecture.md`: add `households` table; make garments household-scoped; move location to `users`; add review step to the upload flow; describe re-roll.

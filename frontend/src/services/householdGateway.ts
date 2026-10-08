@@ -1,6 +1,6 @@
 // Adapter from the Supabase client to HouseholdGateway. Typed structurally so it
 // can be tested with a fake client; frontend/src/services/supabase.ts supplies the real one.
-import type { GatewayResult, HouseholdGateway, HouseholdRow, ProfileRow } from "./household.ts";
+import type { GatewayResult, HouseholdGateway, HouseholdRow, MemberRow, ProfileRow } from "./household.ts";
 
 type Result = PromiseLike<{ data: unknown; error: { message: string } | null }>;
 
@@ -8,12 +8,13 @@ interface Query {
   select(columns: string): Query;
   update(values: Record<string, unknown>): Query;
   eq(column: string, value: string): Query;
+  order(column: string): Query;
   maybeSingle(): Result;
   then: Result["then"];
 }
 
 export interface SupabaseLike {
-  rpc(fn: string, args: Record<string, unknown>): Result;
+  rpc(fn: string, args?: Record<string, unknown>): Result;
   from(table: string): Query;
   auth: { getUser(): PromiseLike<{ data: { user: { id: string } | null }; error: { message: string } | null }> };
 }
@@ -37,10 +38,13 @@ export function supabaseGateway(client: SupabaseLike): HouseholdGateway {
     async joinHousehold(inviteCode) {
       return typed<string>(await client.rpc("join_household", { p_code: inviteCode }));
     },
+    async leaveHousehold() {
+      return typed<unknown>(await client.rpc("leave_household"));
+    },
     async loadProfile() {
       const id = await currentUserId();
       if (typeof id !== "string") return { data: null, error: id };
-      return typed<ProfileRow>(await client.from("users").select("household_id, name, location").eq("id", id).maybeSingle());
+      return typed<ProfileRow>(await client.from("users").select("id, household_id, name, location").eq("id", id).maybeSingle());
     },
     async updateLocation(location) {
       const id = await currentUserId();
@@ -50,6 +54,11 @@ export function supabaseGateway(client: SupabaseLike): HouseholdGateway {
     async loadHousehold(householdId) {
       return typed<HouseholdRow>(
         await client.from("households").select("id, name, invite_code").eq("id", householdId).maybeSingle(),
+      );
+    },
+    async loadMembers(householdId) {
+      return typed<MemberRow[]>(
+        await client.from("users").select("id, name").eq("household_id", householdId).order("name"),
       );
     },
   };

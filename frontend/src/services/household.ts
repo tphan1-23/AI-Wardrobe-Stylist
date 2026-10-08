@@ -1,6 +1,7 @@
-// Household onboarding logic: create or join a household and set the weather
-// location. Pure TypeScript with an injected gateway so it is unit-tested
-// without React Native or a network (see tests/household.test.ts).
+// Profile and household logic: set the weather location, and optionally create,
+// join or leave a household to share closets (D18). Pure TypeScript with an
+// injected gateway so it is unit-tested without React Native or a network
+// (see tests/household.test.ts).
 
 export const MAX_HOUSEHOLD_NAME_LENGTH = 60;
 export const MAX_LOCATION_LENGTH = 100;
@@ -17,6 +18,7 @@ export interface GatewayResult<T> {
 }
 
 export interface ProfileRow {
+  id: string;
   household_id: string | null;
   name: string;
   location: string | null;
@@ -28,15 +30,23 @@ export interface HouseholdRow {
   invite_code: string;
 }
 
+export interface MemberRow {
+  id: string;
+  name: string;
+}
+
 export interface HouseholdGateway {
   createHousehold(name: string): Promise<GatewayResult<string>>;
   joinHousehold(inviteCode: string): Promise<GatewayResult<string>>;
+  leaveHousehold(): Promise<GatewayResult<unknown>>;
   loadProfile(): Promise<GatewayResult<ProfileRow>>;
   updateLocation(location: string): Promise<GatewayResult<unknown>>;
   loadHousehold(householdId: string): Promise<GatewayResult<HouseholdRow>>;
+  loadMembers(householdId: string): Promise<GatewayResult<MemberRow[]>>;
 }
 
-export type OnboardingStep = "household" | "location" | "ready";
+// A household is optional (D18), so onboarding only asks for the location.
+export type OnboardingStep = "location" | "ready";
 
 export type Result<T> = { ok: true; value: T } | { ok: false; error: string };
 
@@ -72,13 +82,14 @@ export function validateLocation(location: string): string | null {
 export function friendlyHouseholdError(message: string): string {
   const text = message.toLowerCase();
   if (text.includes("invalid invite code")) return "That invite code was not found. Check it and try again.";
+  if (text.includes("already in a household")) return "Leave your current household before joining or creating another.";
+  if (text.includes("not in a household")) return "You are not in a household.";
   if (text.includes("jwt") || text.includes("not authenticated")) return "Your session expired. Please sign in again.";
   return message;
 }
 
 // What the signed-in user still has to do before the app is usable.
-export function onboardingStep(profile: Pick<ProfileRow, "household_id" | "location">): OnboardingStep {
-  if (!profile.household_id) return "household";
+export function onboardingStep(profile: Pick<ProfileRow, "location">): OnboardingStep {
   if (!profile.location || profile.location.trim() === "") return "location";
   return "ready";
 }
@@ -109,31 +120,47 @@ export async function joinHousehold(gateway: HouseholdGateway, inviteCode: strin
   return guarded(() => gateway.joinHousehold(normalizeInviteCode(inviteCode)));
 }
 
+// For calls whose success carries no data (an update or a void RPC).
+async function done(call: () => Promise<GatewayResult<unknown>>): Promise<Result<true>> {
+  return guarded(async () => {
+    const res = await call();
+    return { data: res.error ? null : (true as const), error: res.error };
+  });
+}
+
 export async function saveLocation(gateway: HouseholdGateway, location: string): Promise<Result<string>> {
   const problem = validateLocation(location);
   if (problem) return { ok: false, error: problem };
   const trimmed = location.trim();
-  const saved = await guarded(async () => {
-    const res = await gateway.updateLocation(trimmed);
-    return { data: res.error ? null : true, error: res.error };
-  });
+  const saved = await done(() => gateway.updateLocation(trimmed));
   return saved.ok ? { ok: true, value: trimmed } : saved;
+}
+
+// Stops sharing closets. The user's garments stay theirs; the database deletes
+// the household when the last member leaves.
+export async function leaveHousehold(gateway: HouseholdGateway): Promise<Result<true>> {
+  return done(() => gateway.leaveHousehold());
 }
 
 export interface Overview {
   profile: ProfileRow;
   household: HouseholdRow | null;
+  // Everyone in the household, including the signed-in user; empty without a household.
+  members: MemberRow[];
   step: OnboardingStep;
 }
 
 export async function loadOverview(gateway: HouseholdGateway): Promise<Result<Overview>> {
   const profile = await guarded(() => gateway.loadProfile(), "Your profile could not be found. Log out and sign in again.");
   if (!profile.ok) return profile;
+  const step = onboardingStep(profile.value);
   const householdId = profile.value.household_id;
   if (!householdId) {
-    return { ok: true, value: { profile: profile.value, household: null, step: onboardingStep(profile.value) } };
+    return { ok: true, value: { profile: profile.value, household: null, members: [], step } };
   }
   const household = await guarded(() => gateway.loadHousehold(householdId), "Your household could not be found.");
   if (!household.ok) return household;
-  return { ok: true, value: { profile: profile.value, household: household.value, step: onboardingStep(profile.value) } };
+  const members = await guarded(() => gateway.loadMembers(householdId));
+  if (!members.ok) return members;
+  return { ok: true, value: { profile: profile.value, household: household.value, members: members.value, step } };
 }

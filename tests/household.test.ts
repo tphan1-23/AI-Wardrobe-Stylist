@@ -5,6 +5,7 @@ import {
   createHousehold,
   friendlyHouseholdError,
   joinHousehold,
+  leaveHousehold,
   loadOverview,
   normalizeInviteCode,
   onboardingStep,
@@ -15,6 +16,7 @@ import {
   type GatewayResult,
   type HouseholdGateway,
   type HouseholdRow,
+  type MemberRow,
   type ProfileRow,
 } from "../frontend/src/services/household.ts";
 import { supabaseGateway, type SupabaseLike } from "../frontend/src/services/householdGateway.ts";
@@ -26,11 +28,17 @@ function gateway(overrides: Partial<HouseholdGateway> = {}): HouseholdGateway {
   return {
     createHousehold: vi.fn(async () => ok("house-1")),
     joinHousehold: vi.fn(async () => ok("house-2")),
-    loadProfile: vi.fn(async () => ok<ProfileRow>({ household_id: "house-1", name: "Ana", location: "Conway" })),
+    leaveHousehold: vi.fn(async () => ok(null)),
+    loadProfile: vi.fn(async () => ok<ProfileRow>(profile())),
     updateLocation: vi.fn(async () => ok(null)),
     loadHousehold: vi.fn(async () => ok<HouseholdRow>({ id: "house-1", name: "Home", invite_code: "3fa91c0b" })),
+    loadMembers: vi.fn(async () => ok<MemberRow[]>([{ id: "user-1", name: "Ana" }, { id: "user-2", name: "Ben" }])),
     ...overrides,
   };
+}
+
+function profile(overrides: Partial<ProfileRow> = {}): ProfileRow {
+  return { id: "user-1", household_id: "house-1", name: "Ana", location: "Conway", ...overrides };
 }
 
 describe("validation", () => {
@@ -58,6 +66,8 @@ describe("validation", () => {
 
   it("turns server messages into friendly ones and passes unknown ones through", () => {
     expect(friendlyHouseholdError("invalid invite code")).toContain("not found");
+    expect(friendlyHouseholdError("already in a household")).toContain("Leave your current household");
+    expect(friendlyHouseholdError("not in a household")).toBe("You are not in a household.");
     expect(friendlyHouseholdError("JWT expired")).toContain("sign in again");
     expect(friendlyHouseholdError("not authenticated")).toContain("sign in again");
     expect(friendlyHouseholdError("something odd")).toBe("something odd");
@@ -65,12 +75,10 @@ describe("validation", () => {
 });
 
 describe("onboardingStep", () => {
-  it("walks household -> location -> ready", () => {
-    expect(onboardingStep({ household_id: null, location: null })).toBe("household");
-    expect(onboardingStep({ household_id: null, location: "Conway" })).toBe("household");
-    expect(onboardingStep({ household_id: "h", location: null })).toBe("location");
-    expect(onboardingStep({ household_id: "h", location: "   " })).toBe("location");
-    expect(onboardingStep({ household_id: "h", location: "Conway" })).toBe("ready");
+  it("only asks for a location; a household is optional", () => {
+    expect(onboardingStep({ location: null })).toBe("location");
+    expect(onboardingStep({ location: "   " })).toBe("location");
+    expect(onboardingStep({ location: "Conway" })).toBe("ready");
   });
 });
 
@@ -129,27 +137,58 @@ describe("saveLocation", () => {
   });
 });
 
+describe("leaveHousehold", () => {
+  it("calls the server and reports success", async () => {
+    const g = gateway();
+    expect(await leaveHousehold(g)).toEqual({ ok: true, value: true });
+    expect(g.leaveHousehold).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows a friendly message when the user is not in a household", async () => {
+    const g = gateway({ leaveHousehold: async () => err("not in a household") });
+    expect(await leaveHousehold(g)).toEqual({ ok: false, error: "You are not in a household." });
+  });
+
+  it("reports network failures", async () => {
+    const g = gateway({ leaveHousehold: async () => { throw new Error("offline"); } });
+    expect(await leaveHousehold(g)).toMatchObject({ ok: false, error: expect.stringContaining("Could not reach") });
+  });
+});
+
 describe("loadOverview", () => {
-  it("returns profile, household and the ready step", async () => {
-    const res = await loadOverview(gateway());
-    expect(res).toMatchObject({ ok: true, value: { step: "ready", household: { invite_code: "3fa91c0b" } } });
-  });
-
-  it("skips the household lookup when the user has none", async () => {
-    const g = gateway({ loadProfile: async () => ok<ProfileRow>({ household_id: null, name: "Ana", location: null }) });
+  it("returns profile, household, members and the ready step", async () => {
+    const g = gateway();
     const res = await loadOverview(g);
-    expect(res).toMatchObject({ ok: true, value: { step: "household", household: null } });
+    expect(res).toMatchObject({
+      ok: true,
+      value: {
+        step: "ready",
+        household: { invite_code: "3fa91c0b" },
+        members: [{ id: "user-1", name: "Ana" }, { id: "user-2", name: "Ben" }],
+      },
+    });
+    expect(g.loadMembers).toHaveBeenCalledWith("house-1");
+  });
+
+  it("lets a user without a household use the app with their own closet", async () => {
+    const g = gateway({ loadProfile: async () => ok(profile({ household_id: null })) });
+    const res = await loadOverview(g);
+    expect(res).toMatchObject({ ok: true, value: { step: "ready", household: null, members: [] } });
     expect(g.loadHousehold).not.toHaveBeenCalled();
+    expect(g.loadMembers).not.toHaveBeenCalled();
   });
 
-  it("asks for a location when the household exists but location is missing", async () => {
-    const g = gateway({ loadProfile: async () => ok<ProfileRow>({ household_id: "house-1", name: "Ana", location: null }) });
-    expect(await loadOverview(g)).toMatchObject({ ok: true, value: { step: "location" } });
+  it("asks for a location when it is missing, with or without a household", async () => {
+    for (const household_id of ["house-1", null]) {
+      const g = gateway({ loadProfile: async () => ok(profile({ household_id, location: null })) });
+      expect(await loadOverview(g)).toMatchObject({ ok: true, value: { step: "location" } });
+    }
   });
 
-  it("fails cleanly if either lookup fails", async () => {
+  it("fails cleanly if any lookup fails", async () => {
     expect(await loadOverview(gateway({ loadProfile: async () => err("boom") }))).toEqual({ ok: false, error: "boom" });
     expect(await loadOverview(gateway({ loadHousehold: async () => err("denied") }))).toEqual({ ok: false, error: "denied" });
+    expect(await loadOverview(gateway({ loadMembers: async () => err("nope") }))).toEqual({ ok: false, error: "nope" });
   });
 
   it("explains a missing profile or household instead of showing a raw database error", async () => {
@@ -163,12 +202,13 @@ describe("loadOverview", () => {
 describe("supabaseGateway adapter", () => {
   type Reply = { data: unknown; error: { message: string } | null };
   function fakeClient(reply: Reply, user: { id: string } | null = { id: "user-1" }, authError: string | null = null) {
-    const calls: { rpc: [string, Record<string, unknown>][]; ops: unknown[][] } = { rpc: [], ops: [] };
+    const calls: { rpc: [string, Record<string, unknown> | undefined][]; ops: unknown[][] } = { rpc: [], ops: [] };
     const query = (): never => {
       const q = {
         select: (c: string) => (calls.ops.push(["select", c]), q),
         update: (v: Record<string, unknown>) => (calls.ops.push(["update", v]), q),
         eq: (c: string, v: string) => (calls.ops.push(["eq", c, v]), q),
+        order: (c: string) => (calls.ops.push(["order", c]), q),
         maybeSingle: async () => reply,
         then: (res: (r: Reply) => unknown) => Promise.resolve(reply).then(res),
       };
@@ -190,15 +230,28 @@ describe("supabaseGateway adapter", () => {
     expect(calls.rpc).toEqual([["create_household", { p_name: "Home" }], ["join_household", { p_code: "3fa91c0b" }]]);
   });
 
+  it("calls the leave RPC with no arguments", async () => {
+    const { client, calls } = fakeClient({ data: null, error: null });
+    expect(await supabaseGateway(client).leaveHousehold()).toEqual({ data: null, error: null });
+    expect(calls.rpc).toEqual([["leave_household", undefined]]);
+  });
+
+  it("lists household members by name", async () => {
+    const members = [{ id: "user-1", name: "Ana" }];
+    const { client, calls } = fakeClient({ data: members, error: null });
+    expect((await supabaseGateway(client).loadMembers("h")).data).toEqual(members);
+    expect(calls.ops).toEqual([["from", "users"], ["select", "id, name"], ["eq", "household_id", "h"], ["order", "name"]]);
+  });
+
   it("drops data when the server returns an error", async () => {
     const { client } = fakeClient({ data: "ignored", error: { message: "invalid invite code" } });
     expect(await supabaseGateway(client).joinHousehold("3fa91c0b")).toEqual({ data: null, error: { message: "invalid invite code" } });
   });
 
   it("reads only the signed-in user's own row", async () => {
-    const { client, calls } = fakeClient({ data: { household_id: "h", name: "Ana", location: null }, error: null });
-    expect((await supabaseGateway(client).loadProfile()).data).toMatchObject({ name: "Ana" });
-    expect(calls.ops).toEqual([["from", "users"], ["select", "household_id, name, location"], ["eq", "id", "user-1"]]);
+    const { client, calls } = fakeClient({ data: profile({ household_id: null, location: null }), error: null });
+    expect((await supabaseGateway(client).loadProfile()).data).toMatchObject({ id: "user-1", name: "Ana" });
+    expect(calls.ops).toEqual([["from", "users"], ["select", "id, household_id, name, location"], ["eq", "id", "user-1"]]);
   });
 
   it("updates only the signed-in user's own row, and only the location", async () => {
