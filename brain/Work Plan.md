@@ -65,6 +65,8 @@ Other branches (`chore/tooling-contracts`, `feat/data-layer`, `feat/ai-core`) ar
 4. Same page → Apple: enable it, and in "Client IDs" add `host.exp.Exponent` (Expo Go's id) to test without a paid account. A real build needs its own bundle id and the paid Apple Developer Program ($99/yr): flag per the free-tier rule.
 5. SQL Editor: run `0002_personal_closets.sql` (if not yet) and `0003_social_login_names.sql`, then `notify pgrst, 'reload schema';`.
 
+**Reset email status (2026-10-08):** the Supabase default templates cannot be edited on the free plan without custom SMTP, so a dedicated Gmail account (2-Step Verification + app password, `smtp.gmail.com:465`) is set up as the SMTP sender. Emails arrive but in **spam**; accepted for now, fix is on the Milestone 3 checklist. Never commit or paste the app password. The Supabase reset limits are one email per user per 60 seconds, and Gmail allows about 500 a day.
+
 **App name:** the Expo app is branded **DressWell** (display name and slug in `frontend/app.json`); the repo and docs keep the working title AI Wardrobe Stylist.
 
 **Running the app (Thanh):** create `frontend/.env.local` (gitignored) with `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY`, then `cd frontend && npx expo start --tunnel -c` and scan the QR code in Expo Go. Gotchas found:
@@ -100,6 +102,11 @@ Later: quiz screen, daily suggestion screen (call `generate-outfit`, accept via 
 - Do not change `_shared/` AI modules or `types.ts` without Manuel; contract changes go through a PR and must update `docs/api_endpoints.md`.
 - Do not change the schema without updating `types.ts` and the sync test (`tests/migration.test.ts`).
 - Tests: `npm test`, `npm run test:coverage` (gate 80% on `_shared`), `npm run typecheck`. CI runs the same.
+
+## Milestone 3 checklist (deployed app, Week 12, Nov 9-13)
+- [ ] **Fix email deliverability (Thanh decided on 2026-10-08 to leave it until Milestone 3).** Auth emails (password-reset code, sign-up confirmation) currently go out through a dedicated Gmail account over SMTP and **land in the recipient's spam folder**. This is accepted for the class demo (tell testers to check spam and click "Report not spam"). Before real users: get a domain (about $10/yr; the GitHub Student Developer Pack may give a free `.me`/`.tech` for a year; flag per the free-tier rule), sign up for Resend (free about 3,000/month, 100/day) or Brevo (free 300/day), add the SPF, DKIM and DMARC records at the registrar, then put the service's SMTP details in Supabase (Authentication → Emails → SMTP) with a sender such as `noreply@<domain>`. No app code changes. Also remove the `exp://**` redirect URL (D19) and re-test the reset email.
+- [ ] Remove `exp://**` from Supabase redirect URLs; keep only the real app scheme.
+- [ ] Apple sign-in for a real build needs the paid Apple Developer Program ($99/yr): decide ship or drop Apple/Google sign-in for the demo (D19).
 
 ## Known unknowns (blockers to watch)
 - Supabase project not created; migration and RLS untested on a real database.
