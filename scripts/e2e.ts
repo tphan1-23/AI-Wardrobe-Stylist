@@ -70,7 +70,7 @@ async function main() {
   const token: string = auth.body.access_token;
   const uid: string = auth.body.user.id;
 
-  console.log("2. Profile (created by the sign-up trigger) and location");
+  console.log("2. Profile and location");
   const prof = await call(`/rest/v1/users?select=id,location&id=eq.${uid}`, { token });
   if (!check(prof.status === 200 && prof.body.length === 1, "profile row exists", `HTTP ${prof.status}`)) return;
   if (!prof.body[0].location) {
