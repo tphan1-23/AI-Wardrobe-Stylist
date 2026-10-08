@@ -114,6 +114,17 @@ Pull `feat/ai-core` (or its merge) to get these; they affect the app.
 - **Blocker for CI:** on a clean checkout (root `npm ci` only, as CI does) `tests/auth.test.ts` fails to load: Vite finds `frontend/tsconfig.json`, which extends `expo/tsconfig.base`, and `expo` is not installed at the root. Verified fix (one line in `vitest.config.ts`, then 30 tests pass and the branch merges cleanly with `feat/ai-core`, 100 tests at the time): add `esbuild: { tsconfigRaw: "{}" },` inside `defineConfig`. It must be a string; an object does not stop the lookup.
 - Not verified: the screens on a device and the migration against a real Supabase project.
 
+## Edge functions: run, deploy, test (Manuel + Claude)
+The three functions (`analyze-garment`, `generate-outfit`, `update-preferences`) are thin Deno wrappers (`supabase/functions/*/index.ts`, shared `_deno/serve.ts`) over unit-tested code in `_shared/`. Tools run through `npx` (no global install): `npx deno ...`, `npx supabase ...`.
+- **Type-check the Deno files:** `npx deno check --config supabase/functions/deno.json supabase/functions/*/index.ts`
+- **Run one locally** (needs SUPABASE_URL / SUPABASE_ANON_KEY in the environment): `npx deno run --config supabase/functions/deno.json --allow-net --allow-env supabase/functions/update-preferences/index.ts` (listens on :8000).
+- **Deploy** (one-time `npx supabase login` in a terminal; the project ref is the subdomain of `EXPO_PUBLIC_SUPABASE_URL`):
+  1. `set -a; . ./.env; set +a`
+  2. `npx supabase secrets set GEMINI_API_KEY="$GEMINI_API_KEY" OPENWEATHER_API_KEY="$OPENWEATHER_API_KEY" --project-ref <ref>` (name the two secrets explicitly; do **not** use `--env-file .env`, it would also upload the test account password)
+  3. `npx supabase functions deploy analyze-garment generate-outfit update-preferences --project-ref <ref> --use-api`
+- **Test without any screens:** create a throwaway account in the app, put `TEST_EMAIL` and `TEST_PASSWORD` in `.env`, then `node scripts/e2e.ts <folder with photos>`. It signs in, uploads photos, tags them with the real AI, saves garments, asks for an outfit, sends feedback, re-rolls, accepts, and checks that the security rules reject forged writes. It exits non-zero on any failure and cleans up after itself (`E2E_KEEP=1` to keep the data).
+- **Contract for the app:** call `POST {SUPABASE_URL}/functions/v1/<name>` with `Authorization: Bearer <user session token>` (supabase-js: `supabase.functions.invoke`). Error codes: 401 not signed in, 403 photo not in your folder, 404 photo missing, 409 set a location first / feedback already given, 429 AI limit reached (let the user type the tags), 502 AI or weather unavailable.
+
 ## Known unknowns (blockers to watch)
 - Supabase project not created; migration and RLS untested on a real database.
 - Gemini model/version and key not chosen; edge functions not deployed (Deno not installed locally).
