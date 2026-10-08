@@ -6,6 +6,9 @@ import {
   fieldForError,
   friendlyAuthError,
   normalizeEmail,
+  normalizeResetCode,
+  requestPasswordReset,
+  resetPassword,
   signIn,
   signOut,
   signUp,
@@ -13,6 +16,7 @@ import {
   validateName,
   validateNewPassword,
   validatePassword,
+  validateResetCode,
   type AuthClient,
 } from "../frontend/src/services/auth.ts";
 
@@ -25,6 +29,9 @@ function fakeClient(overrides: Partial<AuthClient> = {}): AuthClient {
     signUp: vi.fn().mockResolvedValue(ok),
     signInWithPassword: vi.fn().mockResolvedValue(ok),
     signOut: vi.fn().mockResolvedValue({ error: null }),
+    resetPasswordForEmail: vi.fn().mockResolvedValue({ error: null }),
+    verifyOtp: vi.fn().mockResolvedValue(ok),
+    updateUser: vi.fn().mockResolvedValue({ error: null }),
     ...overrides,
   };
 }
@@ -83,6 +90,17 @@ describe("validation", () => {
       isValid: false,
     });
     expect(checkPasswordRequirements("Longenough1!").isValid).toBe(true);
+  });
+
+  it("validates the emailed reset code", () => {
+    expect(validateResetCode("")).toMatch(/enter the code/i);
+    expect(validateResetCode("   ")).toMatch(/enter the code/i);
+    for (const bad of ["12345", "12345a", "12-34", "12345678901", "abcdef"]) {
+      expect(validateResetCode(bad)).toMatch(/numbers only/i);
+    }
+    expect(validateResetCode("123456")).toBeNull();
+    expect(validateResetCode(" 123 456 ")).toBeNull();
+    expect(normalizeResetCode(" 123 456\n")).toBe("123456");
   });
 
   it("validates name", () => {
@@ -188,6 +206,94 @@ describe("signIn", () => {
   });
 });
 
+describe("requestPasswordReset", () => {
+  it("rejects a bad email without calling the server", async () => {
+    const client = fakeClient();
+    expect(await requestPasswordReset(client, "nope")).toMatchObject({ ok: false });
+    expect(client.resetPasswordForEmail).not.toHaveBeenCalled();
+  });
+
+  it("asks for a code for the normalized email", async () => {
+    const client = fakeClient();
+    expect(await requestPasswordReset(client, "  A@B.co ")).toEqual({ ok: true });
+    expect(client.resetPasswordForEmail).toHaveBeenCalledWith("a@b.co");
+  });
+
+  it("returns a friendly message for server errors", async () => {
+    const client = fakeClient({
+      resetPasswordForEmail: vi.fn().mockResolvedValue({ error: { message: "email rate limit exceeded" } }),
+    });
+    expect(await requestPasswordReset(client, "a@b.co")).toEqual({
+      ok: false,
+      error: "Too many attempts. Please wait a moment and try again.",
+    });
+  });
+
+  it("handles network failures", async () => {
+    const client = fakeClient({ resetPasswordForEmail: vi.fn().mockRejectedValue(new Error("offline")) });
+    expect(await requestPasswordReset(client, "a@b.co")).toMatchObject({
+      ok: false,
+      error: expect.stringMatching(/could not reach/i),
+    });
+  });
+});
+
+describe("resetPassword", () => {
+  const input = { email: " A@B.co ", code: " 123 456 ", newPassword: "Longenough1!" };
+
+  it("rejects bad input without calling the server", async () => {
+    const client = fakeClient();
+    for (const bad of [
+      { ...input, email: "" },
+      { ...input, code: "" },
+      { ...input, code: "abc" },
+      { ...input, newPassword: "" },
+      { ...input, newPassword: "longenough1" },
+    ]) {
+      expect(await resetPassword(client, bad)).toMatchObject({ ok: false });
+    }
+    expect(client.verifyOtp).not.toHaveBeenCalled();
+    expect(client.updateUser).not.toHaveBeenCalled();
+  });
+
+  it("checks the code, then sets the new password", async () => {
+    const client = fakeClient();
+    expect(await resetPassword(client, input)).toEqual({ ok: true });
+    expect(client.verifyOtp).toHaveBeenCalledWith({ email: "a@b.co", token: "123456", type: "recovery" });
+    expect(client.updateUser).toHaveBeenCalledWith({ password: "Longenough1!" });
+  });
+
+  it("does not change the password when the code is wrong or expired", async () => {
+    const client = fakeClient({
+      verifyOtp: vi
+        .fn()
+        .mockResolvedValue({ data: { user: null, session: null }, error: { message: "Token has expired or is invalid" } }),
+    });
+    expect(await resetPassword(client, input)).toEqual({
+      ok: false,
+      error: "That code is wrong or has expired. Request a new one.",
+    });
+    expect(client.updateUser).not.toHaveBeenCalled();
+  });
+
+  it("reports a rejected new password, such as one used before", async () => {
+    const client = fakeClient({
+      updateUser: vi
+        .fn()
+        .mockResolvedValue({ error: { message: "New password should be different from the old password." } }),
+    });
+    expect(await resetPassword(client, input)).toEqual({
+      ok: false,
+      error: "Choose a password you have not used before.",
+    });
+  });
+
+  it("handles network failures", async () => {
+    const client = fakeClient({ verifyOtp: vi.fn().mockRejectedValue(new Error("offline")) });
+    expect(await resetPassword(client, input)).toMatchObject({ ok: false, error: expect.stringMatching(/could not reach/i) });
+  });
+});
+
 describe("signOut", () => {
   it("succeeds", async () => {
     expect(await signOut(fakeClient())).toEqual({ ok: true });
@@ -216,6 +322,10 @@ describe("fieldForError", () => {
     ["Password must be at most 72 characters.", "password"],
     ["Password needs an uppercase letter.", "password"],
     ["Password needs a special character.", "password"],
+    ["Choose a password you have not used before.", "password"],
+    ["Enter the code we sent you.", "code"],
+    ["The code is made of numbers only, like 123456.", "code"],
+    ["That code is wrong or has expired. Request a new one.", "code"],
     ["Confirm your email, then sign in.", "form"],
     ["Too many attempts. Please wait a moment and try again.", "form"],
     ["Could not reach the server. Check your connection and try again.", "form"],
