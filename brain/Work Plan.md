@@ -29,6 +29,8 @@ Commits are authored by whoever owns the slice (their own git identity). Team co
 | `feat/expo-app` | data-layer | Thanh | in progress | Expo app in `frontend/`; steps 1, 2 and 4 done (see progress below) |
 | `feat/design` | expo-app | Thanh | pushed | Restyle to the design board, notch/Dynamic Island fix |
 | `feat/personal-closets` | design | Thanh | pushed, PR not opened; `0002` not yet run on Supabase | Personal closets + optional households (D18): `0002_personal_closets.sql`, leave household, members list; sign-up password rules |
+| `feat/ai-core` | data-layer | Manuel + Claude | in progress | scoring engine, preference learning, tag validation + vision prompt v1, `generate-outfit`/`update-preferences` handlers (injected I/O) and weather parser — all done and tested; Deno entry files + Gemini call still to do |
+| `feat/expo-app` | data-layer | Thanh | starting | Expo app in `frontend/` (see below) |
 
 Chain: `chore/tooling-contracts` → `feat/data-layer` → (`feat/ai-core`, `feat/expo-app`). Work on branches that descend from `feat/data-layer` so the types, schema and CI are present. If you rebase/merge, pull `origin/feat/data-layer` first.
 
@@ -92,6 +94,21 @@ Later: quiz screen, daily suggestion screen (call `generate-outfit`, accept via 
 - Do not change `_shared/` AI modules or `types.ts` without Manuel; contract changes go through a PR and must update `docs/api_endpoints.md`.
 - Do not change the schema without updating `types.ts` and the sync test (`tests/migration.test.ts`).
 - Tests: `npm test`, `npm run test:coverage` (gate 80% on `_shared`), `npm run typecheck`. CI runs the same.
+
+## Contract changes (read before coding against `types.ts`)
+Pull `feat/ai-core` (or its merge) to get these; they affect the app.
+- **`GenerateOutfitResponse`** has a third status, `exhausted` (re-roll ran out of unseen combinations). Handle `ok` / `incomplete` / `exhausted` in the suggestion screen.
+- **`AnalyzeGarmentResponse`** is now `{ tags: Partial<GarmentTags>, confidence, needs_review, warnings }`. Fields the model got wrong or missed are absent from `tags`; fields that are absent or low-confidence are listed in `needs_review`. **The review screen must highlight those fields and require the user to fill/confirm them before saving**, and a stub of `analyze-garment` should return this shape (e.g. all four tags present, `needs_review: []`).
+
+## Notes for the app (from AI core)
+- **Quiz seeding needs no edge function:** import `quizToPreferences` from `_shared/preferences.ts`, then upsert the result into `preference_vector` (own rows, allowed by RLS) and save the answers in `users.quiz_preferences`. `temp_comfort` is read from `quiz_preferences` by `generate-outfit`.
+- Both `generate-outfit` and `update-preferences` read the user from the auth token, so the app does not pass a user id. `update-preferences` accepts feedback once per suggestion (409 afterwards).
+- `generate-outfit` errors to handle: 409 (join/create a household first, set a location first), 502 (weather down), plus the three result statuses.
+
+## Review of `feat/expo-app` (2026-10-03, Manuel)
+- Good: auth logic is pure with an injected client, input validation and error mapping are tested, status in the Work Plan is honest about what is unverified.
+- **Blocker for CI:** on a clean checkout (root `npm ci` only, as CI does) `tests/auth.test.ts` fails to load: Vite finds `frontend/tsconfig.json`, which extends `expo/tsconfig.base`, and `expo` is not installed at the root. Verified fix (one line in `vitest.config.ts`, then 30 tests pass and the branch merges cleanly with `feat/ai-core`, 100 tests at the time): add `esbuild: { tsconfigRaw: "{}" },` inside `defineConfig`. It must be a string; an object does not stop the lookup.
+- Not verified: the screens on a device and the migration against a real Supabase project.
 
 ## Known unknowns (blockers to watch)
 - Supabase project not created; migration and RLS untested on a real database.

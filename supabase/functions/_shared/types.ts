@@ -90,9 +90,14 @@ export interface AnalyzeGarmentRequest {
   image_path: string;
 }
 
+// Fields the model got wrong, left out or was unsure about are absent from
+// `tags` or listed in `needs_review`; the review screen must make the user
+// fill/confirm them before the garment is saved.
 export interface AnalyzeGarmentResponse {
-  tags: GarmentTags;
-  confidence: Record<keyof GarmentTags, number>; // 0..1 per field
+  tags: Partial<GarmentTags>;
+  confidence: Partial<Record<keyof GarmentTags, number>>; // 0..1 per field
+  needs_review: (keyof GarmentTags)[];
+  warnings: string[];
 }
 
 // ---- Edge function: generate-outfit ---------------------------------------
@@ -103,19 +108,17 @@ export interface GenerateOutfitRequest {
   exclude_suggestion_ids?: UUID[]; // re-roll after thumbs down (D9)
 }
 
+// Pure result of the scoring engine (no persistence).
+export type OutfitResult =
+  | { status: "ok"; outfit: Outfit; score: number; reasoning: string }
+  | { status: "incomplete"; missing_slots: Exclude<Slot, "other">[]; reasoning: string }
+  // Every valid combination was already rejected (re-roll ran out of options).
+  | { status: "exhausted"; reasoning: string };
+
+// The edge function persists an "ok" result and adds the suggestion id.
 export type GenerateOutfitResponse =
-  | {
-      status: "ok";
-      suggestion_id: UUID;
-      outfit: Outfit;
-      score: number;
-      reasoning: string;
-    }
-  | {
-      status: "incomplete";
-      missing_slots: Exclude<Slot, "other">[];
-      reasoning: string;
-    };
+  | (Extract<OutfitResult, { status: "ok" }> & { suggestion_id: UUID })
+  | Exclude<OutfitResult, { status: "ok" }>;
 
 // ---- Accepting a suggestion (marks items worn, D3) --------------------------
 
