@@ -1,7 +1,18 @@
 // Email + password auth logic. Pure TypeScript with an injected client so it
 // can be unit-tested without React Native or a network (see tests/auth.test.ts).
 
-export const MIN_PASSWORD_LENGTH = 8;
+export interface PasswordRequirements {
+  hasMinLength: boolean;
+  hasUpperCase: boolean;
+  hasLowerCase: boolean;
+  hasNumber: boolean;
+  hasSpecialChar: boolean;
+}
+
+export interface PasswordValidationResult {
+  requirements: PasswordRequirements;
+  isValid: boolean;
+}
 
 interface AuthUser {
   id: string;
@@ -60,11 +71,45 @@ export function validateEmail(email: string): string | null {
   return null;
 }
 
+export const MIN_PASSWORD_LENGTH = 8;
+// Supabase rejects passwords longer than 72 characters.
+export const MAX_PASSWORD_LENGTH = 72;
+
+// Basic check used on sign-in, so accounts made before the stricter rules can still log in.
 export function validatePassword(password: string): string | null {
   if (password === "") return "Enter a password.";
   if (password.length < MIN_PASSWORD_LENGTH) {
     return `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`;
   }
+  return null;
+}
+
+// Each sign-up rule on its own, so the screen can show a checklist.
+export function checkPasswordRequirements(password: string): PasswordValidationResult {
+  const requirements: PasswordRequirements = {
+    hasMinLength:
+      password.length >= MIN_PASSWORD_LENGTH && password.length <= MAX_PASSWORD_LENGTH,
+    hasUpperCase: /[A-Z]/.test(password),
+    hasLowerCase: /[a-z]/.test(password),
+    hasNumber: /[0-9]/.test(password),
+    hasSpecialChar: /[^A-Za-z0-9]/.test(password),
+  };
+  const isValid = Object.values(requirements).every(Boolean);
+  return { requirements, isValid };
+}
+
+// Stricter check for new accounts: returns the first unmet rule as a message.
+export function validateNewPassword(password: string): string | null {
+  const basic = validatePassword(password);
+  if (basic) return basic;
+  const { requirements } = checkPasswordRequirements(password);
+  if (!requirements.hasMinLength) {
+    return `Password must be at most ${MAX_PASSWORD_LENGTH} characters.`;
+  }
+  if (!requirements.hasUpperCase) return "Password needs an uppercase letter.";
+  if (!requirements.hasLowerCase) return "Password needs a lowercase letter.";
+  if (!requirements.hasNumber) return "Password needs a number.";
+  if (!requirements.hasSpecialChar) return "Password needs a special character.";
   return null;
 }
 
@@ -98,7 +143,7 @@ const NETWORK_ERROR = "Could not reach the server. Check your connection and try
 
 export async function signUp(client: AuthClient, input: SignUpInput): Promise<AuthResult> {
   const problem =
-    validateName(input.name) ?? validateEmail(input.email) ?? validatePassword(input.password);
+    validateName(input.name) ?? validateEmail(input.email) ?? validateNewPassword(input.password);
   if (problem) return { ok: false, error: problem };
 
   try {

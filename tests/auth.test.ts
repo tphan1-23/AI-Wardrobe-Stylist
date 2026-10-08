@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  MAX_PASSWORD_LENGTH,
   MIN_PASSWORD_LENGTH,
+  checkPasswordRequirements,
   fieldForError,
   friendlyAuthError,
   normalizeEmail,
@@ -9,6 +11,7 @@ import {
   signUp,
   validateEmail,
   validateName,
+  validateNewPassword,
   validatePassword,
   type AuthClient,
 } from "../frontend/src/services/auth.ts";
@@ -26,7 +29,7 @@ function fakeClient(overrides: Partial<AuthClient> = {}): AuthClient {
   };
 }
 
-const validSignUp = { name: " Thanh ", email: "  Thanh@Example.COM ", password: "longenough1" };
+const validSignUp = { name: " Thanh ", email: "  Thanh@Example.COM ", password: "Longenough1!" };
 
 describe("validation", () => {
   it("normalizes email", () => {
@@ -44,6 +47,42 @@ describe("validation", () => {
     expect(validatePassword("")).toMatch(/enter a password/i);
     expect(validatePassword("x".repeat(MIN_PASSWORD_LENGTH - 1))).toMatch(/at least/i);
     expect(validatePassword("x".repeat(MIN_PASSWORD_LENGTH))).toBeNull();
+  });
+
+  it("validates new passwords against every sign-up rule", () => {
+    expect(validateNewPassword("")).toMatch(/enter a password/i);
+    expect(validateNewPassword("Ab1!")).toMatch(/at least/i);
+    expect(validateNewPassword("Ab1!" + "x".repeat(MAX_PASSWORD_LENGTH))).toMatch(/at most/i);
+    expect(validateNewPassword("lowercase1!")).toMatch(/uppercase/i);
+    expect(validateNewPassword("UPPERCASE1!")).toMatch(/lowercase/i);
+    expect(validateNewPassword("NoNumbers!")).toMatch(/number/i);
+    expect(validateNewPassword("NoSymbol123")).toMatch(/special/i);
+    expect(validateNewPassword("Longenough1!")).toBeNull();
+  });
+
+  it("accepts the length limits exactly", () => {
+    expect(validateNewPassword("Abcde1!x")).toBeNull();
+    expect(validateNewPassword("Ab1!" + "x".repeat(MAX_PASSWORD_LENGTH - 4))).toBeNull();
+  });
+
+  it("counts any non-letter, non-digit as a special character", () => {
+    for (const symbol of ["~", "`", " ", "€"]) {
+      expect(checkPasswordRequirements(`Abcdefg1${symbol}`).requirements.hasSpecialChar).toBe(true);
+    }
+  });
+
+  it("reports each requirement for a checklist", () => {
+    expect(checkPasswordRequirements("abc")).toEqual({
+      requirements: {
+        hasMinLength: false,
+        hasUpperCase: false,
+        hasLowerCase: true,
+        hasNumber: false,
+        hasSpecialChar: false,
+      },
+      isValid: false,
+    });
+    expect(checkPasswordRequirements("Longenough1!").isValid).toBe(true);
   });
 
   it("validates name", () => {
@@ -74,6 +113,7 @@ describe("signUp", () => {
       { ...validSignUp, name: "" },
       { ...validSignUp, email: "nope" },
       { ...validSignUp, password: "short" },
+      { ...validSignUp, password: "longenough1" },
     ]) {
       const result = await signUp(client, input);
       expect(result.ok).toBe(false);
@@ -87,7 +127,7 @@ describe("signUp", () => {
     expect(result).toEqual({ ok: true, status: "signed_in" });
     expect(client.signUp).toHaveBeenCalledWith({
       email: "thanh@example.com",
-      password: "longenough1",
+      password: "Longenough1!",
       options: { data: { name: "Thanh" } },
     });
   });
@@ -126,6 +166,7 @@ describe("signIn", () => {
     expect(client.signInWithPassword).not.toHaveBeenCalled();
   });
 
+  // "longenough1" fails the sign-up rules; sign-in must still accept it for older accounts.
   it("signs in with a normalized email", async () => {
     const client = fakeClient();
     expect(await signIn(client, input)).toEqual({ ok: true, status: "signed_in" });
@@ -172,6 +213,9 @@ describe("fieldForError", () => {
     ["An account with this email already exists.", "email"],
     ["Enter a password.", "password"],
     ["Password must be at least 8 characters.", "password"],
+    ["Password must be at most 72 characters.", "password"],
+    ["Password needs an uppercase letter.", "password"],
+    ["Password needs a special character.", "password"],
     ["Confirm your email, then sign in.", "form"],
     ["Too many attempts. Please wait a moment and try again.", "form"],
     ["Could not reach the server. Check your connection and try again.", "form"],
