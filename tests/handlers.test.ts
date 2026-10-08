@@ -17,10 +17,11 @@ import type {
 
 const USER = "user-1";
 const HOUSEHOLD = "house-1";
+const HOUSEMATE = "user-2";
 const MILD: WeatherSnapshot = { temp_c: 18, feels_like_c: 18, is_precipitating: false };
 
 const g = (id: string, type: Garment["type"], color: Garment["color"], extra: Partial<Garment> = {}): Garment => ({
-  id, household_id: HOUSEHOLD, added_by: USER, image_path: `${HOUSEHOLD}/${id}.jpg`, type, color,
+  id, owner_id: USER, image_path: `${USER}/${id}.jpg`, type, color,
   season: "all", warmth: 2, status: "clean", last_worn_date: null, ...extra,
 });
 const closet = (): Garment[] => [
@@ -42,7 +43,7 @@ function fakeBackend(init: { profile?: UserProfile | null; garments?: Garment[];
   };
   const generate: GenerateOutfitDeps = {
     getProfile: async () => state.profile,
-    getGarments: async () => state.garments,
+    getOwnGarments: async (u) => state.garments.filter((x) => x.owner_id === u),
     getPreferences: async () => state.prefs,
     getWeather: init.weather ?? (async () => MILD),
     getSuggestionGarmentIds: async (_u, ids) => ids.map((id) => state.suggestions.get(id)?.garment_ids ?? []),
@@ -54,8 +55,7 @@ function fakeBackend(init: { profile?: UserProfile | null; garments?: Garment[];
   };
   const update: UpdatePreferencesDeps = {
     getSuggestion: async (u, id) => (u === USER ? state.suggestions.get(id) ?? null : null),
-    getGarmentsByIds: async (_h, ids) => state.garments.filter((x) => ids.includes(x.id)),
-    getHouseholdId: async () => state.profile?.household_id ?? null,
+    getOwnGarmentsByIds: async (u, ids) => state.garments.filter((x) => x.owner_id === u && ids.includes(x.id)),
     getPreferences: async () => state.prefs,
     upsertPreferences: async (_u, entries) => {
       const m = new Map(state.prefs.map((p) => [p.tag, p.weight]));
@@ -125,12 +125,30 @@ describe("handleGenerateOutfit", () => {
     expect(await handleGenerateOutfit(USER, { date: "2026-10-05", exclude_suggestion_ids: tooMany }, b.generate)).toMatchObject({ ok: false, status: 400 });
   });
 
-  it("explains what is missing: no profile, no household, no location", async () => {
+  it("explains what is missing: no profile or no location", async () => {
     const run = (p: UserProfile | null) => handleGenerateOutfit(USER, { date: "2026-10-05" }, fakeBackend({ profile: p }).generate);
     expect(await run(null)).toMatchObject({ ok: false, status: 404 });
-    expect(await run(profile({ household_id: null as never }))).toMatchObject({ ok: false, status: 409, error: expect.stringContaining("household") });
     expect(await run(profile({ location: null }))).toMatchObject({ ok: false, status: 409, error: expect.stringContaining("location") });
     expect(await run(profile({ location: "   " }))).toMatchObject({ ok: false, status: 409 });
+  });
+
+  it("works for someone who is not in a household (D18)", async () => {
+    const res = await handleGenerateOutfit(USER, { date: "2026-10-05" }, fakeBackend({ profile: profile({ household_id: null }) }).generate);
+    expect(res).toMatchObject({ ok: true, body: { status: "ok" } });
+  });
+
+  it("never suggests a housemate's clothes, even when they are the best match (D18)", async () => {
+    const theirs = (id: string, type: Garment["type"]) => g(id, type, "navy", { owner_id: HOUSEMATE });
+    const b = fakeBackend({ garments: [...closet(), theirs("their-top", "t_shirt"), theirs("their-bottom", "jeans"), theirs("their-shoes", "sneakers")] });
+    const res = await handleGenerateOutfit(USER, { date: "2026-10-05" }, b.generate);
+    if (!res.ok || res.body.status !== "ok") throw new Error("expected ok");
+    for (const id of Object.values(res.body.outfit)) expect(id).not.toMatch(/^their-/);
+  });
+
+  it("reports an empty closet as incomplete when all the clothes belong to housemates", async () => {
+    const b = fakeBackend({ garments: closet().map((x) => ({ ...x, owner_id: HOUSEMATE })) });
+    const res = await handleGenerateOutfit(USER, { date: "2026-10-05" }, b.generate);
+    expect(res).toMatchObject({ ok: true, body: { status: "incomplete", missing_slots: ["top", "bottom", "shoes"] } });
   });
 
   it("maps a weather failure to 502 and does not save", async () => {
@@ -187,15 +205,25 @@ describe("handleUpdatePreferences", () => {
     expect(await handleUpdatePreferences("someone-else", { suggestion_id: "sug-1", feedback: "up" }, b.update)).toMatchObject({ ok: false, status: 404 });
   });
 
-  it("still records feedback when the garments were deleted or the user has no household", async () => {
+  it("still records feedback when the garments were deleted", async () => {
     const b = await suggested();
     b.state.garments = [];
     const res = await handleUpdatePreferences(USER, { suggestion_id: "sug-1", feedback: "down" }, b.update);
     expect(res).toMatchObject({ ok: true, body: { updated_tags: [] } });
     expect(b.state.suggestions.get("sug-1")!.feedback).toBe("down");
-    const c = await suggested();
-    c.state.profile = profile({ household_id: null as never });
-    expect(await handleUpdatePreferences(USER, { suggestion_id: "sug-1", feedback: "up" }, c.update)).toMatchObject({ ok: true, body: { updated_tags: [] } });
+  });
+
+  it("learns without a household, and never learns from clothes the user does not own (D18)", async () => {
+    const b = fakeBackend({ profile: profile({ household_id: null }) });
+    await handleGenerateOutfit(USER, { date: "2026-10-05" }, b.generate);
+    // A garment owned by a housemate sneaks into the stored suggestion (e.g. it was owned by someone who left).
+    b.state.garments.push(g("their-hat", "hoodie", "purple", { owner_id: HOUSEMATE }));
+    b.state.suggestions.get("sug-1")!.garment_ids.push("their-hat");
+    const res = await handleUpdatePreferences(USER, { suggestion_id: "sug-1", feedback: "up" }, b.update);
+    if (!res.ok) throw new Error("expected ok");
+    expect(res.body.updated_tags).toContain("type:jeans");
+    expect(res.body.updated_tags).not.toContain("color:purple");
+    expect(res.body.updated_tags).not.toContain("type:hoodie");
   });
 });
 

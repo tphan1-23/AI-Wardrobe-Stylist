@@ -19,20 +19,17 @@ Single place for "who does what, on which branch, in what order". Read this firs
 
 Commits are authored by whoever owns the slice (their own git identity). Team convention: no `Co-Authored-By: Claude` trailers; log AI use in your AI Audit Log instead.
 
-## Branch map
+## Branch map (2026-10-08)
+`main` has everything from PR #1 (Milestone 2: auth + household, merged 2026-10-04): tooling and contracts, the 0001 migration, CI, the Expo app, the design, the coverage report. Branches below are open work. Several older branches (`chore/tooling-contracts`, `feat/data-layer`, `feat/expo-app`, `feat/household-service`, `feat/m2-final`, `fix/missing-profile`) are already contained in `main` and can be deleted.
+
 | Branch | Based on | Author | Status | Contents |
 |---|---|---|---|---|
-| `main` | — | — | docs + brain only | |
-| `chore/tooling-contracts` | main | Manuel | pushed, PR not opened | TypeScript + Vitest (80% gate), tag schema, shared types/contracts |
-| `feat/data-layer` | tooling-contracts | Thanh | pushed, PR not opened | `0001_init.sql` (tables, RLS, storage, `create_household`/`join_household`/`accept_suggestion`), `.env.example`, CI |
-| `feat/ai-core` | data-layer | Manuel + Claude | in progress | scoring engine (done), preference learning (next), tag validation, tests |
-| `feat/expo-app` | data-layer | Thanh | in progress | Expo app in `frontend/`; steps 1, 2 and 4 done (see progress below) |
-| `feat/design` | expo-app | Thanh | pushed | Restyle to the design board, notch/Dynamic Island fix |
-| `feat/personal-closets` | design | Thanh | pushed, PR not opened; `0002` not yet run on Supabase | Personal closets + optional households (D18): `0002_personal_closets.sql`, leave household, members list; sign-up password rules |
-| `feat/ai-core` | data-layer | Manuel + Claude | in progress | scoring engine, preference learning, tag validation + vision prompt v1, `generate-outfit`/`update-preferences` handlers (injected I/O) and weather parser — all done and tested; Deno entry files + Gemini call still to do |
-| `feat/expo-app` | data-layer | Thanh | starting | Expo app in `frontend/` (see below) |
+| `main` | — | — | PR #1 merged | auth + household, schema 0001, design, CI, coverage report |
+| `feat/personal-closets` | main | Thanh | pushed, PR not opened; `0002` not yet applied on Supabase | D18: personal closets + optional households, `0002_personal_closets.sql`, leave household, members list, stronger passwords. 86 tests, reviewed by Manuel (see below) |
+| `feat/ai-core-d18` | personal-closets | Manuel + Claude | pushed, PR not opened | The AI core (scoring, preference learning, tag validation, Gemini client, `generate-outfit`/`update-preferences` handlers, weather parser) adapted to D18. 208 tests. Open after `feat/personal-closets` merges |
+| `feat/ai-core` | old data-layer | Manuel + Claude | superseded by `feat/ai-core-d18` | Pre-D18 version; do not merge |
 
-Chain: `chore/tooling-contracts` → `feat/data-layer` → (`feat/ai-core`, `feat/expo-app`). Work on branches that descend from `feat/data-layer` so the types, schema and CI are present. If you rebase/merge, pull `origin/feat/data-layer` first.
+PR order: `feat/personal-closets` → `main` first (Manuel reviews with **Files changed → Review changes → Approve before merging**), then `feat/ai-core-d18` → `main` (Thanh reviews the same way).
 
 ## Milestone 2 PR (graded) — assignment rules
 Turn in **ONE pull request** on GitHub that:
@@ -100,10 +97,17 @@ Pull `feat/ai-core` (or its merge) to get these; they affect the app.
 - **`GenerateOutfitResponse`** has a third status, `exhausted` (re-roll ran out of unseen combinations). Handle `ok` / `incomplete` / `exhausted` in the suggestion screen.
 - **`AnalyzeGarmentResponse`** is now `{ tags: Partial<GarmentTags>, confidence, needs_review, warnings }`. Fields the model got wrong or missed are absent from `tags`; fields that are absent or low-confidence are listed in `needs_review`. **The review screen must highlight those fields and require the user to fill/confirm them before saving**, and a stub of `analyze-garment` should return this shape (e.g. all four tags present, `needs_review: []`).
 
+## D18 review (2026-10-08, Manuel)
+- `0002_personal_closets.sql` reviewed: update policy keeps `owner_id` fixed (no ownership transfer); only the owner can insert/update/delete garments and photos; reads go through one function (`visible_closet_owner_ids`: yourself + household members); `create`/`join` refuse when already in a household; the last member leaving deletes the household. Verified by Thanh on in-memory Postgres; **not yet run on the real Supabase project.**
+- Photos now live under `<owner user id>/<file>`, not `<household id>/…` (earlier notes in this file and in `api_endpoints.md` still say household; the `0002` policy is the truth).
+- `types.ts`: `Garment.household_id`/`added_by` → `owner_id`; `UserProfile.household_id` nullable.
+- AI core adapted on `feat/ai-core-d18`: `generate-outfit` reads only the user's own garments (`getOwnGarments(userId)`), no longer requires a household; `update-preferences` learns only from garments the user owns. Tests added for: no household, a housemate's clothes are never suggested, a housemate's garment id in a stored suggestion is ignored. 208 tests.
+- Consequence to be aware of: closets are smaller than a shared household closet, so item repetition is higher (see the limitations in `AI Logic Ownership.md`). Letting users borrow a housemate's clothes would be a new decision.
+
 ## Notes for the app (from AI core)
 - **Quiz seeding needs no edge function:** import `quizToPreferences` from `_shared/preferences.ts`, then upsert the result into `preference_vector` (own rows, allowed by RLS) and save the answers in `users.quiz_preferences`. `temp_comfort` is read from `quiz_preferences` by `generate-outfit`.
 - Both `generate-outfit` and `update-preferences` read the user from the auth token, so the app does not pass a user id. `update-preferences` accepts feedback once per suggestion (409 afterwards).
-- `generate-outfit` errors to handle: 409 (join/create a household first, set a location first), 502 (weather down), plus the three result statuses.
+- `generate-outfit` errors to handle: 409 (set a location first), 502 (weather down), plus the three result statuses. **No household is needed (D18).**
 
 ## Review of `feat/expo-app` (2026-10-03, Manuel)
 - Good: auth logic is pure with an injected client, input validation and error mapping are tested, status in the Work Plan is honest about what is unverified.

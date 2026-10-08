@@ -27,7 +27,7 @@ let n = 0;
 function garment(overrides: Partial<Garment> = {}): Garment {
   n += 1;
   return {
-    id: `p-${String(n).padStart(3, "0")}`, household_id: "h", added_by: "u", image_path: "h/x.jpg",
+    id: `p-${String(n).padStart(3, "0")}`, owner_id: "u", image_path: "u/x.jpg",
     type: "t_shirt", color: "black", season: "all", warmth: 2, status: "clean", last_worn_date: null,
     ...overrides,
   };

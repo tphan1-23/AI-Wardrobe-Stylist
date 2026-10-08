@@ -16,8 +16,7 @@ function garment(overrides: Partial<Garment> = {}): Garment {
   counter += 1;
   return {
     id: `g-${String(counter).padStart(4, "0")}`,
-    household_id: "h1",
-    added_by: "u1",
+    owner_id: "u1",
     image_path: "h1/x.jpg",
     type: "t_shirt",
     color: "black",

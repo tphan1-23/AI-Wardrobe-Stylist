@@ -36,7 +36,8 @@ const isUuidList = (v: unknown): v is UUID[] => Array.isArray(v) && v.every((x) 
 
 export interface GenerateOutfitDeps {
   getProfile(userId: UUID): Promise<UserProfile | null>;
-  getGarments(householdId: UUID): Promise<Garment[]>;
+  // The user's own closet only (D18): suggestions never use a housemate's clothes.
+  getOwnGarments(userId: UUID): Promise<Garment[]>;
   getPreferences(userId: UUID): Promise<PreferenceEntry[]>;
   getWeather(location: string): Promise<WeatherSnapshot>;
   // Garment ids of earlier suggestions of this user (for re-roll exclusion).
@@ -57,9 +58,6 @@ export async function handleGenerateOutfit(
 
   const profile = await deps.getProfile(userId);
   if (profile === null) return fail(404, "profile not found");
-  if (profile.household_id === null || profile.household_id === undefined) {
-    return fail(409, "create or join a household first");
-  }
   if (!profile.location?.trim()) return fail(409, "set your location first");
 
   let weather: WeatherSnapshot;
@@ -70,7 +68,7 @@ export async function handleGenerateOutfit(
   }
 
   const [garments, preferences, excludedOutfits] = await Promise.all([
-    deps.getGarments(profile.household_id),
+    deps.getOwnGarments(userId),
     deps.getPreferences(userId),
     exclude.length > 0 ? deps.getSuggestionGarmentIds(userId, exclude) : Promise.resolve([]),
   ]);
@@ -98,8 +96,8 @@ export async function handleGenerateOutfit(
 export interface UpdatePreferencesDeps {
   // Must only return suggestions owned by userId.
   getSuggestion(userId: UUID, suggestionId: UUID): Promise<Suggestion | null>;
-  getGarmentsByIds(householdId: UUID, ids: UUID[]): Promise<Garment[]>;
-  getHouseholdId(userId: UUID): Promise<UUID | null>;
+  // Only garments owned by userId; anything else is ignored.
+  getOwnGarmentsByIds(userId: UUID, ids: UUID[]): Promise<Garment[]>;
   getPreferences(userId: UUID): Promise<PreferenceEntry[]>;
   upsertPreferences(userId: UUID, entries: PreferenceEntry[]): Promise<void>;
   // Atomically stores feedback only if none exists yet (UPDATE ... WHERE feedback IS NULL).
@@ -125,8 +123,7 @@ export async function handleUpdatePreferences(
     return fail(409, "feedback was already recorded for this suggestion");
   }
 
-  const householdId = await deps.getHouseholdId(userId);
-  const garments = householdId === null ? [] : await deps.getGarmentsByIds(householdId, suggestion.garment_ids);
+  const garments = await deps.getOwnGarmentsByIds(userId, suggestion.garment_ids);
   const current = await deps.getPreferences(userId);
   const updates = applyFeedback(current, garments, request.feedback);
 
