@@ -14,7 +14,8 @@ export const SUPPORTED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp", "i
 export const MAX_IMAGE_BASE64_CHARS = 7_000_000; // roughly 5 MB of image
 
 export class GeminiError extends Error {
-  readonly kind: "bad_image" | "rate_limited" | "upstream" | "network";
+  // quota_exhausted = a per-day limit; retrying the same model is pointless until it resets.
+  readonly kind: "bad_image" | "rate_limited" | "quota_exhausted" | "upstream" | "network";
   readonly status?: number;
 
   // Written out (no parameter properties) so plain Node can run this file.
@@ -82,7 +83,17 @@ export function extractText(response: unknown): string | undefined {
 
 // Whether trying the next model could help: overloaded, rate limited, or the model was retired (404).
 function canFallBack(error: GeminiError): boolean {
-  return error.retryable || error.status === 404;
+  // Quotas are per model, so another model may still have room.
+  return error.retryable || error.status === 404 || error.kind === "quota_exhausted";
+}
+
+// Google reports the daily free-tier limit as 429 RESOURCE_EXHAUSTED with a quota id containing "PerDay".
+async function isDailyQuota(response: Response): Promise<boolean> {
+  try {
+    return JSON.stringify(await response.json()).includes("PerDay");
+  } catch {
+    return false;
+  }
 }
 
 async function requestModel(deps: GeminiDeps, model: string, image: ImageInput): Promise<unknown> {
@@ -99,7 +110,10 @@ async function requestModel(deps: GeminiDeps, model: string, image: ImageInput):
   }
 
   if (!response.ok) {
-    if (response.status === 429) throw new GeminiError("vision service rate limit reached", "rate_limited", 429);
+    if (response.status === 429) {
+      if (await isDailyQuota(response)) throw new GeminiError("daily vision quota used up", "quota_exhausted", 429);
+      throw new GeminiError("vision service rate limit reached", "rate_limited", 429);
+    }
     throw new GeminiError(`vision service error (HTTP ${response.status})`, "upstream", response.status);
   }
 

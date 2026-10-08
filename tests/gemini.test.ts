@@ -135,6 +135,25 @@ describe("model fallback", () => {
     expect((await analyzeImage({ fetch: flaky as never, apiKey: KEY }, image)).tags.type).toBe("jeans");
   });
 
+  it("recognizes the daily free-tier limit, does not call it retryable, and still tries the next model", async () => {
+    const daily = { error: { status: "RESOURCE_EXHAUSTED", details: [{ violations: [{ quotaId: "GenerateRequestsPerDayPerProjectPerModel-FreeTier" }] }] } };
+    const fetchMock = vi.fn().mockResolvedValueOnce(reply(429, daily)).mockResolvedValueOnce(ok());
+    expect((await analyzeImage({ fetch: fetchMock as never, apiKey: KEY }, image)).tags.type).toBe("jeans");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const allUsed = vi.fn(async () => reply(429, daily));
+    const err = await analyzeImage({ fetch: allUsed as never, apiKey: KEY }, image).catch((e) => e);
+    expect(err).toMatchObject({ kind: "quota_exhausted", status: 429, retryable: false });
+    expect(allUsed).toHaveBeenCalledTimes(DEFAULT_MODELS.length);
+  });
+
+  it("treats a per-minute 429 as retryable and an unreadable 429 body as per-minute", async () => {
+    const perMinute = { error: { details: [{ violations: [{ quotaId: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier" }] }] } };
+    const a = await analyzeImage({ fetch: (async () => reply(429, perMinute)) as never, apiKey: KEY, model: "m" }, image).catch((e) => e);
+    expect(a).toMatchObject({ kind: "rate_limited", retryable: true });
+    const b = await analyzeImage({ fetch: (async () => new Response("<html>", { status: 429 })) as never, apiKey: KEY, model: "m" }, image).catch((e) => e);
+    expect(b).toMatchObject({ kind: "rate_limited", retryable: true });
+  });
+
   it("does not fall back on a bad request (400): that is our bug, not capacity", async () => {
     const fetchMock = vi.fn(async () => reply(400, { error: { message: "bad schema" } }));
     await expect(analyzeImage({ fetch: fetchMock as never, apiKey: KEY }, image)).rejects.toMatchObject({ status: 400 });
