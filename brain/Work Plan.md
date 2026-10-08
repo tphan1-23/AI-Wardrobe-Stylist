@@ -19,19 +19,15 @@ Single place for "who does what, on which branch, in what order". Read this firs
 
 Commits are authored by whoever owns the slice (their own git identity). Team convention: no `Co-Authored-By: Claude` trailers; log AI use in your AI Audit Log instead.
 
-## Branch map
-| Branch | Based on | Author | Status | Contents |
-|---|---|---|---|---|
-| `main` | — | — | docs + brain only | |
-| `chore/tooling-contracts` | main | Manuel | pushed, PR not opened | TypeScript + Vitest (80% gate), tag schema, shared types/contracts |
-| `feat/data-layer` | tooling-contracts | Thanh | pushed, PR not opened | `0001_init.sql` (tables, RLS, storage, `create_household`/`join_household`/`accept_suggestion`), `.env.example`, CI |
-| `feat/ai-core` | data-layer | Manuel + Claude | in progress | scoring engine (done), preference learning (next), tag validation, tests |
-| `feat/expo-app` | data-layer | Thanh | in progress | Expo app in `frontend/`; steps 1, 2 and 4 done (see progress below) |
-| `feat/design` | expo-app | Thanh | pushed | Restyle to the design board, notch/Dynamic Island fix |
-| `feat/personal-closets` | design | Thanh | pushed, PR not opened; `0002` not yet run on Supabase | Personal closets + optional households (D18): `0002_personal_closets.sql`, leave household, members list; sign-up password rules |
-| `feat/forgot-password-social-login` | personal-closets | Thanh | local, not pushed | Forgot password by emailed code, Google + Apple sign-in, `0003_social_login_names.sql` (D19) |
+## Branch map (2026-10-08, after PRs #2 and #3)
+`main` now has everything from PR #1 (Milestone 2: auth + household, 2026-10-04), PR #2 (personal closets and optional households, D18, approved by Manuel) and PR #3 (password reset and Google sign-in, D19, approved by Manuel). Older branches (`chore/tooling-contracts`, `feat/data-layer`, `feat/expo-app`, `feat/household-service`, `feat/m2-final`, `fix/missing-profile`, `feat/ai-core`, `feat/design`, `feat/personal-closets`, `feat/forgot-password-social-login`) are contained in `main` or superseded and can be deleted.
 
-Chain: `chore/tooling-contracts` → `feat/data-layer` → (`feat/ai-core`, `feat/expo-app`). Work on branches that descend from `feat/data-layer` so the types, schema and CI are present. If you rebase/merge, pull `origin/feat/data-layer` first.
+| Branch | Status |
+|---|---|
+| `main` | PRs #1, #2, #3 merged |
+| `feat/ai-core-d18` | AI core, the three deployed edge functions, `scripts/e2e.ts`, the refreshed docs and notes (Manuel + Claude). **Merged with the latest `main`; 274 tests pass.** Next: PR #4, to be approved by Thanh on Files changed before merging |
+
+**Known and accepted:** Supabase's GitHub link runs on every merge to `main` and its "Supabase Preview" check fails with `type "garment_status" already exists`, because migrations 0001 to 0003 were applied by hand and Supabase has no record of them. It changes nothing (it stops at the first statement). The fix is `npx supabase migration repair --status applied 0001 0002 0003` (writes only the migration-history table); Manuel has not asked for it yet.
 
 ## Milestone 2 PR (graded) — assignment rules
 Turn in **ONE pull request** on GitHub that:
@@ -103,6 +99,50 @@ Later: quiz screen, daily suggestion screen (call `generate-outfit`, accept via 
 - Do not change the schema without updating `types.ts` and the sync test (`tests/migration.test.ts`).
 - Tests: `npm test`, `npm run test:coverage` (gate 80% on `_shared`), `npm run typecheck`. CI runs the same.
 
+## Contract changes (read before coding against `types.ts`)
+Pull `feat/ai-core` (or its merge) to get these; they affect the app.
+- **`GenerateOutfitResponse`** has a third status, `exhausted` (re-roll ran out of unseen combinations). Handle `ok` / `incomplete` / `exhausted` in the suggestion screen.
+- **`AnalyzeGarmentResponse`** is now `{ tags: Partial<GarmentTags>, confidence, needs_review, warnings }`. Fields the model got wrong or missed are absent from `tags`; fields that are absent or low-confidence are listed in `needs_review`. **The review screen must highlight those fields and require the user to fill/confirm them before saving**, and a stub of `analyze-garment` should return this shape (e.g. all four tags present, `needs_review: []`).
+
+## D18 review (2026-10-08, Manuel)
+- `0002_personal_closets.sql` reviewed: update policy keeps `owner_id` fixed (no ownership transfer); only the owner can insert/update/delete garments and photos; reads go through one function (`visible_closet_owner_ids`: yourself + household members); `create`/`join` refuse when already in a household; the last member leaving deletes the household. Verified by Thanh on in-memory Postgres; **not yet run on the real Supabase project.**
+- Photos now live under `<owner user id>/<file>`, not `<household id>/…` (earlier notes in this file and in `api_endpoints.md` still say household; the `0002` policy is the truth).
+- `types.ts`: `Garment.household_id`/`added_by` → `owner_id`; `UserProfile.household_id` nullable.
+- AI core adapted on `feat/ai-core-d18`: `generate-outfit` reads only the user's own garments (`getOwnGarments(userId)`), no longer requires a household; `update-preferences` learns only from garments the user owns. Tests added for: no household, a housemate's clothes are never suggested, a housemate's garment id in a stored suggestion is ignored. 208 tests.
+- Consequence to be aware of: closets are smaller than a shared household closet, so item repetition is higher (see the limitations in `AI Logic Ownership.md`). Letting users borrow a housemate's clothes would be a new decision.
+
+## Notes for the app (from AI core)
+- **Quiz seeding needs no edge function:** import `quizToPreferences` from `_shared/preferences.ts`, then upsert the result into `preference_vector` (own rows, allowed by RLS) and save the answers in `users.quiz_preferences`. `temp_comfort` is read from `quiz_preferences` by `generate-outfit`.
+- Both `generate-outfit` and `update-preferences` read the user from the auth token, so the app does not pass a user id. `update-preferences` accepts feedback once per suggestion (409 afterwards).
+- `generate-outfit` errors to handle: 409 (set a location first), 502 (weather down), plus the three result statuses. **No household is needed (D18).**
+
+## Review of `feat/expo-app` (2026-10-03, Manuel)
+- Good: auth logic is pure with an injected client, input validation and error mapping are tested, status in the Work Plan is honest about what is unverified.
+- **Blocker for CI:** on a clean checkout (root `npm ci` only, as CI does) `tests/auth.test.ts` fails to load: Vite finds `frontend/tsconfig.json`, which extends `expo/tsconfig.base`, and `expo` is not installed at the root. Verified fix (one line in `vitest.config.ts`, then 30 tests pass and the branch merges cleanly with `feat/ai-core`, 100 tests at the time): add `esbuild: { tsconfigRaw: "{}" },` inside `defineConfig`. It must be a string; an object does not stop the lookup.
+- Not verified: the screens on a device and the migration against a real Supabase project.
+
+## Edge functions: run, deploy, test (Manuel + Claude)
+The three functions (`analyze-garment`, `generate-outfit`, `update-preferences`) are thin Deno wrappers (`supabase/functions/*/index.ts`, shared `_deno/serve.ts`) over unit-tested code in `_shared/`. Tools run through `npx` (no global install): `npx deno ...`, `npx supabase ...`.
+- **Type-check the Deno files:** `npx deno check --config supabase/functions/deno.json supabase/functions/*/index.ts`
+- **Run one locally** (needs SUPABASE_URL / SUPABASE_ANON_KEY in the environment): `npx deno run --config supabase/functions/deno.json --allow-net --allow-env supabase/functions/update-preferences/index.ts` (listens on :8000).
+- **Deploy** (one-time `npx supabase login` in a terminal; the project ref is the subdomain of `EXPO_PUBLIC_SUPABASE_URL`):
+  1. `set -a; . ./.env; set +a`
+  2. `npx supabase secrets set GEMINI_API_KEY="$GEMINI_API_KEY" OPENWEATHER_API_KEY="$OPENWEATHER_API_KEY" --project-ref <ref>` (name the two secrets explicitly; do **not** use `--env-file .env`, it would also upload the test account password)
+  3. `npx supabase functions deploy analyze-garment generate-outfit update-preferences --project-ref <ref> --use-api`
+- **Test without any screens:** create a throwaway account in the app, put `TEST_EMAIL` and `TEST_PASSWORD` in `.env`, then `node scripts/e2e.ts <folder with photos>`. It signs in, uploads photos, tags them with the real AI, saves garments, asks for an outfit, sends feedback, re-rolls, accepts, and checks that the security rules reject forged writes. It exits non-zero on any failure and cleans up after itself (`E2E_KEEP=1` to keep the data).
+- **Contract for the app:** call `POST {SUPABASE_URL}/functions/v1/<name>` with `Authorization: Bearer <user session token>` (supabase-js: `supabase.functions.invoke`). Error codes: 401 not signed in, 403 photo not in your folder, 404 photo missing, 409 set a location first / feedback already given, 429 AI limit reached (let the user type the tags), 502 AI or weather unavailable.
+
+## Status for the next session (2026-10-08, Manuel + Claude)
+Read this first if you are a Claude session picking up work.
+- **Edge functions are deployed** on the Supabase project (`analyze-garment`, `generate-outfit`, `update-preferences`), with `GEMINI_API_KEY` and `OPENWEATHER_API_KEY` set as project secrets. They reject callers without a login (verified: 401). **Verified end to end as a signed-in user on 2026-10-08: `node scripts/e2e.ts <photos folder>` passed 39 of 39 checks** against the real project (sign in, profile + location, 3 security-rule rejections, 7 photos uploaded + tagged by the real AI + saved, outfit generated from the user's own closet only, thumbs-down learning, second feedback refused with 409, re-roll, accept marks items worn, cleanup). Afterwards the account had 0 leftover garments, suggestions, preference rows and photos. The script needs `TEST_EMAIL` / `TEST_PASSWORD` in the git-ignored `.env`; it is safe on a real account (removes only what it creates, restores preference weights, always cleans up). **Not covered by it:** sharing between two household members (needs a second account) and the Google/Apple/reset flows. **Manually verified (Manuel, iPhone, Expo Go, 2026-10-08):** Google sign-in works against the real project. **Apple sign-in is not usable yet** (needs the paid Apple Developer Program and Supabase provider setup). **Confirmed on the real project (2026-10-08):** both auth triggers exist (`on_auth_user_created`, `on_auth_user_updated`), so migration `0003` is applied; a brand-new account's automatic profile row has not been observed yet (the next new account, e.g. the second test account for the household-sharing test, will show it). Reset by emailed code is not confirmed end to end.
+- **Gemini runs on a billing-enabled Google project (D20)**; free-tier limits (20 requests/day/model) no longer apply. Keep a budget alert on it, keep the key server-side, rotate the key that was pasted into a chat.
+- **Decision numbers:** D19 is Thanh's password reset + Google/Apple sign-in; D20 is the Gemini billing decision (renumbered to avoid a clash).
+- **Branches and PR order (stacked):** `feat/personal-closets` (D18) -> `feat/forgot-password-social-login` (D19) -> `feat/ai-core-d18` (AI core, functions, e2e). Trial-merged together: 274 tests pass, typecheck clean, only the notes and the `include` list in `tsconfig.json` conflict. Each PR needs an **approval on the Files changed tab before merging**.
+- **App contract:** the screens should call the functions with `supabase.functions.invoke("analyze-garment" | "generate-outfit" | "update-preferences", { body })`; error codes are in "Edge functions: run, deploy, test". On a 429 from `analyze-garment`, let the user type the tags.
+- **Running the app on an iPhone:** newer Expo Go has no "enter URL" box; scan the QR code with the Camera app. `npx expo start --tunnel` needs `@expo/ngrok` in the project's `node_modules`: `npm install --no-save @expo/ngrok@^4.1.0` inside `frontend/` (do not add it to `package.json`).
+- **"Your profile could not be found" after a successful sign-in** means the account has no `public.users` row (it was created before the sign-up trigger existed). Repair in the Supabase SQL editor (safe to repeat): `insert into public.users (id, name) select id, coalesce(nullif(raw_user_meta_data ->> 'name', ''), nullif(raw_user_meta_data ->> 'full_name', ''), '') from auth.users on conflict (id) do nothing;` Confirmed working on Manuel's account on 2026-10-08.
+- **Emails** (sign-up confirmation, password reset) arrive in spam (Gmail SMTP, accepted until Milestone 3).
+- **Tagging results** (23 real product photos, flash models): strict type 95 / color 86 / season 73 / warmth 95 %; see `AI Logic Ownership.md`. The model fallback chain lives in `_shared/gemini.ts`.
 ## Milestone 3 checklist (deployed app, Week 12, Nov 9-13)
 - [ ] **Fix email deliverability (Thanh decided on 2026-10-08 to leave it until Milestone 3).** Auth emails (password-reset code, sign-up confirmation) currently go out through a dedicated Gmail account over SMTP and **land in the recipient's spam folder**. This is accepted for the class demo (tell testers to check spam and click "Report not spam"). Before real users: get a domain (about $10/yr; the GitHub Student Developer Pack may give a free `.me`/`.tech` for a year; flag per the free-tier rule), sign up for Resend (free about 3,000/month, 100/day) or Brevo (free 300/day), add the SPF, DKIM and DMARC records at the registrar, then put the service's SMTP details in Supabase (Authentication → Emails → SMTP) with a sender such as `noreply@<domain>`. No app code changes. Also remove the `exp://**` redirect URL (D19) and re-test the reset email.
 - [ ] Remove `exp://**` from Supabase redirect URLs; keep only the real app scheme.

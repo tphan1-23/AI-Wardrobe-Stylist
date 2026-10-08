@@ -109,7 +109,7 @@ Supabase migrations should live in `supabase/migrations/` and be the source of t
 - **Secrets:** never commit real keys. `.env.example` should list every required var (Supabase URL/anon key, vision-model API key, OpenWeatherMap key) with empty values — keep it in sync with what the code actually reads.
 - **AI Audit Log:** each teammate keeps an individual log of AI tool usage per course policy — log notable prompts/decisions in `usedPrompts.md` or your personal audit log, not just in chat history.
 - **PRs:** every milestone ships as a PR with at least one teammate review before merge — do not self-merge milestone PRs.
-- **Free tier discipline:** this stack is chosen to stay entirely on free tiers. Flag it before introducing a paid dependency.
+- **Free tier discipline:** this stack is chosen to stay on free tiers. Flag it before introducing a paid dependency. **One exception (D20):** the Gemini API runs on a billing-enabled Google Cloud project covered by trial credits (expire 2027-01-07); keep a budget alert on it and keep the key server-side.
 
 ## Related
 
