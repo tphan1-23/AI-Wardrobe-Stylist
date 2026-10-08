@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   DEFAULT_MODEL,
+  DEFAULT_MODELS,
   GeminiError,
   MAX_IMAGE_BASE64_CHARS,
   analyzeImage,
@@ -108,5 +109,50 @@ describe("analyzeImage", () => {
       await expect(analyzeImage(deps, bad)).rejects.toMatchObject({ kind: "bad_image", retryable: false });
     }
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("model fallback", () => {
+  const modelOf = (call: unknown) => (call as [string])[0].match(/models\/([^:]+):/)![1];
+  const ok = () => reply(200, geminiBody(JSON.stringify(tags)));
+
+  it("falls back to the next model when one is overloaded (503)", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(reply(503, {})).mockResolvedValueOnce(ok());
+    const result = await analyzeImage({ fetch: fetchMock as never, apiKey: KEY }, image);
+    expect(result.tags.type).toBe("jeans");
+    expect(fetchMock.mock.calls.map(modelOf)).toEqual([DEFAULT_MODELS[0], DEFAULT_MODELS[1]]);
+  });
+
+  it("falls back when a model is retired for new keys (404) or rate limited (429), and when the network drops", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(reply(404, { error: { message: "no longer available to new users" } }))
+      .mockResolvedValueOnce(reply(429, {}))
+      .mockResolvedValueOnce(ok());
+    expect((await analyzeImage({ fetch: fetchMock as never, apiKey: KEY }, image)).tags.type).toBe("jeans");
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    const flaky = vi.fn().mockRejectedValueOnce(new TypeError("down")).mockResolvedValueOnce(ok());
+    expect((await analyzeImage({ fetch: flaky as never, apiKey: KEY }, image)).tags.type).toBe("jeans");
+  });
+
+  it("does not fall back on a bad request (400): that is our bug, not capacity", async () => {
+    const fetchMock = vi.fn(async () => reply(400, { error: { message: "bad schema" } }));
+    await expect(analyzeImage({ fetch: fetchMock as never, apiKey: KEY }, image)).rejects.toMatchObject({ status: 400 });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("gives up with the last error after trying every model", async () => {
+    const fetchMock = vi.fn(async () => reply(503, {}));
+    await expect(analyzeImage({ fetch: fetchMock as never, apiKey: KEY }, image)).rejects.toMatchObject({ status: 503, retryable: true });
+    expect(fetchMock).toHaveBeenCalledTimes(DEFAULT_MODELS.length);
+  });
+
+  it("a single `model` means no fallback, and `models` sets the order", async () => {
+    const single = vi.fn(async () => reply(503, {}));
+    await expect(analyzeImage({ fetch: single as never, apiKey: KEY, model: "only-this" }, image)).rejects.toBeInstanceOf(GeminiError);
+    expect(single).toHaveBeenCalledTimes(1);
+    const ordered = vi.fn().mockResolvedValueOnce(reply(503, {})).mockResolvedValueOnce(ok());
+    await analyzeImage({ fetch: ordered as never, apiKey: KEY, models: ["first", "second"] }, image);
+    expect(ordered.mock.calls.map(modelOf)).toEqual(["first", "second"]);
   });
 });

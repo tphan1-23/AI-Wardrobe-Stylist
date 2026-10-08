@@ -1,0 +1,463 @@
+{
+  "_about": "Hand labels for the 23 test photos. Where a photo is genuinely ambiguous, several answers are accepted. Season and warmth are judgement calls and deliberately lenient. The photos themselves are NOT in the repo.",
+  "items": {
+    "Open White stripe shirt.jpg": {
+      "note": "black/white vertical-stripe short-sleeve shirt",
+      "type": [
+        "shirt"
+      ],
+      "color": [
+        "multicolor",
+        "white",
+        "black"
+      ],
+      "season": [
+        "summer",
+        "spring",
+        "all"
+      ],
+      "warmth": [
+        1,
+        2
+      ]
+    },
+    "Screenshot 2026-10-08 114715.png": {
+      "note": "light gray wide sweatpants",
+      "type": [
+        "sweatpants"
+      ],
+      "color": [
+        "gray"
+      ],
+      "season": [
+        "all",
+        "spring",
+        "fall",
+        "winter"
+      ],
+      "warmth": [
+        2,
+        3
+      ]
+    },
+    "Screenshot 2026-10-08 114935.png": {
+      "note": "black/cream colorblock quarter-zip pullover",
+      "type": [
+        "sweater",
+        "hoodie"
+      ],
+      "color": [
+        "black",
+        "multicolor"
+      ],
+      "season": [
+        "fall",
+        "winter",
+        "all"
+      ],
+      "warmth": [
+        3,
+        4
+      ]
+    },
+    "Screenshot 2026-10-08 115013.png": {
+      "note": "gray waffle henley, long sleeve",
+      "type": [
+        "sweater",
+        "shirt",
+        "t_shirt"
+      ],
+      "color": [
+        "gray"
+      ],
+      "season": [
+        "fall",
+        "spring",
+        "winter",
+        "all"
+      ],
+      "warmth": [
+        2,
+        3
+      ]
+    },
+    "Screenshot 2026-10-08 115028.png": {
+      "note": "white graphic t-shirt",
+      "type": [
+        "t_shirt"
+      ],
+      "color": [
+        "white",
+        "multicolor"
+      ],
+      "season": [
+        "summer",
+        "spring",
+        "all"
+      ],
+      "warmth": [
+        1,
+        2
+      ]
+    },
+    "Screenshot 2026-10-08 115133.png": {
+      "note": "white ribbed knit polo, short sleeve",
+      "type": [
+        "shirt",
+        "t_shirt",
+        "sweater"
+      ],
+      "color": [
+        "white",
+        "beige"
+      ],
+      "season": [
+        "summer",
+        "spring",
+        "all"
+      ],
+      "warmth": [
+        1,
+        2
+      ]
+    },
+    "Screenshot 2026-10-08 115142.png": {
+      "note": "brown/cream striped corduroy rugby pullover",
+      "type": [
+        "sweater",
+        "shirt",
+        "hoodie"
+      ],
+      "color": [
+        "brown",
+        "beige",
+        "multicolor"
+      ],
+      "season": [
+        "fall",
+        "winter",
+        "all"
+      ],
+      "warmth": [
+        3,
+        4
+      ]
+    },
+    "Screenshot 2026-10-08 115151.png": {
+      "note": "white oversized long-sleeve tee",
+      "type": [
+        "t_shirt",
+        "shirt",
+        "sweater"
+      ],
+      "color": [
+        "white"
+      ],
+      "season": [
+        "fall",
+        "spring",
+        "winter",
+        "all"
+      ],
+      "warmth": [
+        2,
+        3
+      ]
+    },
+    "Screenshot 2026-10-08 115158.png": {
+      "note": "black wide pleated trousers",
+      "type": [
+        "trousers"
+      ],
+      "color": [
+        "black"
+      ],
+      "season": [
+        "all",
+        "spring",
+        "fall",
+        "winter"
+      ],
+      "warmth": [
+        2,
+        3
+      ]
+    },
+    "Screenshot 2026-10-08 115208.png": {
+      "note": "white oversized t-shirt",
+      "type": [
+        "t_shirt"
+      ],
+      "color": [
+        "white"
+      ],
+      "season": [
+        "summer",
+        "spring",
+        "all"
+      ],
+      "warmth": [
+        1,
+        2
+      ]
+    },
+    "Screenshot 2026-10-08 115217.png": {
+      "note": "black wide trousers",
+      "type": [
+        "trousers"
+      ],
+      "color": [
+        "black"
+      ],
+      "season": [
+        "all",
+        "spring",
+        "fall",
+        "winter"
+      ],
+      "warmth": [
+        2,
+        3
+      ]
+    },
+    "Screenshot 2026-10-08 115223.png": {
+      "note": "black cable-knit polo, short sleeve",
+      "type": [
+        "shirt",
+        "t_shirt",
+        "sweater"
+      ],
+      "color": [
+        "black"
+      ],
+      "season": [
+        "summer",
+        "spring",
+        "fall",
+        "all"
+      ],
+      "warmth": [
+        1,
+        3
+      ]
+    },
+    "Screenshot 2026-10-08 115231.png": {
+      "note": "dark washed black/gray denim shirt",
+      "type": [
+        "shirt",
+        "jacket"
+      ],
+      "color": [
+        "gray",
+        "black",
+        "navy"
+      ],
+      "season": [
+        "fall",
+        "spring",
+        "winter",
+        "all"
+      ],
+      "warmth": [
+        2,
+        3
+      ]
+    },
+    "Screenshot 2026-10-08 115319.png": {
+      "note": "brown suede clog (closed toe, buckle) - no exact type in vocabulary",
+      "type": [
+        "sandals",
+        "dress_shoes",
+        "sneakers"
+      ],
+      "color": [
+        "brown"
+      ],
+      "season": [
+        "fall",
+        "spring",
+        "summer",
+        "all"
+      ],
+      "warmth": [
+        2,
+        3
+      ]
+    },
+    "Screenshot 2026-10-08 115325.png": {
+      "note": "black leather Chelsea boots",
+      "type": [
+        "boots",
+        "dress_shoes"
+      ],
+      "color": [
+        "black"
+      ],
+      "season": [
+        "fall",
+        "winter",
+        "all"
+      ],
+      "warmth": [
+        3,
+        5
+      ]
+    },
+    "Screenshot 2026-10-08 115328.png": {
+      "note": "black leather Chelsea boots (second view)",
+      "type": [
+        "boots",
+        "dress_shoes"
+      ],
+      "color": [
+        "black"
+      ],
+      "season": [
+        "fall",
+        "winter",
+        "all"
+      ],
+      "warmth": [
+        3,
+        5
+      ]
+    },
+    "Screenshot 2026-10-08 115340.png": {
+      "note": "white/black Samba-style sneakers",
+      "type": [
+        "sneakers"
+      ],
+      "color": [
+        "white",
+        "multicolor"
+      ],
+      "season": [
+        "all",
+        "spring",
+        "summer",
+        "fall"
+      ],
+      "warmth": [
+        1,
+        3
+      ]
+    },
+    "Screenshot 2026-10-08 115347.png": {
+      "note": "white leather sneakers",
+      "type": [
+        "sneakers"
+      ],
+      "color": [
+        "white"
+      ],
+      "season": [
+        "all",
+        "spring",
+        "summer",
+        "fall"
+      ],
+      "warmth": [
+        1,
+        3
+      ]
+    },
+    "Screenshot 2026-10-08 115403.png": {
+      "note": "dark brown leather jacket",
+      "type": [
+        "jacket",
+        "coat"
+      ],
+      "color": [
+        "brown",
+        "black"
+      ],
+      "season": [
+        "fall",
+        "winter",
+        "all"
+      ],
+      "warmth": [
+        3,
+        5
+      ]
+    },
+    "Screenshot 2026-10-08 115408.png": {
+      "note": "light gray wide sweatpants",
+      "type": [
+        "sweatpants",
+        "trousers"
+      ],
+      "color": [
+        "gray",
+        "white"
+      ],
+      "season": [
+        "all",
+        "spring",
+        "fall",
+        "winter"
+      ],
+      "warmth": [
+        2,
+        3
+      ]
+    },
+    "Screenshot 2026-10-08 115421.png": {
+      "note": "light blue wide-leg jeans",
+      "type": [
+        "jeans"
+      ],
+      "color": [
+        "blue"
+      ],
+      "season": [
+        "all",
+        "spring",
+        "summer",
+        "fall"
+      ],
+      "warmth": [
+        2,
+        3
+      ]
+    },
+    "Screenshot 2026-10-08 115426.png": {
+      "note": "brown washed wide-leg jeans",
+      "type": [
+        "jeans"
+      ],
+      "color": [
+        "brown"
+      ],
+      "season": [
+        "all",
+        "spring",
+        "fall",
+        "winter"
+      ],
+      "warmth": [
+        2,
+        4
+      ]
+    },
+    "Screenshot 2026-10-08 115430.png": {
+      "note": "blue washed wide-leg jeans",
+      "type": [
+        "jeans"
+      ],
+      "color": [
+        "blue"
+      ],
+      "season": [
+        "all",
+        "spring",
+        "summer",
+        "fall"
+      ],
+      "warmth": [
+        2,
+        3
+      ]
+    }
+  }
+}

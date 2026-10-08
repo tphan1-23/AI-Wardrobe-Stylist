@@ -5,18 +5,23 @@ import { parseModelOutput } from "./tag-validation.ts";
 import { buildVisionPrompt } from "./vision-prompt.ts";
 import type { AnalyzeGarmentResponse } from "./types.ts";
 
-export const DEFAULT_MODEL = "gemini-2.5-flash";
+// Tried in order. gemini-2.5-* are no longer available to new API keys (HTTP 404), and the free tier
+// returns 503 under load, so one model name is not enough.
+export const DEFAULT_MODELS = ["gemini-3.8-flash", "gemini-3.5-flash", "gemini-3.7-flash"] as const;
+export const DEFAULT_MODEL = DEFAULT_MODELS[0];
 export const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 export const SUPPORTED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"] as const;
 export const MAX_IMAGE_BASE64_CHARS = 7_000_000; // roughly 5 MB of image
 
 export class GeminiError extends Error {
-  constructor(
-    message: string,
-    readonly kind: "bad_image" | "rate_limited" | "upstream" | "network",
-    readonly status?: number,
-  ) {
+  readonly kind: "bad_image" | "rate_limited" | "upstream" | "network";
+  readonly status?: number;
+
+  // Written out (no parameter properties) so plain Node can run this file.
+  constructor(message: string, kind: GeminiError["kind"], status?: number) {
     super(message);
+    this.kind = kind;
+    this.status = status;
   }
   get retryable(): boolean {
     return this.kind === "rate_limited" || this.kind === "network" || (this.status ?? 0) >= 500;
@@ -26,7 +31,9 @@ export class GeminiError extends Error {
 export interface GeminiDeps {
   fetch: typeof fetch;
   apiKey: string;
+  // One model (no fallback) or an ordered list to fall back through; defaults to DEFAULT_MODELS.
   model?: string;
+  models?: readonly string[];
 }
 
 export interface ImageInput {
@@ -73,15 +80,13 @@ export function extractText(response: unknown): string | undefined {
   return text.trim() === "" ? undefined : text;
 }
 
-export async function analyzeImage(deps: GeminiDeps, image: ImageInput): Promise<AnalyzeGarmentResponse> {
-  if (!(SUPPORTED_MIME_TYPES as readonly string[]).includes(image.mimeType)) {
-    throw new GeminiError(`unsupported image type ${image.mimeType}`, "bad_image");
-  }
-  if (image.base64.length === 0 || image.base64.length > MAX_IMAGE_BASE64_CHARS) {
-    throw new GeminiError("image is empty or too large", "bad_image");
-  }
+// Whether trying the next model could help: overloaded, rate limited, or the model was retired (404).
+function canFallBack(error: GeminiError): boolean {
+  return error.retryable || error.status === 404;
+}
 
-  const url = `${GEMINI_BASE_URL}/${deps.model ?? DEFAULT_MODEL}:generateContent`;
+async function requestModel(deps: GeminiDeps, model: string, image: ImageInput): Promise<unknown> {
+  const url = `${GEMINI_BASE_URL}/${model}:generateContent`;
   let response: Response;
   try {
     response = await deps.fetch(url, {
@@ -98,11 +103,31 @@ export async function analyzeImage(deps: GeminiDeps, image: ImageInput): Promise
     throw new GeminiError(`vision service error (HTTP ${response.status})`, "upstream", response.status);
   }
 
-  let body: unknown;
   try {
-    body = await response.json();
+    return await response.json();
   } catch {
     throw new GeminiError("vision service returned an unreadable response", "upstream", response.status);
+  }
+}
+
+export async function analyzeImage(deps: GeminiDeps, image: ImageInput): Promise<AnalyzeGarmentResponse> {
+  if (!(SUPPORTED_MIME_TYPES as readonly string[]).includes(image.mimeType)) {
+    throw new GeminiError(`unsupported image type ${image.mimeType}`, "bad_image");
+  }
+  if (image.base64.length === 0 || image.base64.length > MAX_IMAGE_BASE64_CHARS) {
+    throw new GeminiError("image is empty or too large", "bad_image");
+  }
+
+  const models = deps.models ?? (deps.model ? [deps.model] : DEFAULT_MODELS);
+  let body: unknown;
+  for (const [i, model] of models.entries()) {
+    try {
+      body = await requestModel(deps, model, image);
+      break;
+    } catch (error) {
+      const last = i === models.length - 1;
+      if (last || !(error instanceof GeminiError) || !canFallBack(error)) throw error;
+    }
   }
 
   const text = extractText(body);
