@@ -98,6 +98,7 @@ Only `type:` and `color:` tags of garments the caller owns are updated. A thumbs
 | `create_household(p_name)` | creates a household and puts the caller in it; returns its id | `already in a household` |
 | `join_household(p_code)` | joins by the 8-character invite code; returns the household id | `invalid invite code`, `already in a household` |
 | `leave_household()` | leaves; the last member leaving deletes the household; the caller's garments stay theirs | `not in a household` |
+| `ensure_profile()` | creates the caller's own missing `users` row (name from sign-up or Google metadata); never touches an existing row. The app calls it once when it cannot find the profile after signing in (migration `0004`) | none |
 | `accept_suggestion(p_suggestion_id)` | marks the suggestion accepted and sets `last_worn_date` to today on the caller's garments in it | `suggestion not found` |
 
 ## Direct table and storage access (RLS, D18)
