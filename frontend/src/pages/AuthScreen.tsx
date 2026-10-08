@@ -19,7 +19,13 @@ type Mode = "sign_in" | "sign_up";
 // Where Google sends the browser back to: the app itself (exp:// in Expo Go).
 const OAUTH_REDIRECT_PATH = "auth-callback";
 
-export function AuthScreen({ onForgotPassword }: { onForgotPassword: () => void }) {
+interface AuthScreenProps {
+  onForgotPassword: () => void;
+  // Shown after sign-up, and from log-in when the account is not confirmed yet.
+  onConfirmationRequired: (email: string) => void;
+}
+
+export function AuthScreen({ onForgotPassword, onConfirmationRequired }: AuthScreenProps) {
   const [mode, setMode] = useState<Mode>("sign_in");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -58,8 +64,7 @@ export function AuthScreen({ onForgotPassword }: { onForgotPassword: () => void 
     if (!result.ok) {
       setError({ field: fieldForError(result.error), message: result.error });
     } else if (result.status === "confirmation_required") {
-      setNotice("Check your email to confirm your account, then log in.");
-      setMode("sign_in");
+      onConfirmationRequired(email);
     }
     // On success the session listener in App swaps to the signed-in screen.
   }
@@ -160,6 +165,11 @@ export function AuthScreen({ onForgotPassword }: { onForgotPassword: () => void 
           </Pressable>
         )}
         {error?.field === "form" && <ErrorLine message={error.message} />}
+        {error?.field === "form" && error.message.includes("Confirm your email") && (
+          <Pressable accessibilityRole="button" onPress={() => onConfirmationRequired(email)} hitSlop={8}>
+            <Text style={styles.link}>Enter your confirmation code</Text>
+          </Pressable>
+        )}
         {notice && (
           <View style={styles.notice}>
             <Icon name="check" />

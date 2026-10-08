@@ -148,6 +148,18 @@ Read this first if you are a Claude session picking up work.
 - [ ] Remove `exp://**` from Supabase redirect URLs; keep only the real app scheme.
 - [ ] Apple sign-in for a real build needs the paid Apple Developer Program ($99/yr): decide ship or drop Apple/Google sign-in for the demo (D19).
 
+## Sign-up confirmation by code (feat/confirm-by-code, 2026-10-08)
+Expo Go cannot open an email link, and the project's Site URL is still `http://localhost:3000`, so clicking the sign-up link confirmed the account but landed on a dead page. Sign-up now works like the password reset: the app shows a "Check your email" screen and the user types the emailed code (`confirmSignUp`, `resendSignUpCode`, `ConfirmEmailScreen`). Log-in with an unconfirmed account offers "Enter your confirmation code". 280 tests; the service functions are covered and mutation-checked, the screen needs a device.
+
+**Dashboard change required (only after this is merged, otherwise sign-up shows a code screen but the email still holds a link):** Authentication, then Emails, then the **Confirm signup** template. Subject: `Your DressWell confirmation code`. Body:
+```html
+<h2>Confirm your email</h2>
+<p>Enter this code in the DressWell app:</p>
+<p style="font-size:28px;letter-spacing:4px"><strong>{{ .Token }}</strong></p>
+<p>If you did not create an account, you can ignore this email.</p>
+```
+The code length is the project's Email OTP length (6 by default); the app accepts 6 to 10 digits. Emails still come from the Gmail sender and land in spam until Milestone 3.
+
 ## Known unknowns (blockers to watch)
 - Supabase project not created; migration and RLS untested on a real database.
 - Gemini model/version and key not chosen; edge functions not deployed (Deno not installed locally).
