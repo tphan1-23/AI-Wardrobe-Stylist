@@ -19,3 +19,18 @@ export function parseWeather(raw: unknown): WeatherSnapshot {
     (num((obj.snow as { "1h"?: unknown } | undefined)?.["1h"]) ?? 0) > 0;
   return { temp_c: temp, feels_like_c: num(main.feels_like) ?? temp, is_precipitating: precipitating };
 }
+
+// US ZIP codes use the zip lookup, anything else is treated as a city name.
+export function weatherUrl(location: string, apiKey: string): string {
+  const place = location.trim();
+  const zip = /^(\d{5})(-\d{4})?$/.exec(place);
+  const query = zip ? `zip=${zip[1]},US` : `q=${encodeURIComponent(place)}`;
+  return `https://api.openweathermap.org/data/2.5/weather?${query}&units=metric&appid=${encodeURIComponent(apiKey)}`;
+}
+
+// Never put the URL (it contains the key) in an error message or a log.
+export async function fetchWeather(fetchFn: typeof fetch, apiKey: string, location: string): Promise<WeatherSnapshot> {
+  const response = await fetchFn(weatherUrl(location, apiKey));
+  if (!response.ok) throw new WeatherParseError(`weather lookup failed (HTTP ${response.status})`);
+  return parseWeather(await response.json());
+}

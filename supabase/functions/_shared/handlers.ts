@@ -18,9 +18,10 @@ import type {
   WeatherSnapshot,
 } from "./types.ts";
 
-export type HandlerResult<T> = { ok: true; body: T } | { ok: false; status: 400 | 404 | 409 | 502; error: string };
+export type HandlerStatus = 400 | 403 | 404 | 409 | 429 | 502;
+export type HandlerResult<T> = { ok: true; body: T } | { ok: false; status: HandlerStatus; error: string };
 
-const fail = (status: 400 | 404 | 409 | 502, error: string) => ({ ok: false, status, error }) as const;
+export const fail = (status: HandlerStatus, error: string) => ({ ok: false, status, error }) as const;
 
 export const MAX_EXCLUDED_SUGGESTIONS = 50;
 
