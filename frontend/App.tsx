@@ -4,12 +4,14 @@ import { InstrumentSans_600SemiBold } from "@expo-google-fonts/instrument-sans/6
 import { InstrumentSans_700Bold } from "@expo-google-fonts/instrument-sans/700Bold";
 import { useFonts } from "expo-font";
 import { StatusBar } from "expo-status-bar";
+import { useState } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { Button } from "./src/components/common/Button";
 import { useOverview } from "./src/hooks/useOverview";
 import { useSession } from "./src/hooks/useSession";
 import { AuthScreen } from "./src/pages/AuthScreen";
+import { ForgotPasswordScreen } from "./src/pages/ForgotPasswordScreen";
 import { HomeScreen } from "./src/pages/HomeScreen";
 import { LocationScreen } from "./src/pages/LocationScreen";
 import { signOut } from "./src/services/auth";
@@ -55,10 +57,24 @@ export default function App() {
     InstrumentSans_700Bold,
   });
   const { session, loading } = useSession();
+  // Held here, not in AuthScreen: entering the emailed code signs the user in
+  // before the new password is saved, and the reset screen must stay up until then.
+  const [resettingPassword, setResettingPassword] = useState(false);
+
+  function screen() {
+    if (!fontsLoaded || loading) return <Loading />;
+    if (resettingPassword) {
+      return (
+        <ForgotPasswordScreen onBack={() => setResettingPassword(false)} onDone={() => setResettingPassword(false)} />
+      );
+    }
+    if (session) return <SignedIn key={session.user.id} />;
+    return <AuthScreen onForgotPassword={() => setResettingPassword(true)} />;
+  }
 
   return (
     <SafeAreaProvider>
-      {!fontsLoaded || loading ? <Loading /> : session ? <SignedIn key={session.user.id} /> : <AuthScreen />}
+      {screen()}
       <StatusBar style="dark" />
     </SafeAreaProvider>
   );

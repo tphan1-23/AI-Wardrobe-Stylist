@@ -1,5 +1,8 @@
-import { useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import * as AppleAuthentication from "expo-apple-authentication";
+import * as Linking from "expo-linking";
+import * as WebBrowser from "expo-web-browser";
+import { useEffect, useState } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Button } from "../components/common/Button";
 import { ErrorLine } from "../components/common/ErrorLine";
 import { Icon } from "../components/common/Icon";
@@ -7,19 +10,32 @@ import { Screen } from "../components/common/Screen";
 import { Segmented } from "../components/common/Segmented";
 import { TextField } from "../components/common/TextField";
 import { fieldForError, signIn, signUp, type AuthField } from "../services/auth";
+import { signInWithApple, signInWithGoogle, type SocialResult } from "../services/socialAuth";
 import { supabase } from "../services/supabase";
-import { colors, fonts, type } from "../theme";
+import { colors, fonts, radius, size, type } from "../theme";
 
 type Mode = "sign_in" | "sign_up";
 
-export function AuthScreen() {
+// Where Google sends the browser back to: the app itself (exp:// in Expo Go).
+const OAUTH_REDIRECT_PATH = "auth-callback";
+
+export function AuthScreen({ onForgotPassword }: { onForgotPassword: () => void }) {
   const [mode, setMode] = useState<Mode>("sign_in");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  const [socialBusy, setSocialBusy] = useState(false);
+  const [appleAvailable, setAppleAvailable] = useState(false);
   const [error, setError] = useState<{ field: AuthField; message: string } | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+
+  // Sign in with Apple only exists on iPhone and iPad.
+  useEffect(() => {
+    AppleAuthentication.isAvailableAsync()
+      .then(setAppleAvailable)
+      .catch(() => setAppleAvailable(false));
+  }, []);
 
   const isSignUp = mode === "sign_up";
   const errorFor = (field: AuthField) => (error?.field === field ? error.message : null);
@@ -47,6 +63,38 @@ export function AuthScreen() {
     }
     // On success the session listener in App swaps to the signed-in screen.
   }
+
+  async function continueWith(run: () => Promise<SocialResult>) {
+    // Apple's native button cannot be disabled, so ignore taps while something is running.
+    if (busy || socialBusy) return;
+    setSocialBusy(true);
+    setError(null);
+    setNotice(null);
+    const result = await run();
+    setSocialBusy(false);
+    if (!result.ok && !result.cancelled) setError({ field: "form", message: result.error });
+  }
+
+  const continueWithGoogle = () =>
+    continueWith(() =>
+      signInWithGoogle(
+        supabase.auth,
+        { openAuthSessionAsync: WebBrowser.openAuthSessionAsync },
+        Linking.createURL(OAUTH_REDIRECT_PATH),
+      ),
+    );
+
+  const continueWithApple = () =>
+    continueWith(() =>
+      signInWithApple(supabase.auth, () =>
+        AppleAuthentication.signInAsync({
+          requestedScopes: [
+            AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+            AppleAuthentication.AppleAuthenticationScope.EMAIL,
+          ],
+        }),
+      ),
+    );
 
   return (
     <Screen top={72}>
@@ -106,6 +154,11 @@ export function AuthScreen() {
           textContentType={isSignUp ? "newPassword" : "password"}
           error={errorFor("password")}
         />
+        {!isSignUp && (
+          <Pressable accessibilityRole="button" onPress={onForgotPassword} hitSlop={8} style={styles.forgot}>
+            <Text style={styles.link}>Forgot your password?</Text>
+          </Pressable>
+        )}
         {error?.field === "form" && <ErrorLine message={error.message} />}
         {notice && (
           <View style={styles.notice}>
@@ -113,7 +166,32 @@ export function AuthScreen() {
             <Text style={styles.noticeText}>{notice}</Text>
           </View>
         )}
-        <Button label={isSignUp ? "Sign up" : "Log in"} onPress={submit} busy={busy} />
+        <Button label={isSignUp ? "Sign up" : "Log in"} onPress={submit} busy={busy} disabled={socialBusy} />
+      </View>
+
+      <View style={styles.divider}>
+        <View style={styles.rule} />
+        <Text style={styles.or}>or</Text>
+        <View style={styles.rule} />
+      </View>
+
+      <View style={styles.social}>
+        <Button
+          label="Continue with Google"
+          variant="secondary"
+          onPress={continueWithGoogle}
+          busy={socialBusy}
+          disabled={busy}
+        />
+        {appleAvailable && (
+          <AppleAuthentication.AppleAuthenticationButton
+            buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
+            buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE_OUTLINE}
+            cornerRadius={radius.control}
+            onPress={continueWithApple}
+            style={[styles.apple, (busy || socialBusy) && styles.appleDisabled]}
+          />
+        )}
       </View>
 
       <Text style={styles.footer}>
@@ -128,6 +206,14 @@ const styles = StyleSheet.create({
   brandName: { fontFamily: fonts.bold, fontSize: 24, letterSpacing: -0.48, color: colors.ink },
   subtitle: { marginTop: 8 },
   form: { gap: 20 },
+  forgot: { alignSelf: "flex-end", marginTop: -8 },
+  link: { fontFamily: fonts.bold, fontSize: 14, color: colors.ink, textDecorationLine: "underline" },
+  divider: { flexDirection: "row", alignItems: "center", gap: 12 },
+  rule: { flex: 1, height: 1, backgroundColor: colors.line },
+  or: { fontFamily: fonts.semibold, fontSize: 14, color: colors.muted },
+  social: { gap: 12 },
+  apple: { height: size.control, alignSelf: "stretch" },
+  appleDisabled: { opacity: 0.6 },
   notice: { flexDirection: "row", alignItems: "center", gap: 6 },
   noticeText: { flex: 1, fontFamily: fonts.semibold, fontSize: 14, color: colors.ink },
   footer: { ...type.caption, fontSize: 14, textAlign: "center", marginTop: "auto" },
