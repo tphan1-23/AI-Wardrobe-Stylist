@@ -16,11 +16,11 @@ export interface GarmentTags {
   warmth: Warmth;
 }
 
-// Garments belong to the household (shared closet); added_by is informational.
+// Garments belong to the user who added them (personal closet, D18). Household
+// members can view each other's garments; only the owner can change them.
 export interface Garment extends GarmentTags {
   id: UUID;
-  household_id: UUID;
-  added_by: UUID;
+  owner_id: UUID;
   image_path: string; // private storage path, served via signed URL
   status: GarmentStatus;
   last_worn_date: ISODate | null;
@@ -28,7 +28,7 @@ export interface Garment extends GarmentTags {
 
 export interface UserProfile {
   id: UUID;
-  household_id: UUID;
+  household_id: UUID | null; // optional; only used to share closets (D18)
   name: string;
   location: string | null; // per-user weather location (city / ZIP)
   quiz_preferences: QuizAnswers | null;
