@@ -92,3 +92,25 @@ describe("migration 0002_personal_closets (D18)", () => {
     for (const line of definers) expect(line).toContain("set search_path = public");
   });
 });
+
+describe("migration 0004_ensure_profile", () => {
+  const ensure = readFileSync(new URL("../supabase/migrations/0004_ensure_profile.sql", import.meta.url), "utf8");
+
+  it("creates only the caller's own profile and never overwrites an existing one", () => {
+    expect(ensure).toMatch(/create function ensure_profile\(\) returns void/);
+    expect(ensure).toMatch(/where u\.id = auth\.uid\(\)/);
+    expect(ensure).toMatch(/on conflict \(id\) do nothing/);
+    expect(ensure).not.toMatch(/delete|update|truncate|drop/i);
+  });
+
+  it("runs as security definer with a fixed search_path and is not callable by anonymous users", () => {
+    expect(ensure).toMatch(/security definer set search_path = public/);
+    expect(ensure).toMatch(/revoke all on function ensure_profile\(\) from public/);
+    expect(ensure).toMatch(/grant execute on function ensure_profile\(\) to authenticated/);
+  });
+
+  it("derives the name the same way as the sign-up trigger", () => {
+    expect(ensure).toContain("raw_user_meta_data ->> 'name'");
+    expect(ensure).toContain("raw_user_meta_data ->> 'full_name'");
+  });
+});

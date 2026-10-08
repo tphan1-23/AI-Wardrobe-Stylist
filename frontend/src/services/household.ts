@@ -40,6 +40,8 @@ export interface HouseholdGateway {
   joinHousehold(inviteCode: string): Promise<GatewayResult<string>>;
   leaveHousehold(): Promise<GatewayResult<unknown>>;
   loadProfile(): Promise<GatewayResult<ProfileRow>>;
+  // Creates the signed-in user's own profile row if it is missing (see migration 0004).
+  ensureProfile(): Promise<GatewayResult<unknown>>;
   updateLocation(location: string): Promise<GatewayResult<unknown>>;
   loadHousehold(householdId: string): Promise<GatewayResult<HouseholdRow>>;
   loadMembers(householdId: string): Promise<GatewayResult<MemberRow[]>>;
@@ -150,8 +152,28 @@ export interface Overview {
   step: OnboardingStep;
 }
 
+const MISSING_PROFILE = "Your profile could not be found. Log out and sign in again.";
+
+// A missing profile row (deleted, or the account predates the sign-up trigger) is repaired once, never in a loop.
+async function loadProfileOrCreate(gateway: HouseholdGateway): Promise<Result<ProfileRow>> {
+  try {
+    const first = await gateway.loadProfile();
+    if (first.error) return { ok: false, error: friendlyHouseholdError(first.error.message) };
+    if (first.data) return { ok: true, value: first.data };
+
+    const created = await gateway.ensureProfile();
+    if (created.error) return { ok: false, error: friendlyHouseholdError(created.error.message) };
+
+    const second = await gateway.loadProfile();
+    if (second.error) return { ok: false, error: friendlyHouseholdError(second.error.message) };
+    return second.data ? { ok: true, value: second.data } : { ok: false, error: MISSING_PROFILE };
+  } catch {
+    return { ok: false, error: NETWORK_ERROR };
+  }
+}
+
 export async function loadOverview(gateway: HouseholdGateway): Promise<Result<Overview>> {
-  const profile = await guarded(() => gateway.loadProfile(), "Your profile could not be found. Log out and sign in again.");
+  const profile = await loadProfileOrCreate(gateway);
   if (!profile.ok) return profile;
   const step = onboardingStep(profile.value);
   const householdId = profile.value.household_id;

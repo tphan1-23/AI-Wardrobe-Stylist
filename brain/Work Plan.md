@@ -148,6 +148,11 @@ Read this first if you are a Claude session picking up work.
 - [ ] Remove `exp://**` from Supabase redirect URLs; keep only the real app scheme.
 - [ ] Apple sign-in for a real build needs the paid Apple Developer Program ($99/yr): decide ship or drop Apple/Google sign-in for the demo (D19).
 
+## Incident 2026-10-08: every profile row disappeared (Manuel + Claude)
+- **What happened:** after PRs #2 to #4 were merged, logging in showed "Your profile could not be found" even for a brand-new account. A query showed all 5 accounts in `auth.users` had **no row in `public.users`**. The sign-up trigger and its function were correct and enabled. Table statistics showed `users` had 10 inserts and 10 deletes and 0 rows left: the rows had been **deleted by SQL run by a teammate** while testing (Thanh confirmed she had run SQL). Our other tables (garments, preferences, suggestions) matched exactly what the end-to-end run created and cleaned up.
+- **Fix:** migration `0004_ensure_profile.sql` adds `ensure_profile()` (creates only the caller's own missing profile, never overwrites, signed-in users only), and the app now calls it once when the profile is missing instead of dead-ending. Tests cover the repair, the failure cases, and that it never loops. Apply `0004` by hand in the SQL editor (the migration history is not tracked, see the Supabase check note), then repair existing accounts once with the backfill SQL above.
+- **Lessons:** (1) do not run delete/reset SQL on the shared project without saying so in the team chat first; (2) five tables that are not ours (`tasks`, `labels`, `task_labels`, `comments`, `activity_log`, all empty) exist in `public`, apparently from a starter template; confirm with Thanh and drop them, since tables without row-level security are exposed through the API; (3) one household row is left with no members.
+
 ## Known unknowns (blockers to watch)
 - Supabase project not created; migration and RLS untested on a real database.
 - Gemini model/version and key not chosen; edge functions not deployed (Deno not installed locally).
