@@ -11,7 +11,6 @@ import { useOverview } from "./src/hooks/useOverview";
 import { useSession } from "./src/hooks/useSession";
 import { AuthScreen } from "./src/pages/AuthScreen";
 import { HomeScreen } from "./src/pages/HomeScreen";
-import { HouseholdScreen } from "./src/pages/HouseholdScreen";
 import { LocationScreen } from "./src/pages/LocationScreen";
 import { signOut } from "./src/services/auth";
 import { supabase } from "./src/services/supabase";
@@ -25,7 +24,8 @@ function Loading() {
   );
 }
 
-// Onboarding gate: household first, then weather location, then the app.
+// Onboarding gate: weather location, then the app. Households are optional (D18)
+// and are created or joined later from the home screen.
 function SignedIn() {
   const { overview, loading, error, refresh } = useOverview();
 
@@ -43,10 +43,7 @@ function SignedIn() {
     );
   }
 
-  if (overview.step === "household") return <HouseholdScreen onDone={refresh} />;
-  if (overview.step === "location") {
-    return <LocationScreen step={{ current: 2, total: 2 }} submitLabel="Continue" onDone={refresh} />;
-  }
+  if (overview.step === "location") return <LocationScreen submitLabel="Continue" onDone={refresh} />;
   return <HomeScreen overview={overview} onChanged={refresh} />;
 }
 

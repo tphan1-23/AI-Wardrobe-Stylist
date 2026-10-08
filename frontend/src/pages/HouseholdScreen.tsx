@@ -2,7 +2,6 @@ import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { Button } from "../components/common/Button";
 import { Screen } from "../components/common/Screen";
-import { StepIndicator } from "../components/common/StepIndicator";
 import { TextField } from "../components/common/TextField";
 import { createHousehold, joinHousehold } from "../services/household";
 import { gateway } from "../services/supabase";
@@ -10,7 +9,13 @@ import { colors, fonts, radius, size, type } from "../theme";
 
 type Which = "create" | "join";
 
-export function HouseholdScreen({ onDone }: { onDone: () => void }) {
+interface Props {
+  onBack: () => void;
+  onDone: () => void;
+}
+
+// Optional (D18): opened from the home screen to start sharing closets.
+export function HouseholdScreen({ onBack, onDone }: Props) {
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState<Which | null>(null);
@@ -26,9 +31,10 @@ export function HouseholdScreen({ onDone }: { onDone: () => void }) {
   }
 
   return (
-    <Screen title="Your household" subtitle="Closets are shared, so everyone in the household sees the same clothes.">
-      <StepIndicator step={1} total={2} />
-
+    <Screen
+      title="Share your closet"
+      subtitle="Everyone in a household can see each other's closets. Your clothes stay yours, and you can leave at any time."
+    >
       <View style={styles.card}>
         <Text style={type.cardTitle}>Create a household</Text>
         <TextField
@@ -67,6 +73,8 @@ export function HouseholdScreen({ onDone }: { onDone: () => void }) {
           disabled={busy === "create"}
         />
       </View>
+
+      <Button label="Back" variant="secondary" onPress={onBack} disabled={busy !== null} />
     </Screen>
   );
 }

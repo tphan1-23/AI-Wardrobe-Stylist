@@ -27,6 +27,8 @@ Commits are authored by whoever owns the slice (their own git identity). Team co
 | `feat/data-layer` | tooling-contracts | Thanh | pushed, PR not opened | `0001_init.sql` (tables, RLS, storage, `create_household`/`join_household`/`accept_suggestion`), `.env.example`, CI |
 | `feat/ai-core` | data-layer | Manuel + Claude | in progress | scoring engine (done), preference learning (next), tag validation, tests |
 | `feat/expo-app` | data-layer | Thanh | in progress | Expo app in `frontend/`; steps 1, 2 and 4 done (see progress below) |
+| `feat/design` | expo-app | Thanh | pushed | Restyle to the design board, notch/Dynamic Island fix |
+| `feat/personal-closets` | design | Thanh | pushed, PR not opened; `0002` not yet run on Supabase | Personal closets + optional households (D18): `0002_personal_closets.sql`, leave household, members list; sign-up password rules |
 
 Chain: `chore/tooling-contracts` → `feat/data-layer` → (`feat/ai-core`, `feat/expo-app`). Work on branches that descend from `feat/data-layer` so the types, schema and CI are present. If you rebase/merge, pull `origin/feat/data-layer` first.
 
@@ -53,6 +55,8 @@ Other branches (`chore/tooling-contracts`, `feat/data-layer`, `feat/ai-core`) ar
 
 **Fixed (2026-10-04, `fix/missing-profile`):** an account with no profile row used to show the raw message "Cannot coerce the result to a single JSON object". `householdGateway` now uses `.maybeSingle()` and `loadOverview` shows "Your profile could not be found. Log out and sign in again." (or "Your household could not be found."). Test added; 54 tests, 100% coverage.
 
+**Personal closets (2026-10-08, `feat/personal-closets`, D18):** households are now optional. Sign-up goes straight to location, then the app; the home screen offers "Create or join a household", shows members, and has a working "Leave household" (with confirmation). Garments are owned by `owner_id`; photos live at `<owner user id>/<file>`. `0002_personal_closets.sql` applied cleanly on a local PGlite database with Supabase stand-ins, and a 24-step check passed (sharing, read-only for members, leave, last member deletes household, storage paths). **Not yet run on the real Supabase project:** run `0002_personal_closets.sql` once in Dashboard → SQL Editor, then `notify pgrst, 'reload schema';`. Also: sign-up now requires 8–72 chars with upper, lower, number and symbol (log-in keeps the 8-char minimum); the same rules are set in the Supabase dashboard. 86 tests, 100% coverage on the feature files.
+
 **App name:** the Expo app is branded **DressWell** (display name and slug in `frontend/app.json`); the repo and docs keep the working title AI Wardrobe Stylist.
 
 **Running the app (Thanh):** create `frontend/.env.local` (gitignored) with `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY`, then `cd frontend && npx expo start --tunnel -c` and scan the QR code in Expo Go. Gotchas found:
@@ -71,8 +75,8 @@ Order matters; stop at any point with a working, tested slice.
 3. Make the Supabase project (free tier), run `supabase/migrations/0001_init.sql`, **report whether it applies cleanly** (the SQL has never run against a real database). Fix the migration via PR if not.
 4. Auth: email + password sign up / log in. Profile row is created automatically by trigger.
 5. Household: create (`rpc create_household`) or join by invite code (`rpc join_household`); profile name + location.
-6. Upload: `expo-image-picker` → upload to private bucket `garments` at `<household_id>/<uuid>.jpg` → call `analyze-garment` (use a stub returning fixed tags until the real function exists) → review/edit screen → insert garment.
-7. Closet list with clean/dirty toggle.
+6. Upload: `expo-image-picker` → upload to private bucket `garments` at `<owner user id>/<uuid>.jpg` (D18) → call `analyze-garment` (use a stub returning fixed tags until the real function exists) → review/edit screen → insert garment with `owner_id` = the signed-in user.
+7. Closet list (own closet; household members' closets read-only, D18) with clean/dirty toggle on your own items.
 Later: quiz screen, daily suggestion screen (call `generate-outfit`, accept via `rpc accept_suggestion`, thumbs up/down → `update-preferences`, re-roll on thumbs down).
 
 **Share the types, don't copy them.** Import from `supabase/functions/_shared/` (e.g. `tag-schema.ts`, `types.ts`). Metro needs repo-root access: configure `watchFolders` in `metro.config.js` (or a path alias). Never redefine tag lists in the app; the migration test and the AI core depend on one source of truth.
@@ -93,4 +97,5 @@ Later: quiz screen, daily suggestion screen (call `generate-outfit`, accept via 
 - Supabase project not created; migration and RLS untested on a real database.
 - Gemini model/version and key not chosen; edge functions not deployed (Deno not installed locally).
 - Real Milestone 2 due date and rubric not confirmed.
-- `docs/architecture.md` and `docs/api_endpoints.md` still describe the pre-D1–D16 design.
+- `docs/architecture.md` and `docs/api_endpoints.md` still describe the pre-D1–D18 design.
+- `feat/ai-core` still reads garments by `household_id`; it must switch to `owner_id` after D18 (Manuel).
