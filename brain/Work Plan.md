@@ -29,6 +29,7 @@ Commits are authored by whoever owns the slice (their own git identity). Team co
 | `feat/expo-app` | data-layer | Thanh | in progress | Expo app in `frontend/`; steps 1, 2 and 4 done (see progress below) |
 | `feat/design` | expo-app | Thanh | pushed | Restyle to the design board, notch/Dynamic Island fix |
 | `feat/personal-closets` | design | Thanh | pushed, PR not opened; `0002` not yet run on Supabase | Personal closets + optional households (D18): `0002_personal_closets.sql`, leave household, members list; sign-up password rules |
+| `feat/forgot-password-social-login` | personal-closets | Thanh | local, not pushed | Forgot password by emailed code, Google + Apple sign-in, `0003_social_login_names.sql` (D19) |
 
 Chain: `chore/tooling-contracts` → `feat/data-layer` → (`feat/ai-core`, `feat/expo-app`). Work on branches that descend from `feat/data-layer` so the types, schema and CI are present. If you rebase/merge, pull `origin/feat/data-layer` first.
 
@@ -56,6 +57,15 @@ Other branches (`chore/tooling-contracts`, `feat/data-layer`, `feat/ai-core`) ar
 **Fixed (2026-10-04, `fix/missing-profile`):** an account with no profile row used to show the raw message "Cannot coerce the result to a single JSON object". `householdGateway` now uses `.maybeSingle()` and `loadOverview` shows "Your profile could not be found. Log out and sign in again." (or "Your household could not be found."). Test added; 54 tests, 100% coverage.
 
 **Personal closets (2026-10-08, `feat/personal-closets`, D18):** households are now optional. Sign-up goes straight to location, then the app; the home screen offers "Create or join a household", shows members, and has a working "Leave household" (with confirmation). Garments are owned by `owner_id`; photos live at `<owner user id>/<file>`. `0002_personal_closets.sql` applied cleanly on a local PGlite database with Supabase stand-ins, and a 24-step check passed (sharing, read-only for members, leave, last member deletes household, storage paths). **Not yet run on the real Supabase project:** run `0002_personal_closets.sql` once in Dashboard → SQL Editor, then `notify pgrst, 'reload schema';`. Also: sign-up now requires 8–72 chars with upper, lower, number and symbol (log-in keeps the 8-char minimum); the same rules are set in the Supabase dashboard. 86 tests, 100% coverage on the feature files.
+
+**Forgot password + Google/Apple (2026-10-08, `feat/forgot-password-social-login`, D19):** "Forgot your password?" on the log-in screen opens a two-step screen (email, then code + new password). "Continue with Google" and the native "Continue with Apple" button sit under the form (Apple only shows on iPhone/iPad). Logic is in `services/auth.ts` (`requestPasswordReset`, `resetPassword`) and the new `services/socialAuth.ts`, both unit-tested; `0003_social_login_names.sql` makes the profile name work for Google (full_name) and Apple (name arrives once, saved with `updateUser`). 118 tests, 100% coverage on the feature files. **Not run on a device or against real Google/Apple yet.** Dashboard setup needed before it works:
+1. Authentication → Emails → "Reset Password" template: add the code, e.g. `Your code: {{ .Token }}` (keep or drop the link).
+2. Authentication → URL Configuration → Redirect URLs: add `exp://**` (Expo Go testing; remove before production) and `dresswell://**`.
+3. Authentication → Sign In / Providers → Google: create an OAuth "Web application" client in Google Cloud Console (free), authorized redirect URI `https://<project-ref>.supabase.co/auth/v1/callback`, paste Client ID and Secret into Supabase.
+4. Same page → Apple: enable it, and in "Client IDs" add `host.exp.Exponent` (Expo Go's id) to test without a paid account. A real build needs its own bundle id and the paid Apple Developer Program ($99/yr): flag per the free-tier rule.
+5. SQL Editor: run `0002_personal_closets.sql` (if not yet) and `0003_social_login_names.sql`, then `notify pgrst, 'reload schema';`.
+
+**Reset email status (2026-10-08):** the Supabase default templates cannot be edited on the free plan without custom SMTP, so a dedicated Gmail account (2-Step Verification + app password, `smtp.gmail.com:465`) is set up as the SMTP sender. Emails arrive but in **spam**; accepted for now, fix is on the Milestone 3 checklist. Never commit or paste the app password. The Supabase reset limits are one email per user per 60 seconds, and Gmail allows about 500 a day.
 
 **App name:** the Expo app is branded **DressWell** (display name and slug in `frontend/app.json`); the repo and docs keep the working title AI Wardrobe Stylist.
 
@@ -92,6 +102,11 @@ Later: quiz screen, daily suggestion screen (call `generate-outfit`, accept via 
 - Do not change `_shared/` AI modules or `types.ts` without Manuel; contract changes go through a PR and must update `docs/api_endpoints.md`.
 - Do not change the schema without updating `types.ts` and the sync test (`tests/migration.test.ts`).
 - Tests: `npm test`, `npm run test:coverage` (gate 80% on `_shared`), `npm run typecheck`. CI runs the same.
+
+## Milestone 3 checklist (deployed app, Week 12, Nov 9-13)
+- [ ] **Fix email deliverability (Thanh decided on 2026-10-08 to leave it until Milestone 3).** Auth emails (password-reset code, sign-up confirmation) currently go out through a dedicated Gmail account over SMTP and **land in the recipient's spam folder**. This is accepted for the class demo (tell testers to check spam and click "Report not spam"). Before real users: get a domain (about $10/yr; the GitHub Student Developer Pack may give a free `.me`/`.tech` for a year; flag per the free-tier rule), sign up for Resend (free about 3,000/month, 100/day) or Brevo (free 300/day), add the SPF, DKIM and DMARC records at the registrar, then put the service's SMTP details in Supabase (Authentication → Emails → SMTP) with a sender such as `noreply@<domain>`. No app code changes. Also remove the `exp://**` redirect URL (D19) and re-test the reset email.
+- [ ] Remove `exp://**` from Supabase redirect URLs; keep only the real app scheme.
+- [ ] Apple sign-in for a real build needs the paid Apple Developer Program ($99/yr): decide ship or drop Apple/Google sign-in for the demo (D19).
 
 ## Known unknowns (blockers to watch)
 - Supabase project not created; migration and RLS untested on a real database.
