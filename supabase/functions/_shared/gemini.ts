@@ -7,7 +7,16 @@ import type { AnalyzeGarmentResponse } from "./types.ts";
 
 // Tried in order. gemini-2.5-* are no longer available to new API keys (HTTP 404), and the free tier
 // returns 503 under load, so one model name is not enough.
-export const DEFAULT_MODELS = ["gemini-3.8-flash", "gemini-3.5-flash", "gemini-3.7-flash"] as const;
+// Each model has its own daily free quota (20 requests/day on the free tier), so more models = more capacity.
+// Order = preferred quality first; the lite models go last until their accuracy is measured (brain/AI Logic Ownership.md).
+export const DEFAULT_MODELS = [
+  "gemini-3.8-flash",
+  "gemini-3.7-flash",
+  "gemini-3.6-flash",
+  "gemini-3.5-flash",
+  "gemini-3.5-flash-lite",
+  "gemini-3.1-flash-lite",
+] as const;
 export const DEFAULT_MODEL = DEFAULT_MODELS[0];
 export const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 export const SUPPORTED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"] as const;
