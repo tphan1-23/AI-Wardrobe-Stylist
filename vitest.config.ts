@@ -13,6 +13,7 @@ export default defineConfig({
         "frontend/src/services/auth.ts",
         "frontend/src/services/socialAuth.ts",
         "frontend/src/services/household.ts",
+        "frontend/src/services/quiz.ts",
         "frontend/src/services/householdGateway.ts",
         "frontend/src/layout.ts",
       ],
