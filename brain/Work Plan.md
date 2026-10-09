@@ -11,6 +11,34 @@ Single place for "who does what, on which branch, in what order". Read this firs
 
 **Goal now:** Milestone 2 — core feature + automated test suite (>80% coverage), delivered as teammate-reviewed PRs. Real due date unconfirmed; assume immediate.
 
+## Roadmap (2026-10-08, after PRs #1 to #8)
+
+### Done so far
+- **Tooling and contracts:** shared types, tag schema, CI, 80% coverage gate (Vitest), docs (`docs/architecture.md`, `docs/api_endpoints.md`).
+- **Supabase project:** migrations 0001 to 0004 applied by hand; RLS on every table; private photo bucket; triggers that create a profile at sign-up; `ensure_profile()` repairs a missing profile.
+- **App (Thanh):** DressWell design, email sign-up and log-in, password reset by emailed code, Google sign-in (tunnel only), location, personal closets with optional households (create, join, leave), self-healing profile.
+- **AI core (Manuel + Claude), deployed:** `analyze-garment` (Gemini tagging, 95% type accuracy on 23 real photos), `generate-outfit` (weather, clean status, repeat avoidance, preferences), `update-preferences` (thumbs up/down learning). Verified end to end on the real project by `scripts/e2e.ts` (39 of 39 checks).
+- **Process:** PRs #1 to #8 merged, each approved by the other teammate before the merge (except #1, approved afterwards as a comment).
+- **Not done yet:** every screen that uses the AI (Add, Closet, Quiz, Today). The backend for all of them already exists, so there is no more waiting on us.
+
+### Next for Thanh (screens, in this order; one PR per screen, each with tests for its service logic)
+Build each screen on a branch, open a PR, and wait for Manuel's approval on Files changed before merging. Each step works on its own, so stop at any point with something tested.
+1. **Add screen (photo to garment).** `expo-image-picker`, upload to bucket `garments` at `<your user id>/<uuid>.jpg`, then `supabase.functions.invoke("analyze-garment", { body })`. Then the **review-and-edit screen**: show the tags, highlight every field listed in `needs_review`, and require the user to confirm those before saving. On a 429 or any AI failure let the user type the tags. Insert the garment with `owner_id` = the signed-in user. This is the core of the app and the first thing the demo needs.
+2. **Closet screen.** List your own garments (photo from the bucket, type, color), filter by clean/dirty, toggle clean/dirty on your own items, delete an item (and its photo). If you are in a household, show members' closets read-only. This also lets us do the manual household read-only check.
+3. **Quiz screen (cold start).** Shown once on first use, after location. Collect the answers in the `QuizAnswers` shape (`types.ts`), call `quizToPreferences` from `_shared/preferences.ts`, upsert the result into `preference_vector`, and save the answers in `users.quiz_preferences`. No edge function is needed. (It can go before step 2 if you prefer.)
+4. **Today screen (daily outfit).** Call `generate-outfit`, show top, bottom and shoes with weather, and handle its errors (409 set a location first, 502 weather down, and the three result statuses such as not enough clean clothes). Buttons: accept (`rpc accept_suggestion`, marks items worn), thumbs up/down (`update-preferences`; feedback counts once per suggestion, a second try returns 409), and re-roll after a thumbs down.
+5. **Polish:** loading and empty states, error messages, the laundry flow ("what is dirty"), and account deletion.
+6. **Milestone 3 (later):** CI/CD and deploy, the email and Site URL setup, and the demo build. See the checklist below.
+
+**Rules for all of these:** import types and tag lists from `supabase/functions/_shared/` (never copy them), start the app with `npx expo start --tunnel -c`, and read "Notes for the app (from AI core)" below for the exact contracts.
+
+### Next for Manuel + Claude
+1. **Review each of Thanh's screen PRs** against the contracts and the security rules.
+2. **Close the "not verified" items:** repair the Supabase migration history (`npx supabase migration repair --status applied 0001 0002 0003 0004`) to clear the red check; create a second email account and run `node scripts/e2e-household.ts` (proves members can see but not change each other's garments and photos).
+3. **Housekeeping:** budget alert on the Google Cloud billing account, rotate the Gemini key and re-set the Supabase secret, drop the five leftover template tables (with Thanh), fill in `usedPrompts.md` (individual AI audit logs).
+4. **AI quality:** keep improving tagging accuracy (season is the weakest at 73%) with `scripts/eval-tagging.ts`; once Today and feedback run in the app, check real recommendations and extend the simulated-user tests.
+5. **Milestone 3 prep:** decide the demo type (Expo Go, hosted web build or a built app), the Site URL and email setup, the Apple sign-in decision, the Week 8 live demo and the AI friction log.
+
 ## People and laptops
 | Who | Works on | Owns |
 |---|---|---|
