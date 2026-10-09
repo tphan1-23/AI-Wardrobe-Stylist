@@ -149,17 +149,13 @@ Read this first if you are a Claude session picking up work.
 - [ ] Remove `exp://**` from Supabase redirect URLs; keep only the real app scheme.
 - [ ] Apple sign-in for a real build needs the paid Apple Developer Program ($99/yr): decide ship or drop Apple/Google sign-in for the demo (D19).
 
-## Sign-up confirmation by code (feat/confirm-by-code, 2026-10-08)
-Expo Go cannot open an email link, and the project's Site URL is still `http://localhost:3000`, so clicking the sign-up link confirmed the account but landed on a dead page. Sign-up now works like the password reset: the app shows a "Check your email" screen and the user types the emailed code (`confirmSignUp`, `resendSignUpCode`, `ConfirmEmailScreen`). Log-in with an unconfirmed account offers "Enter your confirmation code". 280 tests; the service functions are covered and mutation-checked, the screen needs a device.
+## Sign-up confirmation: link stays until deployment (decision 2026-10-08)
+PR #6 added a code-based sign-up confirmation (`confirmSignUp`, `resendSignUpCode` in `auth.ts`), but Manuel decided **not** to change the Confirm signup email template: it keeps the link. With a link-only email a "Check your email" code screen would ask for a code that is not in the email, so the screen was removed (`ConfirmEmailScreen`, the "Enter your confirmation code" link). Sign-up shows "Check your email to confirm your account, then log in." again.
 
-**Dashboard change required (only after this is merged, otherwise sign-up shows a code screen but the email still holds a link):** Authentication, then Emails, then the **Confirm signup** template. Subject: `Your DressWell confirmation code`. Body:
-```html
-<h2>Confirm your email</h2>
-<p>Enter this code in the DressWell app:</p>
-<p style="font-size:28px;letter-spacing:4px"><strong>{{ .Token }}</strong></p>
-<p>If you did not create an account, you can ignore this email.</p>
-```
-The code length is the project's Email OTP length (6 by default); the app accepts 6 to 10 digits. Emails still come from the Gmail sender and land in spam until Milestone 3.
+**What testers do:** tap the link in the email (it confirms the account, then Safari shows a page that cannot load, because the Site URL is still `http://localhost:3000`), go back to the app and log in.
+
+**Removed:** the unused `confirmSignUp` and `resendSignUpCode` and their tests were deleted too, so no dead code stays in the repo. If sign-up by code is wanted at Milestone 3, the full implementation is in PR #6 (`feat/confirm-by-code`): restore it and switch the template to `{{ .Token }}`. The other option is to fix the Site URL and a deep link so the email link works. Which one fits depends on the demo (Expo Go cannot open email links; a hosted web build or a built app can). Emails still come from the Gmail sender and land in spam until then.
+
 ## Incident 2026-10-08: every profile row disappeared (Manuel + Claude)
 - **What happened:** after PRs #2 to #4 were merged, logging in showed "Your profile could not be found" even for a brand-new account. A query showed all 5 accounts in `auth.users` had **no row in `public.users`**. The sign-up trigger and its function were correct and enabled. Table statistics showed `users` had 10 inserts and 10 deletes and 0 rows left: the rows had been **deleted by SQL run by a teammate** while testing (Thanh confirmed she had run SQL). Our other tables (garments, preferences, suggestions) matched exactly what the end-to-end run created and cleaned up.
 - **Fix:** migration `0004_ensure_profile.sql` adds `ensure_profile()` (creates only the caller's own missing profile, never overwrites, signed-in users only), and the app now calls it once when the profile is missing instead of dead-ending. Tests cover the repair, the failure cases, and that it never loops. Apply `0004` by hand in the SQL editor (the migration history is not tracked, see the Supabase check note), then repair existing accounts once with the backfill SQL above.
