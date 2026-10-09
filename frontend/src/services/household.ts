@@ -12,6 +12,8 @@ const INVITE_CODE_PATTERN = /^[0-9a-f]{8}$/;
 
 export interface GatewayError {
   message: string;
+  // HTTP status when the error came from an edge function (see today.ts).
+  status?: number;
 }
 
 export interface GatewayResult<T> {

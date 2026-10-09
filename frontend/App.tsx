@@ -12,8 +12,8 @@ import { useOverview } from "./src/hooks/useOverview";
 import { useSession } from "./src/hooks/useSession";
 import { AuthScreen } from "./src/pages/AuthScreen";
 import { ForgotPasswordScreen } from "./src/pages/ForgotPasswordScreen";
-import { HomeScreen } from "./src/pages/HomeScreen";
 import { LocationScreen } from "./src/pages/LocationScreen";
+import { MainTabs } from "./src/pages/MainTabs";
 import { QuizScreen } from "./src/pages/QuizScreen";
 import { signOut } from "./src/services/auth";
 import { supabase } from "./src/services/supabase";
@@ -50,7 +50,7 @@ function SignedIn() {
     return <LocationScreen step={{ current: 1, total: 2 }} submitLabel="Continue" onDone={refresh} />;
   }
   if (overview.step === "quiz") return <QuizScreen onDone={refresh} />;
-  return <HomeScreen overview={overview} onChanged={refresh} />;
+  return <MainTabs overview={overview} onChanged={refresh} />;
 }
 
 export default function App() {

@@ -24,7 +24,7 @@ Source of truth: `docs/Wardrobe App.html` (design board, 11 phone screens at 390
 | 3 | Location | `LocationScreen` (also used from Household → Change) | done |
 | 11 | Household | `HomeScreen` (name, invite code + Copy, profile rows, Log out) | done |
 | 4 | Style quiz | `QuizScreen` (shown once, after location) | built; not yet checked on a device |
-| 5, 6 | Today / Today, missing shoes | — | not built (needs `generate-outfit`) |
+| 5, 6 | Today / Today, missing shoes | `TodayScreen` + `OutfitCard` | built; not yet checked on a device |
 | 7, 8 | Closet / Edit garment | — | not built (needs closet) |
 | 9, 10 | Add / Add: review tags | — | not built (needs upload + `analyze-garment`) |
 
@@ -34,7 +34,14 @@ Source of truth: `docs/Wardrobe App.html` (design board, 11 phone screens at 390
 - **Quiz rules:** at least one style is required, everything else is optional, "In between" is preselected. There is no Skip, because finishing is what marks the quiz as done. It is first-time only: saving again would overwrite what thumbs up/down have since taught, so the Household tab has no "Style quiz" row for now.
 - **Invite code:** the board's placeholder says "6 characters"; the database generates **8** hex characters (`0001_init.sql`), so the app says "8 characters". The code is displayed uppercase as on the board; input is case-insensitive.
 - **Back button on Location:** the board has Back during onboarding. A household cannot be un-created, so onboarding shows no Back; the "Change location" flow from the Household tab does.
-- **Bottom tab bar:** not shown yet, since Today, Closet and Add do not exist. The Household screen is built to sit above it (`top={20}`).
+- **Bottom tab bar:** `TabBar` is in (heavy top rule, 3 px bar over the active tab) with the two screens that exist, **Today** and **Household**. Closet and Add are added to the list in `MainTabs.tsx` when they are built.
+- **Today screen differences:**
+  - **Answer with the ✕ and ✓ buttons only.** The board also says "swipe left for no, right for yes"; swiping is not built (it needs gesture code that is hard to get right without a device), so the hint text says "Tap ✕ … ✓ …". ✕ = thumbs down, then a new outfit; ✓ = mark as worn and thumbs up.
+  - **No temperature or conditions in the weather line.** `generate-outfit` does not return the weather, only the reason sentence (which mentions the feels-like temperature). The line shows the location. A `weather` field in the response would fix it (request for Manuel).
+  - **"Missing shoes" shows only the missing slots.** The function's "incomplete" answer lists the missing slots but not the items that were found, so the board's version (top and bottom shown, shoes dashed) is not possible yet.
+  - **"Why:" only on a freshly generated outfit.** The reason is not saved with the suggestion, so reopening the screen the same day shows the same outfit without it.
+  - **Details line is "Season · Warmth"** (for example "Fall · Warm"), because garments have no material field (the board's "Cotton").
+  - **Reopening the screen does not make a new outfit.** Today's saved suggestion is shown again; only a rejected one, or one that can no longer be worn (a garment was deleted or is dirty), is replaced.
 - **Style quiz row** in the Household profile list is omitted (see the quiz rules above).
 
 ## Not verified
