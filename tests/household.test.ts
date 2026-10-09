@@ -20,6 +20,15 @@ import {
   type ProfileRow,
 } from "../frontend/src/services/household.ts";
 import { supabaseGateway, type SupabaseLike } from "../frontend/src/services/householdGateway.ts";
+import type { QuizAnswers } from "../supabase/functions/_shared/types.ts";
+
+const QUIZ: QuizAnswers = {
+  style_vibes: ["casual"],
+  temp_comfort: "neutral",
+  occasions: [],
+  favorite_colors: ["black"],
+  avoided_colors: [],
+};
 
 const ok = <T>(data: T): GatewayResult<T> => ({ data, error: null });
 const err = (message: string): GatewayResult<never> => ({ data: null, error: { message } });
@@ -32,6 +41,7 @@ function gateway(overrides: Partial<HouseholdGateway> = {}): HouseholdGateway {
     loadProfile: vi.fn(async () => ok<ProfileRow>(profile())),
     ensureProfile: vi.fn(async () => ok(null)),
     updateLocation: vi.fn(async () => ok(null)),
+    saveQuiz: vi.fn(async () => ok(null)),
     loadHousehold: vi.fn(async () => ok<HouseholdRow>({ id: "house-1", name: "Home", invite_code: "3fa91c0b" })),
     loadMembers: vi.fn(async () => ok<MemberRow[]>([{ id: "user-1", name: "Ana" }, { id: "user-2", name: "Ben" }])),
     ...overrides,
@@ -39,7 +49,7 @@ function gateway(overrides: Partial<HouseholdGateway> = {}): HouseholdGateway {
 }
 
 function profile(overrides: Partial<ProfileRow> = {}): ProfileRow {
-  return { id: "user-1", household_id: "house-1", name: "Ana", location: "Conway", ...overrides };
+  return { id: "user-1", household_id: "house-1", name: "Ana", location: "Conway", quiz_preferences: QUIZ, ...overrides };
 }
 
 describe("validation", () => {
@@ -76,10 +86,11 @@ describe("validation", () => {
 });
 
 describe("onboardingStep", () => {
-  it("only asks for a location; a household is optional", () => {
-    expect(onboardingStep({ location: null })).toBe("location");
-    expect(onboardingStep({ location: "   " })).toBe("location");
-    expect(onboardingStep({ location: "Conway" })).toBe("ready");
+  it("asks for the location, then the style quiz; a household is optional", () => {
+    expect(onboardingStep({ location: null, quiz_preferences: null })).toBe("location");
+    expect(onboardingStep({ location: "   ", quiz_preferences: QUIZ })).toBe("location");
+    expect(onboardingStep({ location: "Conway", quiz_preferences: null })).toBe("quiz");
+    expect(onboardingStep({ location: "Conway", quiz_preferences: QUIZ })).toBe("ready");
   });
 });
 
@@ -186,6 +197,11 @@ describe("loadOverview", () => {
     }
   });
 
+  it("sends a user with a location but no quiz answers to the quiz", async () => {
+    const g = gateway({ loadProfile: async () => ok(profile({ quiz_preferences: null })) });
+    expect(await loadOverview(g)).toMatchObject({ ok: true, value: { step: "quiz" } });
+  });
+
   it("fails cleanly if any lookup fails", async () => {
     expect(await loadOverview(gateway({ loadProfile: async () => err("boom") }))).toEqual({ ok: false, error: "boom" });
     expect(await loadOverview(gateway({ loadHousehold: async () => err("denied") }))).toEqual({ ok: false, error: "denied" });
@@ -239,6 +255,7 @@ describe("supabaseGateway adapter", () => {
       const q = {
         select: (c: string) => (calls.ops.push(["select", c]), q),
         update: (v: Record<string, unknown>) => (calls.ops.push(["update", v]), q),
+        upsert: (v: Record<string, unknown>[], o: { onConflict: string }) => (calls.ops.push(["upsert", v, o]), q),
         eq: (c: string, v: string) => (calls.ops.push(["eq", c, v]), q),
         order: (c: string) => (calls.ops.push(["order", c]), q),
         maybeSingle: async () => reply,
@@ -289,7 +306,33 @@ describe("supabaseGateway adapter", () => {
   it("reads only the signed-in user's own row", async () => {
     const { client, calls } = fakeClient({ data: profile({ household_id: null, location: null }), error: null });
     expect((await supabaseGateway(client).loadProfile()).data).toMatchObject({ id: "user-1", name: "Ana" });
-    expect(calls.ops).toEqual([["from", "users"], ["select", "id, household_id, name, location"], ["eq", "id", "user-1"]]);
+    expect(calls.ops).toEqual([["from", "users"], ["select", "id, household_id, name, location, quiz_preferences"], ["eq", "id", "user-1"]]);
+  });
+
+  it("saves the quiz: seeds the user's own weights first, then stores the answers on their own row", async () => {
+    const { client, calls } = fakeClient({ data: null, error: null });
+    const result = await supabaseGateway(client).saveQuiz(QUIZ, [{ tag: "color:black", weight: 0.6 }]);
+    expect(result).toEqual({ data: null, error: null });
+    expect(calls.ops).toEqual([
+      ["from", "preference_vector"],
+      ["upsert", [{ user_id: "user-1", tag: "color:black", weight: 0.6 }], { onConflict: "user_id,tag" }],
+      ["from", "users"],
+      ["update", { quiz_preferences: QUIZ }],
+      ["eq", "id", "user-1"],
+    ]);
+  });
+
+  it("skips the weights when the quiz produced none, and still stores the answers", async () => {
+    const { client, calls } = fakeClient({ data: null, error: null });
+    await supabaseGateway(client).saveQuiz(QUIZ, []);
+    expect(calls.ops).toEqual([["from", "users"], ["update", { quiz_preferences: QUIZ }], ["eq", "id", "user-1"]]);
+  });
+
+  it("does not mark the quiz finished when seeding the weights fails", async () => {
+    const { client, calls } = fakeClient({ data: null, error: { message: "permission denied" } });
+    const result = await supabaseGateway(client).saveQuiz(QUIZ, [{ tag: "color:black", weight: 0.6 }]);
+    expect(result).toEqual({ data: null, error: { message: "permission denied" } });
+    expect(calls.ops.some((op) => op[0] === "update")).toBe(false);
   });
 
   it("updates only the signed-in user's own row, and only the location", async () => {
@@ -310,6 +353,7 @@ describe("supabaseGateway adapter", () => {
     const g = supabaseGateway(signedOut.client);
     expect(await g.loadProfile()).toEqual({ data: null, error: { message: "not authenticated" } });
     expect(await g.updateLocation("x")).toEqual({ data: null, error: { message: "not authenticated" } });
+    expect(await g.saveQuiz(QUIZ, [])).toEqual({ data: null, error: { message: "not authenticated" } });
     expect(signedOut.calls.ops).toEqual([]);
     const authFail = fakeClient({ data: null, error: null }, null, "network down");
     expect(await supabaseGateway(authFail.client).loadProfile()).toEqual({ data: null, error: { message: "network down" } });
