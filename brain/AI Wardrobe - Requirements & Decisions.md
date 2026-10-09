@@ -54,33 +54,31 @@ Running log of requirements-gathering Q&A. Each decision should also be reflecte
 ### Non-functional
 - NFR1 Mobile-first responsive UI (D6). NFR2 Free-tier only (Supabase, Gemini, OpenWeatherMap, Vercel). NFR3 Per-user data isolation via RLS, readable by household members only, including Storage (D10, D18). NFR4 >80% automated test coverage, CI on every PR (D11). NFR5 Secrets only server-side (vision key in edge function); `.env.example` kept current. NFR6 Every milestone as a teammate-reviewed PR; per-person AI Audit Log.
 
-## Impact on existing repo docs (not yet applied)
-- `docs/architecture.md`: add `households` table; make garments household-scoped; move location to `users`; add review step to the upload flow; describe re-roll.
-- `docs/api_endpoints.md`: `generate-outfit` uses the user's location, supports re-roll (exclude rejected outfits); add an accept/"wear" action; add household create/join; add delete flows.
-- `CLAUDE.md`: record decisions D1–D11 and update the status section.
+## Impact on existing repo docs (applied 2026-10-08)
+- `docs/architecture.md` and `docs/api_endpoints.md` were rewritten on 2026-10-08 to match the deployed system (personal closets, RPCs, edge functions, RLS, storage paths). `CLAUDE.md` records the current status. The migrations in `supabase/migrations/` are the source of truth for the schema.
 
-## Gaps found in current docs (2026-10-02 review)
-- Household create/invite/join flow has no table or endpoint (`households` table not in data model).
-- `users` table conflates auth user and profile; unclear whether profiles can exist without their own login.
-- No event defines when `last_worn_date` changes (now addressed by D3, docs not yet updated).
-- Vision-tagging failure/low-confidence/user-correction behavior undefined; vision provider + prompt/schema undecided.
-- Weather location source (browser geolocation vs. typed city vs. household setting) undefined.
-- No test strategy, CI/CD plan, or privacy/data-retention stance for uploaded photos.
-- `.env.example`, `AGENTS.md`, `usedPrompts.md`, `supabase/migrations/` still empty.
+## Gaps found in the 2026-10-02 review: where they stand
+- Household create/invite/join: **resolved** (invite code, `create_household` / `join_household` / leave, D18).
+- `users` conflating auth user and profile: **resolved** (`users` is the profile, created by a trigger at sign-up, repaired by `ensure_profile()`).
+- When `last_worn_date` changes: **resolved** (accepting a suggestion, D3).
+- Vision-tagging failures, low confidence and user correction: **resolved** (`needs_review`, review screen, manual entry on a 429).
+- Weather location source: **resolved** (per-user location, D5).
+- Test strategy and CI: **resolved** (Vitest, 80% gate, GitHub Actions). Photo retention after account deletion: still open.
+- `.env.example`, `AGENTS.md`, `usedPrompts.md`: `.env.example` is filled in; `AGENTS.md` stays empty by design; `usedPrompts.md` still needs each teammate's AI audit entries.
 
-## Status vs. course schedule (as of 2026-10-02)
-- GitHub `main` @ `89e117d`: only docs (architecture, API endpoints) and skeleton placeholders — **no application code, no migrations, no tests**. No other branches; PR history not visible from CLI (`gh` not installed locally).
-- Course schedule had M1 (architecture & skeleton PR) due Week 4 and M2 (core feature + >80% coverage) due Week 6 (Sept 28–Oct 2). Whether M1 was formally submitted is **unconfirmed** — to verify on Peerceptiv/Canvas.
+## Status vs. course schedule (updated 2026-10-08)
+- `main` has PRs #1 to #8 merged, each approved by the other teammate before merging (#1's approval was recorded afterwards). The graded Milestone 2 PR (auth + household, D17) is merged. Real due dates and the Milestone 1 submission status are still unconfirmed; check Peerceptiv/Canvas.
+- What is built and what comes next: see the Roadmap in [[Work Plan]].
 
 ## Open questions
 _(answered ones move to the Decisions table)_
-- [ ] Real milestone dates / M1 submission status (GitHub shows docs only; confirm on Peerceptiv/Canvas) — answer given was "check GitHub", which shows no PR/code
-- [ ] Thanh's agreement to D13/D14 (AI core with Manuel + Claude; plumbing/UI with Thanh) and tech-lead rotation after the first milestone
-- [ ] Vision provider (Gemini model/version), tag schema (enumerated types/colors/seasons, warmth scale), prompt, handling of multi-item or low-quality photos, free-tier rate limits
-- [ ] One-piece garments (dresses/jumpsuits) and outerwear: can they substitute top+bottom? Is outer layer deferred to the layering stretch goal?
-- [ ] What if the household has no clean shoes (or any slot is empty)? Empty state or relaxed suggestion?
-- [ ] Scoring formula: weights for weather fit, preference match, repeat penalty; how feedback magnitude and decay work; how quiz answers map to tags
-- [ ] Household create/invite/join mechanics (invite code?) and whether profiles can exist without their own login
-- [ ] Definition of "accepting" a suggestion in the UI (button vs. thumbs up) and what happens if the user wears something else
+- [ ] Real milestone dates / M1 submission status (confirm on Peerceptiv/Canvas)
+- [x] Thanh's agreement to D13/D14 (yes, 2026-10-02). Tech-lead rotation after the first milestone: still undecided
+- [x] Vision provider, tag schema, prompt, low-quality photos: Gemini with a model fallback chain; schema in `_shared/tag-schema.ts`; results in [[AI Logic Ownership]]
+- [ ] One-piece garments (dresses/jumpsuits) and outerwear: can they substitute top+bottom? Is the outer layer deferred to the layering stretch goal?
+- [x] A slot with no clean item: `generate-outfit` returns a "not enough clean clothes" status and the app shows an empty state
+- [x] Scoring formula and quiz mapping: implemented and logged in [[AI Logic Ownership]]
+- [x] Household mechanics: invite code, create/join/leave RPCs, profiles always have their own login (D18)
+- [x] "Accepting" a suggestion: a button calling `accept_suggestion`, separate from thumbs up/down
 - [ ] Photo handling: max size, compression, retention after account deletion
 - [ ] Demo plan and success criteria for the final presentation (what a grader sees working)

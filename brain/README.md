@@ -6,6 +6,8 @@ The team's shared memory for the AI Wardrobe Stylist capstone (CSCI 4397/6397). 
 - `AI Wardrobe Stylist - Capstone Project.md` — overview, scope, stack, milestone mapping, status log
 - `AI Wardrobe - Requirements & Decisions.md` — decision log (D1…), draft requirements, gaps, open questions
 - `AI Logic Ownership.md` — AI/ML plan, evaluation approach, tuning log (Manuel + Claude)
+- `Work Plan.md` — branch map, roadmap (what is done, who builds what next), runbooks, incidents
+- `Design Notes.md` — DressWell design system and screen status
 - `SWE with AI Final Project Proposals - ….pdf` — original proposal
 
 ## How to use it

@@ -25,16 +25,16 @@ This is the **Team Capstone Project (40% of grade)** for CSCI 4397/6397 — Soft
 People wear a small fraction of what they own because tracking what's clean, what matches, and what hasn't been worn lately is hard to do from memory — leading to wasted time each morning and underused clothes.
 
 ## Proposed Solution
-A web app that digitizes a user's closet via photo upload, uses AI vision tagging to auto-classify each garment, and generates a daily outfit suggestion based on weather, laundry status, and personal style. A cold-start onboarding quiz seeds the recommendation engine; the system improves via thumbs up/down feedback on suggestions.
+A mobile app (DressWell, Expo on iPhone) that digitizes a user's closet via photo upload, uses AI vision tagging to auto-classify each garment, and generates a daily outfit suggestion based on weather, laundry status, and personal style. A cold-start onboarding quiz seeds the recommendation engine; the system improves via thumbs up/down feedback on suggestions.
 
 ## MVP Scope
-- [ ] Photo upload with AI auto-tagging (type, color, season) — core premise, no manual entry
-- [ ] Closet inventory view
-- [ ] Mark item clean / in laundry
-- [ ] Multi-user profiles under one household
-- [ ] Daily outfit suggestion (weather + clean + repeat avoidance) — core value prop
-- [ ] Cold-start quiz on first use
-- [ ] Thumbs up / down feedback on suggestions
+- [ ] Photo upload with AI auto-tagging (type, color, season) — core premise, no manual entry. **Backend done and verified (95% type accuracy); Add screen is next**
+- [ ] Closet inventory view (screen next)
+- [ ] Mark item clean / in laundry (screen next)
+- [x] Personal closets with optional households (D18), done and verified on a phone
+- [ ] Daily outfit suggestion (weather + clean + repeat avoidance) — core value prop. **Backend done and verified; Today screen is last in the order**
+- [ ] Cold-start quiz on first use (mapping done; screen next)
+- [ ] Thumbs up / down feedback on suggestions (learning logic done; buttons come with the Today screen)
 
 ### Stretch (after MVP is solid)
 - Color coordination / pairing rules
@@ -43,9 +43,9 @@ A web app that digitizes a user's closet via photo upload, uses AI vision taggin
 - Style drift over time
 
 ## Tech / Tools (all free tier)
-- **Frontend:** React (Vercel/Netlify)
+- **Frontend:** Expo (React Native), tested on iPhone via Expo Go (D16)
 - **Backend/DB:** Supabase (Postgres + auth + file storage)
-- **Vision tagging:** free-tier multimodal model (e.g. Gemini)
+- **Vision tagging:** Gemini (billing-enabled project covered by trial credits, D20; key server-side only)
 - **Weather:** OpenWeatherMap free tier
 - **Recommendation logic:** rule-based scoring blended with a quiz + feedback-driven preference vector
 
@@ -59,24 +59,27 @@ A web app that digitizes a user's closet via photo upload, uses AI vision taggin
 | Course Milestone | Week | Target for this project |
 |---|---|---|
 | M1 — architecture & skeleton (PR) | Week 4 (Sept 14–18) | Real frontend/backend scaffold + first vertical slice (auth + photo upload) |
-| M2 — core feature + test suite (>80% coverage) | Week 6 (Sept 28–Oct 2) | Closet inventory + laundry status + auto-tagging, tested |
+| M2 — core feature + test suite (>80% coverage) | Week 6 (Sept 28–Oct 2) | Graded feature chosen as auth + household (D17); merged as PR #1 with tests and coverage analysis |
 | M3 — deployed app w/ CI/CD + AI-assisted docs | Week 12 (Nov 9–13) | Full MVP deployed, docs generated/reviewed |
 
 ## Related notes
-- [[AI Wardrobe - Requirements & Decisions|Requirements & Decisions]] — requirements Q&A, decisions D1–D15, gaps, open questions
+- [[AI Wardrobe - Requirements & Decisions|Requirements & Decisions]] — requirements Q&A, decisions D1–D20, gaps, open questions
 - [[AI Logic Ownership]] — AI/ML plan, evaluation approach, tuning log
+- [[Work Plan]] — branch map, roadmap (done, Thanh's screens in order, our next steps), runbooks, incident notes
+- [[Design Notes]] — DressWell design system and screen status
 
-## Current Status (as of 2026-10-02, GitHub `main` @ `89e117d`)
-Repo has **docs but no application code**: `docs/architecture.md` (React SPA → Supabase Postgres/Auth/Storage + 3 edge functions, core flows, open questions) and `docs/api_endpoints.md` (edge function request/response drafts, direct table access via RLS) were filled in by Thanh on 2026-09-19/20. Still empty: `supabase/migrations/`, `.env.example`, `AGENTS.md`, `usedPrompts.md`; frontend/function dirs are `.gitkeep` only. No tests, no CI. **Schedule risk:** M1 (Week 4) and M2 (Week 6) dates have passed/arrive now — M1 submission status unconfirmed.
+## Current Status (as of 2026-10-08, GitHub `main`, PRs #1 to #8 merged)
+**Built and verified:** Supabase project (migrations 0001 to 0004, RLS, private photo bucket); email sign-up and log-in, password reset by code, Google sign-in (tunnel only); location; personal closets with optional households; self-healing profile; the AI core (`analyze-garment`, `generate-outfit`, `update-preferences`) deployed and verified end to end by `scripts/e2e.ts` (39 of 39 checks). 282 automated tests, 100% coverage of lines and functions. **Next:** Thanh builds the Add, Closet, Quiz and Today screens (order in [[Work Plan]]); we review, verify household sharing with a second account, repair the Supabase migration history, and tune the AI. **Open risks:** real due dates unconfirmed; Gemini key rotation and a budget alert pending; email lands in spam until Milestone 3; Apple sign-in not usable without the paid developer program.
 
 ## Decisions so far (full detail in Requirements & Decisions)
-- D1 Shared household closet, per-person profiles/preferences/suggestions
+- D1 (replaced by D18) shared household closet
 - D2 MVP outfit = top + bottom + shoes (all required)
 - D3 Accepting a suggestion marks items worn; user manually marks dirty/clean
 - D4 Review & edit screen for AI tags before saving
-- D5 Per-user weather location · D6 Phone-first responsive web · D7 Vertical slices per person
+- D5 Per-user weather location · D6 Phone-first (now an Expo app, D16) · D7 Vertical slices per person
 - D8 Quiz: style vibes, temperature comfort, occasion mix, colors · D9 Whole-outfit feedback + re-roll
 - D10 Email/password auth, private bucket, delete on request · D11 Vitest/RTL + Deno tests, GitHub Actions, Vercel
+- D16 Expo app on iPhone · D17 graded M2 PR = auth + household · D18 personal closets, optional households (replaces D1) · D19 password reset by code, Google/Apple sign-in · D20 Gemini on a billing-enabled project
 - D12 Manuel = tech lead · D13 Manuel + Claude own all AI logic (tagging, scoring, preference learning, tuning, evaluation, tests) · D14 Thanh owns product/plumbing (schema+RLS, auth, UI, weather client, CI/CD) · D15 shared notes live in repo `brain/`
 
 ## Log
@@ -85,3 +88,5 @@ Repo has **docs but no application code**: `docs/architecture.md` (React SPA →
 - 2026-09-20 — Repo cloned to local machine; `CLAUDE.md` populated and pushed; this vault project note created
 - 2026-09-19/20 — Thanh filled `docs/architecture.md` and `docs/api_endpoints.md` from the proposal (commit `89e117d`)
 - 2026-10-02 — Vault synced with repo; requirements-gathering started; decisions D1–D3 recorded
+- 2026-10-03 to 2026-10-08 — Expo app, auth, households (PR #1); personal closets (PR #2); password reset and Google sign-in (PR #3); AI core and edge functions deployed (PR #4)
+- 2026-10-08 — profile-repair incident and fix (PR #5), sign-up confirmation by code tried (PR #6) and reverted (PR #8), household test script (PR #7); roadmap added to the Work Plan
