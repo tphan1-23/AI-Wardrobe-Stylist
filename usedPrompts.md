@@ -65,3 +65,11 @@ Individual AI audit log for CSCI 4397/6397 (capstone). Thanh keeps her own log i
 - **AI produced:** `brain/Work Plan.md` (branch map, roadmap, runbooks), `CLAUDE.md` status, and PR descriptions that state what is *not* covered.
 - **Verified:** I read the Work Plan after each change; Thanh's session followed it for PRs #2 to #4.
 - **Convention I set:** no `Co-Authored-By` trailers from the AI in commits; AI use is recorded here instead.
+
+### 10. Household sharing test on the real project (2026-10-08)
+- **Asked:** run the two-account household test (`scripts/e2e-household.ts`) once the second account existed.
+- **What happened:** the first run refused to start because account A was still in a household from my earlier manual test (the intended safety check). **But the script's cleanup still ran and made A leave that household.** The cleanup assumed any household it found was its own. I told the team what had happened (it was a test household, but the rule "never touch a real household" was broken).
+- **Fix:** the cleanup now leaves a household only after the script has passed its pre-check, so anything it finds before that is never touched.
+- **Second run:** 32 of 33 checks passed. The failure: after B left the household, B could still download A's photo (HTTP 200). I did not accept "the policy is probably fine"; I checked: listing the folder as B returned nothing and a download with a cache-busting parameter returned 400, so the **database policy was correct** and the plain URL was served from Storage's cache. The check was rewritten to test the policy (list and cache-bypassed download) and to print the cached answer as information.
+- **Result:** 34 of 34 checks pass, including B being unable to change, delete or forge A's data.
+- **Lesson:** a safety check must also guard the cleanup path, and a failing security test needs its cause found before it is "fixed" either way.
