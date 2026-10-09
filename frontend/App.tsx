@@ -14,6 +14,7 @@ import { AuthScreen } from "./src/pages/AuthScreen";
 import { ForgotPasswordScreen } from "./src/pages/ForgotPasswordScreen";
 import { HomeScreen } from "./src/pages/HomeScreen";
 import { LocationScreen } from "./src/pages/LocationScreen";
+import { QuizScreen } from "./src/pages/QuizScreen";
 import { signOut } from "./src/services/auth";
 import { supabase } from "./src/services/supabase";
 import { colors, fonts } from "./src/theme";
@@ -45,7 +46,10 @@ function SignedIn() {
     );
   }
 
-  if (overview.step === "location") return <LocationScreen submitLabel="Continue" onDone={refresh} />;
+  if (overview.step === "location") {
+    return <LocationScreen step={{ current: 1, total: 2 }} submitLabel="Continue" onDone={refresh} />;
+  }
+  if (overview.step === "quiz") return <QuizScreen onDone={refresh} />;
   return <HomeScreen overview={overview} onChanged={refresh} />;
 }
 

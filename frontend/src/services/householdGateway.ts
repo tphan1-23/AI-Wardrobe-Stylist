@@ -7,6 +7,7 @@ type Result = PromiseLike<{ data: unknown; error: { message: string } | null }>;
 interface Query {
   select(columns: string): Query;
   update(values: Record<string, unknown>): Query;
+  upsert(values: Record<string, unknown>[], options: { onConflict: string }): Query;
   eq(column: string, value: string): Query;
   order(column: string): Query;
   maybeSingle(): Result;
@@ -44,7 +45,7 @@ export function supabaseGateway(client: SupabaseLike): HouseholdGateway {
     async loadProfile() {
       const id = await currentUserId();
       if (typeof id !== "string") return { data: null, error: id };
-      return typed<ProfileRow>(await client.from("users").select("id, household_id, name, location").eq("id", id).maybeSingle());
+      return typed<ProfileRow>(await client.from("users").select("id, household_id, name, location, quiz_preferences").eq("id", id).maybeSingle());
     },
     async ensureProfile() {
       return typed<unknown>(await client.rpc("ensure_profile"));
@@ -53,6 +54,24 @@ export function supabaseGateway(client: SupabaseLike): HouseholdGateway {
       const id = await currentUserId();
       if (typeof id !== "string") return { data: null, error: id };
       return typed<unknown>(await client.from("users").update({ location }).eq("id", id));
+    },
+    async saveQuiz(answers, preferences) {
+      const id = await currentUserId();
+      if (typeof id !== "string") return { data: null, error: id };
+      // The weights go first: the answers are what mark the quiz as finished, so a
+      // failure in between lets the user simply finish the quiz again (the upsert repeats safely).
+      if (preferences.length > 0) {
+        const seeded = typed<unknown>(
+          await client
+            .from("preference_vector")
+            .upsert(
+              preferences.map((p) => ({ user_id: id, tag: p.tag, weight: p.weight })),
+              { onConflict: "user_id,tag" },
+            ),
+        );
+        if (seeded.error) return seeded;
+      }
+      return typed<unknown>(await client.from("users").update({ quiz_preferences: answers }).eq("id", id));
     },
     async loadHousehold(householdId) {
       return typed<HouseholdRow>(
