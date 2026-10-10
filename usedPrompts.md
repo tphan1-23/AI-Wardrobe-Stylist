@@ -73,3 +73,8 @@ Individual AI audit log for CSCI 4397/6397 (capstone). Thanh keeps her own log i
 - **Second run:** 32 of 33 checks passed. The failure: after B left the household, B could still download A's photo (HTTP 200). I did not accept "the policy is probably fine"; I checked: listing the folder as B returned nothing and a download with a cache-busting parameter returned 400, so the **database policy was correct** and the plain URL was served from Storage's cache. The check was rewritten to test the policy (list and cache-bypassed download) and to print the cached answer as information.
 - **Result:** 34 of 34 checks pass, including B being unable to change, delete or forge A's data.
 - **Lesson:** a safety check must also guard the cleanup path, and a failing security test needs its cause found before it is "fixed" either way.
+
+### 11. README and AI-development documentation (2026-10-10)
+- **Asked:** add proper documentation for the next assignment: a real README and a description of how we use AI tools (Claude Code in VS Code and in the terminal).
+- **AI produced:** a new `README.md` (problem, features and status, stack, layout, setup, testing, doc index) and `docs/ai-development.md` (tools, shared context, ownership, verification methods, examples of AI mistakes caught, rules, audit log).
+- **Verified:** written from `CLAUDE.md`, `docs/`, `brain/` and both audit logs; figures (95/86/73/95 %, 39 and 34 checks) were copied from the tuning log, not recalculated. **Not yet checked:** the setup steps were not re-run on a clean machine. [needs review by Manuel]
