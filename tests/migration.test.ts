@@ -115,6 +115,20 @@ describe("migration 0004_ensure_profile", () => {
   });
 });
 
+describe("migration 0005_favorites", () => {
+  const favorites = readFileSync(new URL("../supabase/migrations/0005_favorites.sql", import.meta.url), "utf8");
+
+  it("adds a favorite flag to garments and to suggestions, off by default", () => {
+    for (const table of ["garments", "suggestions"]) {
+      expect(favorites).toMatch(new RegExp(`alter table ${table} add column favorite boolean not null default false;`));
+    }
+  });
+
+  it("leaves the security rules alone: no policy, grant or function is created or changed", () => {
+    expect(favorites).not.toMatch(/create policy|drop policy|alter policy|grant |revoke |create (or replace )?function|disable row level/i);
+  });
+});
+
 describe("migration 0006_suggestion_kind", () => {
   const kind = readFileSync(new URL("../supabase/migrations/0006_suggestion_kind.sql", import.meta.url), "utf8");
 

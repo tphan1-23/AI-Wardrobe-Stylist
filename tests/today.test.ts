@@ -6,7 +6,9 @@ import {
   friendlyTodayError,
   garmentDetail,
   garmentName,
+  judgeIdea,
   loadToday,
+  nextIdea,
   rejectOutfit,
   todayString,
   wearOutfit,
@@ -328,6 +330,77 @@ describe("loadToday: failures", () => {
     expect(await loadToday(down, DATE)).toMatchObject({ ok: false, error: expect.stringContaining("Could not reach") });
     const empty = gateway({ generateOutfit: vi.fn(async () => ({ data: null, error: null })) });
     expect(await loadToday(empty, DATE)).toMatchObject({ ok: false, error: expect.stringContaining("no data") });
+  });
+});
+
+describe("nextIdea (the Your judgement deck)", () => {
+  it("asks for an explore idea, skipping the ones already judged, and shows it like an outfit", async () => {
+    const g = gateway();
+    const result = await nextIdea(g, DATE, ["i-1", "i-2"]);
+    expect(g.generateOutfit).toHaveBeenCalledWith(DATE, ["i-1", "i-2"], "explore");
+    expect(result).toMatchObject({
+      ok: true,
+      value: { kind: "outfit", outfit: { suggestionId: "s-new", reasoning: "Cool today, so a warmer top." }, weather: MILD },
+    });
+  });
+
+  it("never asks the saved suggestions for today, and today's own requests carry no purpose", async () => {
+    const g = gateway({ loadSuggestions: vi.fn(async () => ok([suggestion("s-1", { feedback: "down" })])) });
+    await loadToday(g, DATE);
+    expect(g.generateOutfit).toHaveBeenCalledWith(DATE, ["s-1"]);
+    expect(g.loadSuggestions).toHaveBeenCalledTimes(1);
+    const calls = (g.generateOutfit as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls.every((c) => c.length === 2)).toBe(true);
+    await nextIdea(g, DATE, []);
+    expect(g.loadSuggestions).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports when the ideas run out or there are not enough clothes", async () => {
+    const exhausted = gateway({
+      generateOutfit: vi.fn(async () => ok<GenerateOutfitResponse>({ status: "exhausted", reasoning: "No more.", weather: MILD })),
+    });
+    expect(await nextIdea(exhausted, DATE, ["i-1"])).toEqual({ ok: true, value: { kind: "exhausted", reasoning: "No more.", weather: MILD } });
+    const incomplete = gateway({
+      generateOutfit: vi.fn(async () =>
+        ok<GenerateOutfitResponse>({ status: "incomplete", missing_slots: ["shoes"], reasoning: "No shoes.", weather: MILD }),
+      ),
+    });
+    expect(await nextIdea(incomplete, DATE, [])).toMatchObject({ ok: true, value: { kind: "incomplete", missing: ["shoes"] } });
+  });
+
+  it("sends at most the most recent ideas the server accepts", async () => {
+    const g = gateway();
+    const judged = Array.from({ length: MAX_EXCLUDED + 5 }, (_, i) => `i-${i}`);
+    await nextIdea(g, DATE, judged);
+    const sent = (g.generateOutfit as ReturnType<typeof vi.fn>).mock.calls[0]![1] as string[];
+    expect(sent).toHaveLength(MAX_EXCLUDED);
+    expect(sent[0]).toBe("i-5");
+  });
+
+  it("shows server errors", async () => {
+    expect(await nextIdea(gateway({ generateOutfit: vi.fn(async () => err("weather", 502)) }), DATE, [])).toMatchObject({
+      ok: false,
+      error: expect.stringMatching(/weather service/i),
+    });
+  });
+});
+
+describe("judgeIdea (a swipe)", () => {
+  it("sends a thumbs-up for a right swipe and a thumbs-down for a left swipe", async () => {
+    const g = gateway();
+    expect(await judgeIdea(g, "i-1", "up")).toEqual({ ok: true, value: true });
+    expect(await judgeIdea(g, "i-2", "down")).toEqual({ ok: true, value: true });
+    expect(g.sendFeedback).toHaveBeenNthCalledWith(1, "i-1", "up");
+    expect(g.sendFeedback).toHaveBeenNthCalledWith(2, "i-2", "down");
+  });
+
+  it("does not treat 'already recorded' (409) as an error, but shows other errors", async () => {
+    expect(await judgeIdea(gateway({ sendFeedback: vi.fn(async () => err("already", 409)) }), "i-1", "up")).toEqual({ ok: true, value: true });
+    expect(await judgeIdea(gateway({ sendFeedback: vi.fn(async () => err("gone", 404)) }), "i-1", "up")).toMatchObject({ ok: false });
+    expect(await judgeIdea(gateway({ sendFeedback: vi.fn(async () => { throw new Error("offline"); }) }), "i-1", "up")).toMatchObject({
+      ok: false,
+      error: expect.stringContaining("Could not reach"),
+    });
   });
 });
 

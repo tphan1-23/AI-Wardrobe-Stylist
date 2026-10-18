@@ -51,6 +51,8 @@ export function supabaseTodayGateway(client: TodayClientLike): TodayGateway {
           .select("id, date, garment_ids, feedback, accepted, created_at")
           .eq("user_id", id)
           .eq("date", date)
+          // Ideas from the "Your judgement" deck are kind = 'explore' and never replace today's outfit.
+          .eq("kind", "today")
           .order("created_at", { ascending: true }),
       );
     },
@@ -62,8 +64,12 @@ export function supabaseTodayGateway(client: TodayClientLike): TodayGateway {
     signPhotos(paths) {
       return signPhotoUrls(client, paths);
     },
-    generateOutfit(date, excludeSuggestionIds) {
-      const body = excludeSuggestionIds.length > 0 ? { date, exclude_suggestion_ids: excludeSuggestionIds } : { date };
+    generateOutfit(date, excludeSuggestionIds, purpose) {
+      const body = {
+        date,
+        ...(purpose === "explore" ? { purpose } : {}),
+        ...(excludeSuggestionIds.length > 0 ? { exclude_suggestion_ids: excludeSuggestionIds } : {}),
+      };
       return invokeFunction<GenerateOutfitResponse>(client, "generate-outfit", body);
     },
     sendFeedback(suggestionId: string, feedback: FeedbackValue) {

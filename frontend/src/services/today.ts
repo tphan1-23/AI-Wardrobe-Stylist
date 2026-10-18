@@ -56,7 +56,13 @@ export interface TodayGateway {
   loadGarments(ids: UUID[]): Promise<GatewayResult<GarmentRow[]>>;
   // Short-lived links to private photos, keyed by storage path.
   signPhotos(paths: string[]): Promise<GatewayResult<Record<string, string>>>;
-  generateOutfit(date: ISODate, excludeSuggestionIds: UUID[]): Promise<GatewayResult<GenerateOutfitResponse>>;
+  // `purpose` is only sent for "explore": an idea for the "Your judgement" deck (saved as
+  // kind = 'explore', so it never replaces today's outfit). Left out, it is today's outfit.
+  generateOutfit(
+    date: ISODate,
+    excludeSuggestionIds: UUID[],
+    purpose?: "explore",
+  ): Promise<GatewayResult<GenerateOutfitResponse>>;
   sendFeedback(suggestionId: UUID, feedback: FeedbackValue): Promise<GatewayResult<unknown>>;
   // Marks the suggestion accepted and its garments as worn today.
   acceptSuggestion(suggestionId: UUID): Promise<GatewayResult<unknown>>;
@@ -203,8 +209,16 @@ async function buildOutfit(
   };
 }
 
-async function generate(gateway: TodayGateway, date: ISODate, rejectedIds: UUID[]): Promise<Result<TodayState>> {
-  const response = await call(() => gateway.generateOutfit(date, rejectedIds.slice(-MAX_EXCLUDED)));
+async function generate(
+  gateway: TodayGateway,
+  date: ISODate,
+  rejectedIds: UUID[],
+  purpose?: "explore",
+): Promise<Result<TodayState>> {
+  const excluded = rejectedIds.slice(-MAX_EXCLUDED);
+  const response = await call(() =>
+    purpose === undefined ? gateway.generateOutfit(date, excluded) : gateway.generateOutfit(date, excluded, purpose),
+  );
   if (!response.ok) return response;
 
   const body = response.value;
@@ -238,6 +252,18 @@ export async function loadToday(gateway: TodayGateway, date: ISODate): Promise<R
     if (outfit.value) return { ok: true, value: { kind: "outfit", outfit: outfit.value, weather: null } };
   }
   return generate(gateway, date, rejected);
+}
+
+// The next outfit idea for the "Your judgement" deck. `judgedIds` are the ideas already shown
+// (the server skips them). It is never today's outfit: it is saved as an idea only.
+export async function nextIdea(gateway: TodayGateway, date: ISODate, judgedIds: UUID[]): Promise<Result<TodayState>> {
+  return generate(gateway, date, judgedIds, "explore");
+}
+
+// A swipe on the deck: right is a thumbs-up, left a thumbs-down, and the AI learns from either.
+// "Already recorded" (409) is not an error, because feedback counts once per idea.
+export async function judgeIdea(gateway: TodayGateway, suggestionId: UUID, feedback: FeedbackValue): Promise<Result<true>> {
+  return sendFeedbackOnce(gateway, suggestionId, feedback);
 }
 
 // "No, show another": records the thumbs-down (the AI learns from it), then picks a new outfit.

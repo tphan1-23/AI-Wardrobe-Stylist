@@ -35,6 +35,11 @@ Source of truth: `docs/Wardrobe App.html` (design board, 11 phone screens at 390
 - **Invite code:** the board's placeholder says "6 characters"; the database generates **8** hex characters (`0001_init.sql`), so the app says "8 characters". The code is displayed uppercase as on the board; input is case-insensitive.
 - **Back button on Location:** the board has Back during onboarding. A household cannot be un-created, so onboarding shows no Back; the "Change location" flow from the Household tab does.
 - **Bottom tab bar:** `TabBar` is in (heavy top rule, 3 px bar over the active tab) with the two screens that exist, **Today** and **Household**. Closet and Add are added to the list in `MainTabs.tsx` when they are built.
+- **History, favorites, crop and "Your judgement" are not on the board** (added for the demo, 2026-10-18), in the board's style:
+  - **A History tab** (clock icon), so the tab bar has five: Today, Closet, Add, History, Household. It has a two-way control, "Last 7 days" | "Favorites". Outfits are cards with up to three photos, the item names and a heart (filled for a favorite). Last-7-days outfits are grouped under Today, Yesterday, then "Sat, Oct 17"-style labels.
+  - **Favorite clothes** live in the Closet: a heart badge on the tile, a "Show: All | Favorites" filter, and a heart row in the edit screen.
+  - **Crop:** the system crop screen opens after a photo is taken or chosen (square crop on iPhone).
+  - **"Your judgement":** a "Your judgement" button under the outfit on the Today screen opens a full screen with the outfit card, LIKE and NOPE stamps that fade in while dragging, a tilt, and the same round ✕ and ✓ buttons as Today. Swipe right to like, left to dislike; the buttons do the same.
 - **Closet / Edit garment differences:**
   - **"Other" instead of "Outerwear"** in the category filter: it holds dresses, jackets, coats and accessories (the AI's four non-outfit types).
   - **The Owner filter only appears when you are in a household,** and its options are All / Mine / **Others** (the board says "Partner's"). Tiles carry a badge: **M** for your own garments, otherwise the owner's first initial.

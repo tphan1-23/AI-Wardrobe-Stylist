@@ -9,6 +9,7 @@ import { ClosetTile } from "../components/closet/ClosetTile";
 import {
   CATEGORY_OPTIONS,
   DEFAULT_FILTERS,
+  FAVORITE_OPTIONS,
   OWNER_OPTIONS,
   STATUS_OPTIONS,
   countLabel,
@@ -79,6 +80,7 @@ export function ClosetScreen({ myId, members }: { myId: string; members: MemberR
         myId={myId}
         members={members}
         onBack={() => setSelected(null)}
+        onRefresh={load}
         onChanged={() => {
           setSelected(null);
           load();
@@ -153,6 +155,7 @@ export function ClosetScreen({ myId, members }: { myId: string; members: MemberR
         ))}
       </View>
       <FilterRow label="Status" options={STATUS_OPTIONS} value={filters.status} onChange={(status) => setFilters((f) => ({ ...f, status }))} />
+      <FilterRow label="Show" options={FAVORITE_OPTIONS} value={filters.favorites} onChange={(favorites) => setFilters((f) => ({ ...f, favorites }))} />
       {sharing && (
         <FilterRow label="Owner" options={OWNER_OPTIONS} value={filters.owner} onChange={(owner) => setFilters((f) => ({ ...f, owner }))} />
       )}

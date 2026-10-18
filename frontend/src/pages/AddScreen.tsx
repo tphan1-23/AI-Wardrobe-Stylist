@@ -18,9 +18,10 @@ type Step =
   | { kind: "working" }
   | { kind: "review"; uri: string; review: ReviewState };
 
-// Smaller than a full-resolution photo, still sharp enough for the AI to read. With a quality
+// `allowsEditing` opens the system crop screen after the photo is taken or chosen, so the person can
+// trim the photo to just the garment. Quality 0.7 is smaller than a full-resolution photo, still sharp enough for the AI to read. With a quality
 // below 1 the picker hands back a JPEG, which is what the upload is told it is.
-const PICKER_OPTIONS = { quality: 0.7, base64: true } as const;
+const PICKER_OPTIONS = { quality: 0.7, base64: true, allowsEditing: true } as const;
 
 function OptionCard({ icon, title, subtitle, onPress }: { icon: IconName; title: string; subtitle: string; onPress: () => void }) {
   return (

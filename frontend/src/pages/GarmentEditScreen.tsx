@@ -6,7 +6,7 @@ import { Icon } from "../components/common/Icon";
 import { Screen } from "../components/common/Screen";
 import { Segmented } from "../components/common/Segmented";
 import { GarmentForm } from "../components/closet/GarmentForm";
-import { deleteItem, isMine, ownerName, saveEdits, type ClosetItem } from "../services/closet";
+import { deleteItem, isMine, ownerName, saveEdits, setGarmentFavorite, type ClosetItem } from "../services/closet";
 import { draftFromTags, garmentDetail, garmentName, setField, type GarmentDraft } from "../services/garment";
 import type { MemberRow } from "../services/household";
 import { closetGateway } from "../services/supabase";
@@ -18,8 +18,10 @@ interface Props {
   myId: string;
   members: MemberRow[];
   onBack: () => void;
-  // Called after a save or a delete, so the closet reloads.
+  // Called after a save or a delete, so the closet reloads and this screen closes.
   onChanged: () => void;
+  // Called after a favorite is switched, so the closet behind this screen reloads while it stays open.
+  onRefresh: () => void;
 }
 
 const STATUS_CHOICES: { value: GarmentStatus; label: string }[] = [
@@ -54,11 +56,12 @@ function Photo({ item }: { item: ClosetItem }) {
 
 // Edit one of your garments (tags, clean or dirty, delete). A household member's garment is
 // shown read-only: the database refuses changes to anyone else's garment.
-export function GarmentEditScreen({ item, myId, members, onBack, onChanged }: Props) {
+export function GarmentEditScreen({ item, myId, members, onBack, onChanged, onRefresh }: Props) {
   const mine = isMine(item, myId);
   const [draft, setDraft] = useState<GarmentDraft>(() => draftFromTags(item));
   const [status, setStatus] = useState<GarmentStatus>(item.status);
-  const [busy, setBusy] = useState<"save" | "delete" | null>(null);
+  const [favorite, setFavorite] = useState(item.favorite);
+  const [busy, setBusy] = useState<"save" | "delete" | "favorite" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   if (!mine) {
@@ -85,6 +88,20 @@ export function GarmentEditScreen({ item, myId, members, onBack, onChanged }: Pr
     else setError(result.error);
   }
 
+  // Switches the favorite right away (no need to press Save), and refreshes the closet behind.
+  async function toggleFavorite() {
+    setBusy("favorite");
+    setError(null);
+    const result = await setGarmentFavorite(closetGateway, item.id, !favorite);
+    setBusy(null);
+    if (result.ok) {
+      setFavorite(!favorite);
+      onRefresh();
+    } else {
+      setError(result.error);
+    }
+  }
+
   async function remove() {
     setBusy("delete");
     setError(null);
@@ -106,6 +123,16 @@ export function GarmentEditScreen({ item, myId, members, onBack, onChanged }: Pr
       <Header title="Edit garment" onBack={onBack} />
       <Photo item={item} />
       <GarmentForm draft={draft} onChoose={(field, value) => setDraft((d) => setField(d, field, value))} />
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ selected: favorite, busy: busy === "favorite" }}
+        onPress={toggleFavorite}
+        disabled={busy !== null}
+        style={styles.favoriteRow}
+      >
+        <Text style={styles.statusLabel}>{favorite ? "Favorite" : "Add to favorites"}</Text>
+        <Icon name="heart" size={24} filled={favorite} />
+      </Pressable>
       <View style={styles.statusRow}>
         <Text style={styles.statusLabel}>Status</Text>
         <View style={styles.statusControl}>
@@ -131,6 +158,16 @@ const styles = StyleSheet.create({
   noPhoto: { alignItems: "center", justifyContent: "center" },
   readOnly: { gap: 8 },
   statusRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderWidth: size.border,
+    borderColor: colors.ink,
+    borderRadius: radius.control,
+    paddingHorizontal: 14,
+    height: 56,
+  },
+  favoriteRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",

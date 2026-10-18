@@ -2,6 +2,7 @@ import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { garmentName } from "../../services/garment";
 import type { ClosetItem } from "../../services/closet";
 import { colors, fonts, radius } from "../../theme";
+import { Icon } from "../common/Icon";
 
 interface Props {
   item: ClosetItem;
@@ -19,7 +20,7 @@ export function ClosetTile({ item, size, badge, ownerLabel, onPress }: Props) {
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${name}, ${dirty ? "dirty" : "clean"}, ${ownerLabel}`}
+      accessibilityLabel={`${name}, ${dirty ? "dirty" : "clean"}, ${item.favorite ? "favorite, " : ""}${ownerLabel}`}
       onPress={onPress}
       style={[styles.tile, { width: size, height: size }]}
     >
@@ -32,6 +33,11 @@ export function ClosetTile({ item, size, badge, ownerLabel, onPress }: Props) {
       {dirty && (
         <View style={styles.dirty}>
           <Text style={styles.dirtyText}>Dirty</Text>
+        </View>
+      )}
+      {item.favorite && (
+        <View style={styles.heart}>
+          <Icon name="heart" size={14} filled />
         </View>
       )}
       <View style={styles.badge}>
@@ -66,6 +72,19 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   dirtyText: { fontFamily: fonts.bold, fontSize: 11, color: colors.paper },
+  heart: {
+    position: "absolute",
+    top: 6,
+    right: 6,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: colors.paper,
+    borderWidth: 1.5,
+    borderColor: colors.ink,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   badge: {
     position: "absolute",
     bottom: 6,

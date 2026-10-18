@@ -5,15 +5,17 @@ import type { Overview } from "../services/household";
 import { colors } from "../theme";
 import { AddScreen } from "./AddScreen";
 import { ClosetScreen } from "./ClosetScreen";
+import { HistoryScreen } from "./HistoryScreen";
 import { HomeScreen } from "./HomeScreen";
 import { TodayScreen } from "./TodayScreen";
 
-type TabId = "today" | "closet" | "add" | "household";
+type TabId = "today" | "closet" | "add" | "history" | "household";
 
 const TABS: Tab<TabId>[] = [
   { id: "today", label: "Today", icon: "sun" },
   { id: "closet", label: "Closet", icon: "grid" },
   { id: "add", label: "Add", icon: "plus" },
+  { id: "history", label: "History", icon: "clock" },
   { id: "household", label: "Household", icon: "home" },
 ];
 
@@ -26,6 +28,7 @@ export function MainTabs({ overview, onChanged }: { overview: Overview; onChange
         {tab === "today" && <TodayScreen location={overview.profile.location} />}
         {tab === "closet" && <ClosetScreen myId={overview.profile.id} members={overview.members} />}
         {tab === "add" && <AddScreen userId={overview.profile.id} />}
+        {tab === "history" && <HistoryScreen />}
         {tab === "household" && <HomeScreen overview={overview} onChanged={onChanged} />}
       </View>
       <TabBar tabs={TABS} active={tab} onChange={setTab} />

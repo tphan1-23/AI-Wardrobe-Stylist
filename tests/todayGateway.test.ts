@@ -57,6 +57,7 @@ describe("loadSuggestions", () => {
       ["select", "id, date, garment_ids, feedback, accepted, created_at"],
       ["eq", "user_id", "user-1"],
       ["eq", "date", "2026-10-04"],
+      ["eq", "kind", "today"],
       ["order", "created_at", { ascending: true }],
     ]);
   });
@@ -132,6 +133,19 @@ describe("edge functions", () => {
     expect(invoke.mock.calls).toEqual([
       ["generate-outfit", { body: { date: "2026-10-04" } }],
       ["generate-outfit", { body: { date: "2026-10-04", exclude_suggestion_ids: ["s-1", "s-2"] } }],
+    ]);
+  });
+
+  it("asks for an explore idea only when told to, so ordinary requests never change", async () => {
+    const invoke = vi.fn(async () => ({ data: { status: "exhausted", reasoning: "r" }, error: null }));
+    const g = supabaseTodayGateway(fakeClient({ invoke }).client);
+    await g.generateOutfit("2026-10-04", ["i-1"], "explore");
+    await g.generateOutfit("2026-10-04", [], "explore");
+    await g.generateOutfit("2026-10-04", []);
+    expect(invoke.mock.calls).toEqual([
+      ["generate-outfit", { body: { date: "2026-10-04", purpose: "explore", exclude_suggestion_ids: ["i-1"] } }],
+      ["generate-outfit", { body: { date: "2026-10-04", purpose: "explore" } }],
+      ["generate-outfit", { body: { date: "2026-10-04" } }],
     ]);
   });
 
