@@ -67,6 +67,8 @@ rejected suggestion ids to re-roll after a thumbs down; at most 50).
 { "status": "incomplete", "missing_slots": ["shoes"], "reasoning": "No clean shoes available." }
 { "status": "exhausted", "reasoning": "Every available combination was already rejected." }
 ```
+Every response (`ok`, `incomplete`, `exhausted`) also has `"weather": { "temp_c": 18, "feels_like_c": 18, "is_precipitating": false }`, the weather the decision was based on, so the app can show it without calling the weather service itself.
+
 Only `ok` creates a `suggestions` row. Dirty items and items in the `other` slot (jackets, coats, dresses) are never used.
 
 | Status | Meaning |

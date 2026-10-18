@@ -46,12 +46,15 @@ const suggestion = (id: string, overrides: Partial<SuggestionRow> = {}): Suggest
   ...overrides,
 });
 
+const MILD = { temp_c: 18, feels_like_c: 18, is_precipitating: false };
+
 const generated: GenerateOutfitResponse = {
   status: "ok",
   suggestion_id: "s-new",
   outfit: { top: "g-top", bottom: "g-bottom", shoes: "g-shoes" },
   score: 0.5,
   reasoning: "Cool today, so a warmer top.",
+  weather: { temp_c: 18, feels_like_c: 18, is_precipitating: false },
 };
 
 function gateway(overrides: Partial<TodayGateway> = {}, closet: GarmentRow[] = CLOSET): TodayGateway {
@@ -152,7 +155,7 @@ describe("loadToday: first open of the day", () => {
   it("reports which slots have nothing clean to wear", async () => {
     const g = gateway({
       generateOutfit: vi.fn(async () =>
-        ok<GenerateOutfitResponse>({ status: "incomplete", missing_slots: ["shoes"], reasoning: "No clean shoes available." }),
+        ok<GenerateOutfitResponse>({ status: "incomplete", missing_slots: ["shoes"], reasoning: "No clean shoes available.", weather: MILD }),
       ),
     });
     expect(await loadToday(g, DATE)).toEqual({
@@ -163,7 +166,7 @@ describe("loadToday: first open of the day", () => {
 
   it("reports when every combination was already rejected", async () => {
     const g = gateway({
-      generateOutfit: vi.fn(async () => ok<GenerateOutfitResponse>({ status: "exhausted", reasoning: "All rejected." })),
+      generateOutfit: vi.fn(async () => ok<GenerateOutfitResponse>({ status: "exhausted", reasoning: "All rejected.", weather: MILD })),
     });
     expect(await loadToday(g, DATE)).toEqual({ ok: true, value: { kind: "exhausted", reasoning: "All rejected." } });
   });

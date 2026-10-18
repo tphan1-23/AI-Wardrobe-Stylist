@@ -115,10 +115,13 @@ export type OutfitResult =
   // Every valid combination was already rejected (re-roll ran out of options).
   | { status: "exhausted"; reasoning: string };
 
-// The edge function persists an "ok" result and adds the suggestion id.
-export type GenerateOutfitResponse =
+// The edge function persists an "ok" result and adds the suggestion id. Every
+// response (ok, incomplete, exhausted) also carries the weather it was based on,
+// so the app can show it without calling the weather service itself.
+export type GenerateOutfitResponse = (
   | (Extract<OutfitResult, { status: "ok" }> & { suggestion_id: UUID })
-  | Exclude<OutfitResult, { status: "ok" }>;
+  | Exclude<OutfitResult, { status: "ok" }>
+) & { weather: WeatherSnapshot };
 
 // ---- Accepting a suggestion (marks items worn, D3) --------------------------
 
