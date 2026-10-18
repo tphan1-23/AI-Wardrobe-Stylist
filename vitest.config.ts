@@ -21,6 +21,7 @@ export default defineConfig({
         "frontend/src/services/garment.ts",
         "frontend/src/services/closet.ts",
         "frontend/src/services/history.ts",
+        "frontend/src/services/judgement.ts",
         "frontend/src/services/historyGateway.ts",
         "frontend/src/services/closetGateway.ts",
         "frontend/src/services/storage.ts",

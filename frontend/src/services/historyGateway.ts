@@ -42,6 +42,7 @@ export function supabaseHistoryGateway(client: HistoryClientLike): HistoryGatewa
           .from("suggestions")
           .select(OUTFIT_COLUMNS)
           .eq("user_id", id)
+          .eq("kind", "today")
           .eq("accepted", true)
           .gte("date", since)
           .order("date", { ascending: false })
@@ -56,6 +57,7 @@ export function supabaseHistoryGateway(client: HistoryClientLike): HistoryGatewa
           .from("suggestions")
           .select(OUTFIT_COLUMNS)
           .eq("user_id", id)
+          .eq("kind", "today")
           .eq("favorite", true)
           .order("date", { ascending: false })
           .order("created_at", { ascending: false }),

@@ -17,6 +17,7 @@ import {
 } from "../services/today";
 import { todayGateway } from "../services/supabase";
 import { colors, fonts, type } from "../theme";
+import { JudgementScreen } from "./JudgementScreen";
 
 const BUTTON = 64;
 
@@ -70,6 +71,8 @@ export function TodayScreen({ location }: { location: string | null }) {
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState<"yes" | "no" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // The swipe deck of outfit ideas ("Your judgement") opens in place of this screen.
+  const [judging, setJudging] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -173,6 +176,8 @@ export function TodayScreen({ location }: { location: string | null }) {
     );
   }
 
+  if (judging) return <JudgementScreen location={location} onBack={() => setJudging(false)} />;
+
   const weatherText = weatherLine(location, state?.weather ?? null);
   return (
     <Screen top={20}>
@@ -189,11 +194,19 @@ export function TodayScreen({ location }: { location: string | null }) {
         </View>
       ) : null}
       {body()}
+      {!loading && (
+        <View style={styles.ideas}>
+          <Button label="Your judgement" variant="secondary" onPress={() => setJudging(true)} />
+          <Text style={styles.ideasHint}>Swipe through new outfit ideas and teach the AI your taste.</Text>
+        </View>
+      )}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  ideas: { gap: 8, marginTop: 8 },
+  ideasHint: { fontFamily: fonts.regular, fontSize: 13, color: colors.muted, textAlign: "center" },
   header: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between" },
   date: { fontFamily: fonts.regular, fontSize: 14, color: colors.muted },
   weather: { flexDirection: "row", alignItems: "center", gap: 8 },

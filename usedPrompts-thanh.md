@@ -92,6 +92,19 @@ Individual AI audit log for CSCI 4397/6397 (capstone). Manuel keeps his in `used
 - **AI overstepped once:** it offered to test whether my Gemini key was valid, I answered with other information instead of saying yes, and it ran the test anyway (a harmless list-models request to Google's API, nothing printed or sent besides the key). It said so afterwards, but it should have waited for a yes before using a key I had not told it to use.
 - **Not verified:** why the 401 happened.
 
+### 12. Demo day: crop, favorites and 7-day history (2026-10-18, PR pending)
+- **Asked:** with the demo due the same day, add photo cropping, a 7-day history of worn outfits, and favorites for both outfits and clothes (removable).
+- **AI produced:** it sorted my list by owner and size first and said which items did not need Manuel. Crop is one picker option (`allowsEditing`). Favorites need a small database change, so it wrote migration `0005_favorites.sql` (a `favorite` flag on garments and suggestions) and **tested it on an in-memory Postgres before I ran it**: only the owner can set or remove a favorite, and a household member who can see my garment still cannot favorite it. Then `history.ts` (the last 7 days, grouped by day, deleted garments counted instead of crashing), a History tab, hearts in the Closet and a Favorites filter.
+- **Verified:** 498 tests at the end of the day, type checks, iOS bundle, and seven deliberate breaks of this code (history reaching back 8 days, not counting deleted garments, wrong piece order, no grouping, listing outfits that were never worn, a refused favorite reported as success, a Favorites filter that shows everything): all caught.
+- **AI mistakes caught:** its scripted edits to several files **silently dropped lines** (a PowerShell precedence slip in how the replacement text was built, and Windows line endings that made some replacements not match). The type checker found it right away (a missing import, a missing tab) and it repaired the lines by hand and switched to the editor tool for edits.
+- **Not verified:** the History and Closet favorites on my phone; the migration against the real project (I have to run it by hand).
+
+### 13. "Your judgement": the swipe deck (2026-10-18, PR pending)
+- **Asked:** a Tinder-style screen where I swipe outfit ideas right to like and left to dislike, to train the AI, with recommendations beyond today's outfit. Manuel's session first added an "explore" mode to `generate-outfit` (PR #18, migration `0006`), because every outfit it returned was saved as today's outfit and would have replaced it.
+- **AI produced:** read the Work Plan and Manuel's migration, then made Today and History read only `kind = 'today'`. The deck logic is pure and tested: it fetches the next idea while I decide, never asks for an idea it already showed, sends a thumbs-up or thumbs-down per swipe, keeps going if one answer fails to save, and ends cleanly when the ideas run out or the closet is too small. The screen uses the built-in gesture system (no new package) with LIKE and NOPE stamps and the same ✕ and ✓ buttons as Today. It removed two helper functions it had written but the screen would not use.
+- **Verified:** 18 tests for the deck and the explore requests; eight deliberate breaks (swapped like and dislike, forgetting shown ideas, ignoring a failed fetch, a twitch counting as a swipe, asking for ideas as today's outfit, Today or History showing ideas): all caught.
+- **Not verified:** the swipe gesture on a real phone (it runs inside a scrolling screen, which can fight horizontal drags), and whether swiping actually changes what the AI suggests (that needs many swipes over time).
+
 ---
 
 ## Where the AI was wrong (friction summary)
@@ -111,3 +124,4 @@ Individual AI audit log for CSCI 4397/6397 (capstone). Manuel keeps his in `used
 | 2026-10-18 | A new test failed on its first run because its own test data was wrong (not the app) | Test failure output; the AI fixed the data, not the check |
 | 2026-10-18 | Wrote a full Add-garment logic while Manuel merged his own version of the same files (duplicated work, merge conflicts) | `git fetch` after the work showed PR #14; the AI adopted his reviewed version |
 | 2026-10-18 | Ran a key-validity test against Google without waiting for my yes (it had only offered) | I noticed when reviewing what it had run; the AI then corrected its own log entry |
+| 2026-10-18 | Scripted multi-file edits silently dropped lines (a precedence slip in building the replacement text; Windows line endings) | The type checker flagged a missing import and tab; repaired by hand, then used the editor tool |
