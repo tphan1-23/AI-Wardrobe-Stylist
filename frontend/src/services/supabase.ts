@@ -1,6 +1,7 @@
 import "react-native-url-polyfill/auto";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createClient } from "@supabase/supabase-js";
+import { supabaseAddGateway, type AddClientLike } from "./addGateway";
 import { supabaseGateway, type SupabaseLike } from "./householdGateway";
 import { supabaseTodayGateway, type TodayClientLike } from "./todayGateway";
 
@@ -26,3 +27,4 @@ export const supabase = createClient(url, anonKey, {
 // the small SupabaseLike interface, so the cast lives here, in one place.
 export const gateway = supabaseGateway(supabase as unknown as SupabaseLike);
 export const todayGateway = supabaseTodayGateway(supabase as unknown as TodayClientLike);
+export const addGateway = supabaseAddGateway(supabase as unknown as AddClientLike);

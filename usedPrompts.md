@@ -84,3 +84,10 @@ Individual AI audit log for CSCI 4397/6397 (capstone). Thanh keeps her own log i
 - **AI produced:** `GenerateOutfitResponse` now carries `weather` on every status (ok, incomplete, exhausted); the handler adds it; `docs/api_endpoints.md` updated. The change is additive, so the merged Today screen keeps working.
 - **Verified:** 356 tests pass, typecheck clean in root and app, `deno check` on the function; handler tests assert the weather on all three statuses; two deliberate breaks (weather dropped from incomplete results, dropped from ok results) were both caught.
 - **Not done yet:** the other two requests (return the found items on `incomplete`, store the reasoning with the suggestion) and the redeploy of the function, which waits for the PR approval and merge.
+### 11. Add-garment logic written during the demo crunch (2026-10-18)
+- **Asked:** Thanh's Today screen was merged and the Add screen (photo to garment) did not exist, so a new account had no clothes and the demo loop could not run. I asked Claude to write the Add screen's logic and tests so Thanh only has to wire the screen.
+- **AI produced:** `frontend/src/services/add.ts` (upload to the person's own folder, call `analyze-garment`, review state, save) and `addGateway.ts`, with `tests/add.test.ts` (29 tests).
+- **Rule enforced (D4):** every field the AI left out or flagged in `needs_review` must be filled or confirmed before saving; invalid values from the AI are dropped and flagged even if the AI did not list them; a 429/502 or an empty AI reply lets the person type the tags; a photo the server rejects is removed from storage.
+- **Verified:** 385 tests pass, 100% lines and functions on both files; five deliberate breaks, all caught (confirmation rule removed, photo saved outside the user's folder, unusable photo left in storage, invalid tag values accepted, upload allowed to overwrite).
+- **Found by tests:** my first test expected an empty AI reply to fail the flow; the code (fall back to typing the tags) was the better behavior, so the test was corrected.
+- **Not verified:** the screen itself, and a real upload plus tagging through the app (needs a device).

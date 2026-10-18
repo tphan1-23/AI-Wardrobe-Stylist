@@ -35,6 +35,8 @@ Build each screen on a branch, open a PR, and wait for Manuel's approval on File
 
 **Rules for all of these:** import types and tag lists from `supabase/functions/_shared/` (never copy them), start the app with `npx expo start --tunnel -c`, and read "Notes for the app (from AI core)" below for the exact contracts.
 
+**Update (2026-10-18):** the Quiz (#10) and Today (#13) screens are merged. The Add screen's logic is ready in `frontend/src/services/add.ts` (`addPhoto`, `reviewFromAnalysis`, `setTag`, `confirmTag`, `validateReview`, `saveGarment`, `discardPhoto`; `addGateway` is exported from `supabase.ts`): the screen only picks the photo (read it as an `ArrayBuffer`), shows the tag choices from the review state, highlights `needsReview` fields, and calls these.
+
 ### Next for Manuel + Claude
 1. **Review each of Thanh's screen PRs** against the contracts and the security rules.
 2. **Close the "not verified" items:** repair the Supabase migration history (`npx supabase migration repair --status applied 0001 0002 0003 0004`) to clear the red check; create a second email account and run `node scripts/e2e-household.ts` (proves members can see but not change each other's garments and photos).
