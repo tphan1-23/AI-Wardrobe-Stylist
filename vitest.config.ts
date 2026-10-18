@@ -14,6 +14,8 @@ export default defineConfig({
         "frontend/src/services/socialAuth.ts",
         "frontend/src/services/household.ts",
         "frontend/src/services/quiz.ts",
+        "frontend/src/services/today.ts",
+        "frontend/src/services/todayGateway.ts",
         "frontend/src/services/householdGateway.ts",
         "frontend/src/layout.ts",
       ],

@@ -56,6 +56,13 @@ Individual AI audit log for CSCI 4397/6397 (capstone). Manuel keeps his in `used
 - **Friction:** a small check script failed (a .NET call missing in Windows PowerShell 5.1) and the same command had already deleted the build folder, so that check was not repeated; the successful bundle build is the evidence instead.
 - **Not verified:** the screen on a real phone, and that the rows land in `preference_vector` on the real project. Both are on the checklist for the quiz PR.
 
+### 7. Today screen (2026-10-08, PR pending)
+- **Asked:** work on the Today screen now (after the quiz).
+- **AI produced:** read the API docs and `handlers.ts` first and found the function returns only garment ids, a score and a one-line reason, so the app has to load the garments and photos itself. It decoded both Today screens and the tab bar from my design board, then built `services/today.ts` (pure logic), `todayGateway.ts` (Supabase adapter), `TodayScreen`, `OutfitCard`, a bottom `TabBar` and `MainTabs`. It chose to **save and reload today's suggestion** so reopening the app does not generate and store a new outfit every time. It listed where the board cannot be matched with the current backend (no weather data, the "incomplete" answer has no partial outfit, the reason is not stored, no swipe) and wrote them down as requests for Manuel instead of changing his contract.
+- **Verified:** 356 tests, 100% coverage on the two new files, `tsc` clean in both projects, iOS bundle builds. Then I asked it to **break its own code on purpose** (five small mutations: show a dirty outfit, treat "already recorded" as an error, send all rejected outfits, skip accepted outfits too, send thumbs-up after a failed accept). Four were caught by the tests; **one slipped through** (skipping accepted outfits), so a test was added and the break is now caught.
+- **Process mistake caught:** my audit-log branch had written into Manuel's `usedPrompts.md`; reading `main` and `CLAUDE.md` before opening the PR showed my log belongs in `usedPrompts-thanh.md`. The branch was redone and the stack (audit log, quiz, Today) rebased in order.
+- **Not verified:** the screen on a phone; the photo links and the function calls against the real project; anything with real garments (needs the Add screen).
+
 ---
 
 ## Where the AI was wrong (friction summary)
