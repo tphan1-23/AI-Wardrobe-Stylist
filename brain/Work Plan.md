@@ -60,6 +60,13 @@ Wanted for the MVP demo video, on top of Add, Closet, Today and the quiz. Size: 
 Suggested order: 1, then 3, then 4, then 5 (5 last: it changes the AI core, so it is the riskiest to finish before the demo). Items 1 and 3 need nothing from Manuel.
 **Requests for Manuel:** (a) the "explore" mode of `generate-outfit` for item 4; (b) a decision on the multi-select design for item 5, including whether it fits before the demo.
 
+### Explore mode for "Your judgement" (item 4): ready for Thanh (2026-10-18, Manuel + Claude)
+- **Request:** `supabase.functions.invoke("generate-outfit", { body: { date, purpose: "explore", exclude_suggestion_ids: [ids already judged] } })`. Same response as today's outfit (`ok` with `suggestion_id`, or `incomplete` / `exhausted`, plus `weather`). `exhausted` means the deck has no more ideas.
+- **Each swipe** is a thumbs up/down through `update-preferences` with that `suggestion_id` (counts once per idea; a 409 is fine). Swiping does not wear anything.
+- **Migration `0006_suggestion_kind.sql` must be applied by hand first** (SQL editor, then `notify pgrst, 'reload schema';`). It adds `suggestions.kind` (`'today'` by default, or `'explore'`). Numbering: `0005` stays free for your favorites migration.
+- **You must change Today and History to read only `kind = 'today'`** (`loadSuggestions` in `todayGateway.ts`: add `.eq("kind", "today")`), otherwise judged ideas replace today's outfit. Do this in the same PR that applies the migration, and apply the migration before the app change reaches a phone.
+- Multi-select colors and seasons (item 5) is not planned for the demo: it changes the schema, the AI prompt, validation, scoring and preference tags at once. "multicolor" and "all seasons" already exist as single values.
+
 ## People and laptops
 | Who | Works on | Owns |
 |---|---|---|

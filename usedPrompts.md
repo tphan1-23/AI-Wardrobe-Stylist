@@ -91,3 +91,10 @@ Individual AI audit log for CSCI 4397/6397 (capstone). Thanh keeps her own log i
 - **Verified:** 385 tests pass, 100% lines and functions on both files; five deliberate breaks, all caught (confirmation rule removed, photo saved outside the user's folder, unusable photo left in storage, invalid tag values accepted, upload allowed to overwrite).
 - **Found by tests:** my first test expected an empty AI reply to fail the flow; the code (fall back to typing the tags) was the better behavior, so the test was corrected.
 - **Not verified:** the screen itself, and a real upload plus tagging through the app (needs a device).
+
+### 13. Explore mode for generate-outfit (2026-10-18)
+- **Asked:** Thanh's demo feature list needs a "Your judgement" deck of outfit ideas beyond today's. Every `ok` answer of `generate-outfit` was saved as the day's suggestion and Today shows the latest one, so judged ideas would have replaced today's outfit.
+- **AI produced:** migration `0006_suggestion_kind.sql` (`suggestions.kind`, default `today`), a `purpose: "today" | "explore"` request field, validation, the handler storing `kind: 'explore'` only for explore ideas (so deploying before the migration cannot break today's flow), docs, and a note for Thanh on what her side must change.
+- **Verified:** typecheck, `deno check`, 440 tests, 100% lines on `handlers.ts`; mutation checks: explore stored as today, today stored as explore, purpose not validated, `null` accepted as a valid purpose (found by my own test: `purpose ?? "today"` let `null` through; I made it strict) and two breaks of the migration (wrong default, an added policy), all caught.
+- **Decision for Manuel:** I recommended against multi-select colors and seasons before the demo (large change across schema, prompt, scoring and preference tags). Manuel to confirm.
+- **Not done yet:** applying the migration to the real project and redeploying the function; both come after approval and merge.

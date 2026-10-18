@@ -43,7 +43,8 @@ export interface GenerateOutfitDeps {
   getWeather(location: string): Promise<WeatherSnapshot>;
   // Garment ids of earlier suggestions of this user (for re-roll exclusion).
   getSuggestionGarmentIds(userId: UUID, suggestionIds: UUID[]): Promise<UUID[][]>;
-  saveSuggestion(row: { user_id: UUID; date: ISODate; garment_ids: UUID[] }): Promise<UUID>;
+  // `kind` is only set for explore ideas (today's suggestions use the column default).
+  saveSuggestion(row: { user_id: UUID; date: ISODate; garment_ids: UUID[]; kind?: "explore" }): Promise<UUID>;
 }
 
 export async function handleGenerateOutfit(
@@ -52,6 +53,8 @@ export async function handleGenerateOutfit(
   deps: GenerateOutfitDeps,
 ): Promise<HandlerResult<GenerateOutfitResponse>> {
   if (!isRealDate(request?.date)) return fail(400, "date must be a valid YYYY-MM-DD");
+  const purpose = request.purpose === undefined ? "today" : request.purpose;
+  if (purpose !== "today" && purpose !== "explore") return fail(400, 'purpose must be "today" or "explore"');
   const exclude = request.exclude_suggestion_ids ?? [];
   if (!isUuidList(exclude) || exclude.length > MAX_EXCLUDED_SUGGESTIONS) {
     return fail(400, `exclude_suggestion_ids must be a list of at most ${MAX_EXCLUDED_SUGGESTIONS} ids`);
@@ -88,6 +91,7 @@ export async function handleGenerateOutfit(
     user_id: userId,
     date: request.date,
     garment_ids: [result.outfit.top, result.outfit.bottom, result.outfit.shoes],
+    ...(purpose === "explore" ? { kind: "explore" as const } : {}),
   });
   return { ok: true, body: { ...result, suggestion_id: suggestionId, weather } };
 }

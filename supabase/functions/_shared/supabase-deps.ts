@@ -52,7 +52,7 @@ export function generateOutfitDeps(db: Db, getWeather: (location: string) => Pro
       );
       return found.map((s) => s.garment_ids);
     },
-    async saveSuggestion(row: { user_id: UUID; date: ISODate; garment_ids: UUID[] }) {
+    async saveSuggestion(row: { user_id: UUID; date: ISODate; garment_ids: UUID[]; kind?: "explore" }) {
       const { data, error } = await db.from("suggestions").insert(row).select("id").single();
       if (error) throw new Error(error.message);
       return (data as { id: UUID }).id;

@@ -114,3 +114,15 @@ describe("migration 0004_ensure_profile", () => {
     expect(ensure).toContain("raw_user_meta_data ->> 'full_name'");
   });
 });
+
+describe("migration 0006_suggestion_kind", () => {
+  const kind = readFileSync(new URL("../supabase/migrations/0006_suggestion_kind.sql", import.meta.url), "utf8");
+
+  it("adds a kind column that defaults to today and only allows today or explore", () => {
+    expect(kind).toMatch(/alter table suggestions\s+add column kind text not null default 'today' check \(kind in \('today', 'explore'\)\)/);
+  });
+
+  it("only adds: it deletes nothing and leaves the security policies alone", () => {
+    expect(kind).not.toMatch(/delete|truncate|drop|create policy|alter policy|disable row level security/i);
+  });
+});
