@@ -1,7 +1,7 @@
 import Svg, { Circle, Path, Rect } from "react-native-svg";
 import { colors } from "../../theme";
 
-export type IconName = "logo" | "alert" | "copy" | "check" | "close" | "sun" | "home" | "plus" | "cloud";
+export type IconName = "logo" | "alert" | "copy" | "check" | "close" | "sun" | "home" | "plus" | "cloud" | "back" | "camera" | "image";
 
 // Paths copied from the design board (24x24, rounded). `stroke` defaults to the board's 1.75;
 // the big answer buttons on the Today screen use 2.
@@ -64,6 +64,20 @@ export function Icon({
         <>
           <Path d="M7 18a4 4 0 010-8 5 5 0 019.6-1A4.5 4.5 0 0117 18z" />
           <Path d="M9 21l1-2M13 21l1-2" />
+        </>
+      )}
+      {name === "back" && <Path d="M15 5l-7 7 7 7" />}
+      {name === "camera" && (
+        <>
+          <Path d="M4 8h3l2-3h6l2 3h3v12H4z" />
+          <Circle cx={12} cy={13} r={4} />
+        </>
+      )}
+      {name === "image" && (
+        <>
+          <Rect x={3} y={4} width={18} height={16} />
+          <Circle cx={9} cy={10} r={2} />
+          <Path d="M3 18l6-5 4 3 3-2 5 4" />
         </>
       )}
     </Svg>

@@ -10,6 +10,7 @@ import {
   rejectOutfit,
   todayString,
   wearOutfit,
+  weatherLine,
   type GarmentRow,
   type SuggestionRow,
   type TodayGateway,
@@ -95,6 +96,28 @@ describe("labels", () => {
   });
 });
 
+describe("weatherLine", () => {
+  const snapshot = (temp_c: number, is_precipitating = false) => ({ temp_c, feels_like_c: temp_c, is_precipitating });
+
+  it("shows the place, the temperature in Fahrenheit and rain", () => {
+    expect(weatherLine("Conway", snapshot(14.4))).toBe("Conway · 58°");
+    expect(weatherLine("Conway", snapshot(14.4, true))).toBe("Conway · 58° · Rain");
+    expect(weatherLine(" Conway, AR ", snapshot(0))).toBe("Conway, AR · 32°");
+    expect(weatherLine("Conway", snapshot(-10))).toBe("Conway · 14°");
+    expect(weatherLine("Conway", snapshot(37.8))).toBe("Conway · 100°");
+  });
+
+  it("shows only the place when the weather is not known (a reopened screen)", () => {
+    expect(weatherLine("Conway", null)).toBe("Conway");
+  });
+
+  it("shows only the weather, or nothing, when there is no location", () => {
+    expect(weatherLine(null, snapshot(14.4))).toBe("58°");
+    expect(weatherLine("  ", snapshot(20, true))).toBe("68° · Rain");
+    expect(weatherLine(null, null)).toBe("");
+  });
+});
+
 describe("dates", () => {
   it("uses the device's calendar day, zero-padded", () => {
     expect(todayString(new Date(2026, 9, 4, 23, 59))).toBe("2026-10-04");
@@ -148,6 +171,7 @@ describe("loadToday: first open of the day", () => {
             shoes: { id: "g-shoes", slot: "shoes", name: "Black sneakers", detail: "All seasons · Light", photoUrl: "https://photos/user-1/g-shoes.jpg" },
           },
         },
+        weather: MILD,
       },
     });
   });
@@ -160,7 +184,7 @@ describe("loadToday: first open of the day", () => {
     });
     expect(await loadToday(g, DATE)).toEqual({
       ok: true,
-      value: { kind: "incomplete", missing: ["shoes"], reasoning: "No clean shoes available." },
+      value: { kind: "incomplete", missing: ["shoes"], reasoning: "No clean shoes available.", weather: MILD },
     });
   });
 
@@ -168,7 +192,7 @@ describe("loadToday: first open of the day", () => {
     const g = gateway({
       generateOutfit: vi.fn(async () => ok<GenerateOutfitResponse>({ status: "exhausted", reasoning: "All rejected.", weather: MILD })),
     });
-    expect(await loadToday(g, DATE)).toEqual({ ok: true, value: { kind: "exhausted", reasoning: "All rejected." } });
+    expect(await loadToday(g, DATE)).toEqual({ ok: true, value: { kind: "exhausted", reasoning: "All rejected.", weather: MILD } });
   });
 
   it("still shows the outfit when the photo links cannot be made", async () => {
@@ -203,7 +227,8 @@ describe("loadToday: opening the screen again the same day", () => {
     expect(g.generateOutfit).not.toHaveBeenCalled();
     expect(result).toMatchObject({
       ok: true,
-      value: { kind: "outfit", outfit: { suggestionId: "s-1", accepted: false, reasoning: null } },
+      // A saved suggestion does not store the weather, so a reopened screen has none.
+      value: { kind: "outfit", outfit: { suggestionId: "s-1", accepted: false, reasoning: null }, weather: null },
     });
   });
 

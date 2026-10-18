@@ -10,6 +10,7 @@ import {
   loadToday,
   rejectOutfit,
   todayString,
+  weatherLine,
   wearOutfit,
   type OutfitView,
   type TodayState,
@@ -88,7 +89,7 @@ export function TodayScreen({ location }: { location: string | null }) {
     setError(null);
     const result = await wearOutfit(todayGateway, outfit.suggestionId);
     setActing(null);
-    if (result.ok) setState({ kind: "outfit", outfit: { ...outfit, accepted: true } });
+    if (result.ok) setState({ kind: "outfit", outfit: { ...outfit, accepted: true }, weather: state?.weather ?? null });
     else setError(result.error);
   }
 
@@ -172,6 +173,7 @@ export function TodayScreen({ location }: { location: string | null }) {
     );
   }
 
+  const weatherText = weatherLine(location, state?.weather ?? null);
   return (
     <Screen top={20}>
       <View style={styles.header}>
@@ -180,10 +182,10 @@ export function TodayScreen({ location }: { location: string | null }) {
         </Text>
         <Text style={styles.date}>{formatToday(now)}</Text>
       </View>
-      {location ? (
+      {weatherText !== "" ? (
         <View style={styles.weather}>
           <Icon name="cloud" size={22} />
-          <Text style={styles.weatherText}>{location}</Text>
+          <Text style={styles.weatherText}>{weatherText}</Text>
         </View>
       ) : null}
       {body()}

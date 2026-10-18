@@ -63,6 +63,21 @@ Individual AI audit log for CSCI 4397/6397 (capstone). Manuel keeps his in `used
 - **Process mistake caught:** my audit-log branch had written into Manuel's `usedPrompts.md`; reading `main` and `CLAUDE.md` before opening the PR showed my log belongs in `usedPrompts-thanh.md`. The branch was redone and the stack (audit log, quiz, Today) rebased in order.
 - **Not verified:** the screen on a phone; the photo links and the function calls against the real project; anything with real garments (needs the Add screen).
 
+### 8. Stacked PRs and merge order (2026-10-08 to 2026-10-18)
+- **Asked:** open the next PR, then the next, for the audit log, the quiz and the Today screen.
+- **AI produced:** because the three branches build on each other, it set each PR's base to the branch below it so each PR showed only its own changes, and prepared the PR text. Manuel merged the audit-log PR into `main` first, then the quiz PR into the audit-log branch (its base), so **the quiz was merged into a branch that was already merged and never reached `main`**. The AI noticed on the next `git fetch` (the quiz commits were not in `main`), told me not to create the Today PR on the old base, and had me open one more PR ("Bring the quiz into main") with no new code. The Today PR then sat unmerged for 10 days because it waited on that chain.
+- **Verified:** `git fetch` and `git branch -r --merged origin/main` before opening each next PR; the Today branch was brought up to date with `main` and re-tested (356 tests) before its PR.
+- **Lesson:** with stacked PRs, merge the lower PR first and retarget the one above to `main` *before* merging it, or open each PR only after the one below it is in `main`. I now do the latter.
+
+### 9. Add screen, photo to garment, and duplicated work with Manuel (2026-10-18, PR pending)
+- **Asked:** start on the three missing MVP pieces (merge Today, photo upload with AI tagging, closet view).
+- **AI produced:** merged `main` into the Today branch and re-ran everything (356 tests), then decoded the design board's Add, Review tags, Closet and Edit screens and built the whole Add flow: the logic (`add.ts`, `addGateway.ts`, review rules), `AddScreen`, a shared `GarmentForm`, the Add tab and the permission text. It checked its own work: 411 tests, `tsc`, the iOS bundle, and **seven deliberate breaks of its own code, all caught by tests**. After rewriting `today.ts` with PowerShell it also found and removed an invisible byte-order mark (second time).
+- **What went wrong:** while this was being built (about 15 minutes), Manuel's session had written and merged **its own version of the same Add logic** (PR #14), plus the weather in `generate-outfit` (PR #15), and my Today PR was merged (#13). Our branch collided on `add.ts`, `addGateway.ts` and `tests/add.test.ts`. The last `git fetch` had been done before starting, not right before the big piece of work, and the Work Plan said the Add screen was mine, not that Manuel would write its logic that day.
+- **How it was resolved:** the AI read Manuel's merged code (already reviewed, stricter in places: it rejects invalid AI values and checks photo type and size), took his version of the three files, deleted my duplicate logic and tests (including my copy of the review rules and about 40 tests), and rewrote only the **screen** on top of his functions. The labels, the form, the Closet and a small `photoId.ts` stayed mine. Tests then: 399 passing.
+- **Also done:** used Manuel's new `weather` field so the Today line shows the temperature and rain (tests added; the Today states now carry the weather).
+- **Lesson:** `git fetch` immediately before starting any large piece, and ask the other session which parts it is writing during a crunch. The mutation checks on my own Add logic became moot for his file; his tests carry that.
+- **Not verified:** the camera and library on my phone; a real upload and a real `analyze-garment` call; the base64 decode on the device; the review screen's look against the board.
+
 ---
 
 ## Where the AI was wrong (friction summary)
@@ -77,3 +92,6 @@ Individual AI audit log for CSCI 4397/6397 (capstone). Manuel keeps his in `used
 | 2026-10-08 | GitKraken PR tool unusable (not signed in) | Tool error; fell back to manual PR creation |
 | 2026-10-08 | Verification script used a method missing in PowerShell 5.1 | Script error output |
 | 2026-10-08 | My audit-log branch wrote to Manuel's `usedPrompts.md`; his file already existed on `main` | Fetched `main` before opening the PR and read `CLAUDE.md` |
+| 2026-10-08 | Stacked PRs: the quiz was merged into an already-merged branch and never reached `main` | `git fetch` showed the quiz commits missing from `main` |
+| 2026-10-18 | PowerShell added an invisible byte-order mark to `today.ts` (second time) | Checked the file's first bytes before committing |
+| 2026-10-18 | Wrote a full Add-garment logic while Manuel merged his own version of the same files (duplicated work, merge conflicts) | `git fetch` after the work showed PR #14; the AI adopted his reviewed version |

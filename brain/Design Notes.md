@@ -26,7 +26,7 @@ Source of truth: `docs/Wardrobe App.html` (design board, 11 phone screens at 390
 | 4 | Style quiz | `QuizScreen` (shown once, after location) | built; not yet checked on a device |
 | 5, 6 | Today / Today, missing shoes | `TodayScreen` + `OutfitCard` | built; not yet checked on a device |
 | 7, 8 | Closet / Edit garment | — | not built (needs closet) |
-| 9, 10 | Add / Add: review tags | — | not built (needs upload + `analyze-garment`) |
+| 9, 10 | Add / Add: review tags | `AddScreen` (choose, upload, review) + `GarmentForm` | built; not yet checked on a device |
 
 ## Deliberate differences from the board
 - **Step count:** the board says "of 3" because household was step 1. Households are optional now (D18), so onboarding is **Location (step 1 of 2), then Style quiz (step 2 of 2)**.
@@ -35,9 +35,15 @@ Source of truth: `docs/Wardrobe App.html` (design board, 11 phone screens at 390
 - **Invite code:** the board's placeholder says "6 characters"; the database generates **8** hex characters (`0001_init.sql`), so the app says "8 characters". The code is displayed uppercase as on the board; input is case-insensitive.
 - **Back button on Location:** the board has Back during onboarding. A household cannot be un-created, so onboarding shows no Back; the "Change location" flow from the Household tab does.
 - **Bottom tab bar:** `TabBar` is in (heavy top rule, 3 px bar over the active tab) with the two screens that exist, **Today** and **Household**. Closet and Add are added to the list in `MainTabs.tsx` when they are built.
+- **Add / Review tags differences:**
+  - **All 20 garment types are offered,** grouped Tops, Bottoms, Shoes, Other (the board shows four broad categories). The AI tags with the 20 types, and the outfit logic needs them.
+  - **Season has five choices** (Spring, Summer, Fall, Winter, **All seasons**) and **warmth has five levels** (Very light to Very warm), matching the tag schema; the board shows four seasons and three warmth levels.
+  - **Flagged fields are boxed** with a heavier border and the words "Check this" (or "Choose one" if the AI left it out), plus a "Looks right" link; never color-only. The board has no such marking; D4 requires the person to confirm what the AI was unsure about.
+  - **If the AI is unavailable** the screen says so and the person chooses all four tags.
+  - **Leaving the Add tab during a review** drops the review; the uploaded photo stays in the person's own folder.
 - **Today screen differences:**
   - **Answer with the ✕ and ✓ buttons only.** The board also says "swipe left for no, right for yes"; swiping is not built (it needs gesture code that is hard to get right without a device), so the hint text says "Tap ✕ … ✓ …". ✕ = thumbs down, then a new outfit; ✓ = mark as worn and thumbs up.
-  - **No temperature or conditions in the weather line.** `generate-outfit` does not return the weather, only the reason sentence (which mentions the feels-like temperature). The line shows the location. A `weather` field in the response would fix it (request for Manuel).
+  - **The weather line shows the temperature (°F) and "Rain" when it is precipitating, not conditions like "Light rain".** `generate-outfit` now returns the weather it used (`temp_c`, `feels_like_c`, `is_precipitating`, PR #15), so the line reads "Conway · 58° · Rain". It has no description text, so the board's "Light rain" is not possible. **A reopened screen shows only the location**, because the weather is not saved with the suggestion (same reason as "Why:" below).
   - **"Missing shoes" shows only the missing slots.** The function's "incomplete" answer lists the missing slots but not the items that were found, so the board's version (top and bottom shown, shoes dashed) is not possible yet.
   - **"Why:" only on a freshly generated outfit.** The reason is not saved with the suggestion, so reopening the screen the same day shows the same outfit without it.
   - **Details line is "Season · Warmth"** (for example "Fall · Warm"), because garments have no material field (the board's "Cotton").

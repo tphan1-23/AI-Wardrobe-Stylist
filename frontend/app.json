@@ -26,7 +26,14 @@
     "plugins": [
       "expo-font",
       "expo-apple-authentication",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "DressWell uses your photos to add clothes to your closet.",
+          "cameraPermission": "DressWell uses the camera to photograph your clothes."
+        }
+      ]
     ]
   }
 }

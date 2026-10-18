@@ -17,8 +17,13 @@ import type {
   GenerateOutfitResponse,
   ISODate,
   UUID,
+  WeatherSnapshot,
 } from "../../../supabase/functions/_shared/types.ts";
+import { garmentDetail, garmentName } from "./garment.ts";
 import type { GatewayError, GatewayResult, Result } from "./household.ts";
+
+// Kept exported from here for the screens and tests that already import them.
+export { garmentDetail, garmentName };
 
 export type OutfitSlot = Exclude<Slot, "other">;
 export const OUTFIT_SLOTS: OutfitSlot[] = ["top", "bottom", "shoes"];
@@ -73,63 +78,31 @@ export interface OutfitView {
   accepted: boolean;
 }
 
+// `weather` is the weather the AI based its answer on. It is only known for an outfit that was just
+// generated: a saved suggestion does not store it, so a reopened screen has none.
 export type TodayState =
-  | { kind: "outfit"; outfit: OutfitView }
-  | { kind: "incomplete"; missing: OutfitSlot[]; reasoning: string }
-  | { kind: "exhausted"; reasoning: string };
+  | { kind: "outfit"; outfit: OutfitView; weather: WeatherSnapshot | null }
+  | { kind: "incomplete"; missing: OutfitSlot[]; reasoning: string; weather: WeatherSnapshot | null }
+  | { kind: "exhausted"; reasoning: string; weather: WeatherSnapshot | null };
 
 const NETWORK_ERROR = "Could not reach the server. Check your connection and try again.";
 
 // ---- Labels -----------------------------------------------------------------
 
-const TYPE_LABELS: Record<GarmentType, string> = {
-  t_shirt: "t-shirt",
-  tank_top: "tank top",
-  shirt: "shirt",
-  blouse: "blouse",
-  sweater: "sweater",
-  hoodie: "hoodie",
-  jeans: "jeans",
-  trousers: "trousers",
-  shorts: "shorts",
-  skirt: "skirt",
-  leggings: "leggings",
-  sweatpants: "sweatpants",
-  sneakers: "sneakers",
-  boots: "boots",
-  sandals: "sandals",
-  dress_shoes: "dress shoes",
-  dress: "dress",
-  jacket: "jacket",
-  coat: "coat",
-  accessory: "accessory",
-};
-
-const SEASON_LABELS: Record<Season, string> = {
-  spring: "Spring",
-  summer: "Summer",
-  fall: "Fall",
-  winter: "Winter",
-  all: "All seasons",
-};
-
-const WARMTH_LABELS: Record<Warmth, string> = {
-  1: "Very light",
-  2: "Light",
-  3: "Medium",
-  4: "Warm",
-  5: "Very warm",
-};
-
 export const SLOT_LABELS: Record<OutfitSlot, string> = { top: "Top", bottom: "Bottom", shoes: "Shoes" };
 
-export function garmentName(garment: Pick<GarmentRow, "color" | "type">): string {
-  const color = garment.color.charAt(0).toUpperCase() + garment.color.slice(1);
-  return `${color} ${TYPE_LABELS[garment.type]}`;
-}
+// ---- Weather line ----
 
-export function garmentDetail(garment: Pick<GarmentRow, "season" | "warmth">): string {
-  return `${SEASON_LABELS[garment.season]} · ${WARMTH_LABELS[garment.warmth]}`;
+const toFahrenheit = (celsius: number) => Math.round((celsius * 9) / 5 + 32);
+
+// "Conway · 58° · Rain": the place, then what the AI knew about the weather (degrees Fahrenheit).
+export function weatherLine(location: string | null, weather: WeatherSnapshot | null): string {
+  const parts = [location?.trim() ?? ""];
+  if (weather) {
+    parts.push(`${toFahrenheit(weather.temp_c)}°`);
+    if (weather.is_precipitating) parts.push("Rain");
+  }
+  return parts.filter((part) => part !== "").join(" · ");
 }
 
 // ---- Dates ------------------------------------------------------------------
@@ -236,9 +209,9 @@ async function generate(gateway: TodayGateway, date: ISODate, rejectedIds: UUID[
 
   const body = response.value;
   if (body.status === "incomplete") {
-    return { ok: true, value: { kind: "incomplete", missing: body.missing_slots, reasoning: body.reasoning } };
+    return { ok: true, value: { kind: "incomplete", missing: body.missing_slots, reasoning: body.reasoning, weather: body.weather } };
   }
-  if (body.status === "exhausted") return { ok: true, value: { kind: "exhausted", reasoning: body.reasoning } };
+  if (body.status === "exhausted") return { ok: true, value: { kind: "exhausted", reasoning: body.reasoning, weather: body.weather } };
 
   const outfit = await buildOutfit(
     gateway,
@@ -247,7 +220,7 @@ async function generate(gateway: TodayGateway, date: ISODate, rejectedIds: UUID[
   );
   if (!outfit.ok) return outfit;
   if (!outfit.value) return { ok: false, error: "Could not load your outfit. Please try again." };
-  return { ok: true, value: { kind: "outfit", outfit: outfit.value } };
+  return { ok: true, value: { kind: "outfit", outfit: outfit.value, weather: body.weather } };
 }
 
 // Opening the screen again on the same day shows the same outfit instead of
@@ -262,7 +235,7 @@ export async function loadToday(gateway: TodayGateway, date: ISODate): Promise<R
   if (latest && latest.feedback !== "down") {
     const outfit = await buildOutfit(gateway, latest, null);
     if (!outfit.ok) return outfit;
-    if (outfit.value) return { ok: true, value: { kind: "outfit", outfit: outfit.value } };
+    if (outfit.value) return { ok: true, value: { kind: "outfit", outfit: outfit.value, weather: null } };
   }
   return generate(gateway, date, rejected);
 }
