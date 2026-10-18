@@ -193,11 +193,7 @@ export function AddScreen({ userId }: { userId: string }) {
         </View>
         <Image source={{ uri }} accessibilityLabel="Your photo" style={styles.photo} resizeMode="cover" />
         {notice !== "" && <Text style={styles.notice}>{notice}</Text>}
-        <Text style={type.body}>
-          {review.manual
-            ? "Choose the tags for this garment."
-            : "Tags are filled in for you. Check them and fix anything that is off before saving."}
-        </Text>
+        <Text style={type.body}>{review.manual ? "Choose the tags." : "Check the tags, then save."}</Text>
         <GarmentForm
           draft={draftFromTags(review.tags)}
           attention={unconfirmedFields(review)}
@@ -218,7 +214,7 @@ export function AddScreen({ userId }: { userId: string }) {
       top={20}
       titleStyle="title"
       title="Add a garment"
-      subtitle="Take a photo of one item. We will suggest tags and you confirm them."
+      subtitle="One photo per item. We suggest the tags."
     >
       {saved && (
         <View style={styles.savedRow}>

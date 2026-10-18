@@ -107,7 +107,7 @@ export function laundrySlots(): OutfitSlot[] {
 
 export function wornMessage(): string {
   const names = laundrySlots().map((slot) => SLOT_LABELS[slot].toLowerCase());
-  return `You are wearing this today. The ${names.join(" and ")} are now in the laundry, so a new outfit will not use them. Shoes stay clean.`;
+  return `Wearing this today. The ${names.join(" and ")} are now dirty.`;
 }
 
 // ---- Weather line ----

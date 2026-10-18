@@ -104,7 +104,7 @@ export function CropScreen({ uri, image, busy, onUse, onCancel }: Props) {
         <View style={styles.back} />
       </View>
 
-      <Text style={type.body}>Use the whole photo, or crop it: drag the frame to move it and drag a corner to resize it.</Text>
+      <Text style={type.body}>Use the whole photo, or drag the frame to crop.</Text>
 
       <View style={[styles.box, { width: box.width, height: box.height }]}>
         <Image source={{ uri }} accessibilityLabel="Your photo" style={styles.fill} resizeMode="contain" />

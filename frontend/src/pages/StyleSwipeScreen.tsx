@@ -142,7 +142,7 @@ export function StyleSwipeScreen({ location, onBack }: { location: string | null
           </Text>
           <Text style={type.body}>
             {state.end.kind === "exhausted"
-              ? `You judged ${state.judged} ${state.judged === 1 ? "outfit" : "outfits"}. Add more clothes to your closet for more ideas, or come back later.`
+              ? `You judged ${state.judged} ${state.judged === 1 ? "outfit" : "outfits"}. Add more clothes for more ideas.`
               : state.end.reasoning}
           </Text>
           <Button label="Back to Today" onPress={onBack} />

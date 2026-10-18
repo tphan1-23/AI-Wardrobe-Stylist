@@ -147,7 +147,7 @@ export function TodayScreen({ location }: { location: string | null }) {
       return (
         <View style={styles.gap}>
           <Text style={type.cardTitle}>That is every outfit for today</Text>
-          <Text style={type.body}>{state.reasoning} Add more clothes to your closet for more options.</Text>
+          <Text style={type.body}>Add more clothes for more options.</Text>
         </View>
       );
     }
@@ -165,7 +165,6 @@ export function TodayScreen({ location }: { location: string | null }) {
               <Text style={styles.wornText}>{wornMessage()}</Text>
             </View>
             <Button label="New outfit" variant="secondary" onPress={changeOutfit} busy={acting === "new"} disabled={acting !== null} />
-            <Text style={styles.ideasHint}>Changing clothes? Get another outfit for today. This one stays in your history.</Text>
           </View>
         ) : (
           <View style={styles.answers}>
@@ -177,7 +176,6 @@ export function TodayScreen({ location }: { location: string | null }) {
               disabled={acting !== null}
               onPress={() => another(outfit)}
             />
-            <Text style={styles.hint}>Tap ✕ for another outfit, ✓ to wear this</Text>
             <AnswerButton
               label="Yes, wear this"
               icon="check"
@@ -213,7 +211,6 @@ export function TodayScreen({ location }: { location: string | null }) {
       {!loading && (
         <View style={styles.ideas}>
           <Button label="Style Swipe" variant="secondary" onPress={() => setJudging(true)} />
-          <Text style={styles.ideasHint}>Swipe through new outfit ideas and teach the AI your taste.</Text>
         </View>
       )}
     </Screen>

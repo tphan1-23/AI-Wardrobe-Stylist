@@ -73,7 +73,7 @@ export function GarmentEditScreen({ item, myId, members, onBack, onChanged, onRe
           <Text style={type.cardTitle}>{garmentName(item)}</Text>
           <Text style={type.body}>{garmentDetail(item)}</Text>
           <Text style={type.body}>{`Status: ${item.status === "dirty" ? "Dirty" : "Clean"}`}</Text>
-          <Text style={type.body}>{`Belongs to ${ownerName(item, myId, members)}. Only the owner can change it.`}</Text>
+          <Text style={type.body}>{`Belongs to ${ownerName(item, myId, members)}.`}</Text>
         </View>
       </Screen>
     );
@@ -143,7 +143,6 @@ export function GarmentEditScreen({ item, myId, members, onBack, onChanged, onRe
         {error && <ErrorLine message={error} />}
         <Button label="Save changes" onPress={save} busy={busy === "save"} disabled={busy === "delete"} />
         <Button label="Remove from closet" variant="secondary" onPress={confirmDelete} busy={busy === "delete"} disabled={busy === "save"} />
-        <Text style={styles.hint}>Removing a garment also removes its photo.</Text>
       </View>
     </Screen>
   );

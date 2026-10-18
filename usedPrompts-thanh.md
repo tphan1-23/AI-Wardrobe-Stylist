@@ -123,6 +123,12 @@ Individual AI audit log for CSCI 4397/6397 (capstone). Manuel keeps his in `used
 - **Verified:** three new tests (scoring with and without the option; Today's request still refuses dirty clothes while an explore request accepts them; the screen logic shows a dirty idea but still refuses it for Today). A deliberate break (allowing dirty for every request) made the handler test fail. 542 tests pass.
 - **Not verified:** on my phone. The `generate-outfit` function must be redeployed before the app behaves this way; until then Style Swipe still skips dirty clothes.
 
+### 17. Shorter text across the app (2026-10-18, PR pending)
+- **Asked:** the app has too much text; shorten it and make it look clean.
+- **AI produced:** it searched every screen for long sentences and shortened the instructions and hints (Add, Crop, Location, Quiz, Closet, History, Forgot password, garment edit, Style Swipe), and removed hints that repeated what the buttons already say (the ✕/✓ line and the two explanations under "New outfit" and "Style Swipe" on Today). The "worn" message is now one short line. Only wording changed: no layout, colors or logic.
+- **Verified:** type checks and 542 tests pass (one test was updated for the shorter worn message). A string search only finds long sentences, so I still have to look through every screen.
+- **Not verified:** how it looks on my phone. "Clean" visually (spacing, fewer elements) is not done yet; this was the text part only.
+
 ---
 
 ## Where the AI was wrong (friction summary)

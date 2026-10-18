@@ -138,7 +138,7 @@ export function ClosetScreen({ myId, members }: { myId: string; members: MemberR
       return (
         <View style={styles.gap}>
           <Text style={type.cardTitle}>Your closet is empty</Text>
-          <Text style={type.body}>Add your first garment from the Add tab and it will show up here.</Text>
+          <Text style={type.body}>Add your first garment from the Add tab.</Text>
         </View>
       );
     }
@@ -185,7 +185,7 @@ export function ClosetScreen({ myId, members }: { myId: string; members: MemberR
         <FilterRow label="Owner" options={OWNER_OPTIONS} value={filters.owner} onChange={(owner) => setFilters((f) => ({ ...f, owner }))} />
       )}
       {error && items ? <ErrorLine message={error} /> : null}
-      {items && items.length > 0 ? <Text style={type.caption}>Tap a garment to open it. Hold one to remove it.</Text> : null}
+      {items && items.length > 0 ? <Text style={type.caption}>Tap to open, hold to remove.</Text> : null}
       {body()}
     </Screen>
   );
