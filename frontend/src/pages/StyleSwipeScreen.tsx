@@ -5,8 +5,9 @@ import { ErrorLine } from "../components/common/ErrorLine";
 import { Icon } from "../components/common/Icon";
 import { Screen } from "../components/common/Screen";
 import { OutfitCard } from "../components/outfit/OutfitCard";
-import { SWIPE_DISTANCE_FRACTION, createDeck, decideSwipe, type DeckState, type Swipe } from "../services/judgement";
-import { todayGateway } from "../services/supabase";
+import { setOutfitFavorite } from "../services/history";
+import { SWIPE_DISTANCE_FRACTION, createDeck, decideSwipe, type DeckState, type Swipe } from "../services/styleSwipe";
+import { historyGateway, todayGateway } from "../services/supabase";
 import { todayString, weatherLine } from "../services/today";
 import { colors, fonts, radius, size, type } from "../theme";
 
@@ -21,15 +22,18 @@ function Stamp({ label, side, opacity }: { label: string; side: "left" | "right"
   );
 }
 
-// "Your judgement": swipe through outfit ideas. Right = like, left = dislike; the AI learns from
+// "Style Swipe": swipe through outfit ideas. Right = like, left = dislike; the AI learns from
 // each swipe. The ideas are not today's outfit and are not saved to history.
-export function JudgementScreen({ location, onBack }: { location: string | null; onBack: () => void }) {
+export function StyleSwipeScreen({ location, onBack }: { location: string | null; onBack: () => void }) {
   const { width } = useWindowDimensions();
   const deck = useMemo(() => createDeck(todayGateway, todayString()), []);
   const [state, setState] = useState<DeckState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [advancing, setAdvancing] = useState(false);
+  // Ideas the person hearted, by suggestion id. A hearted idea shows up in History, Favorites.
+  const [favorites, setFavorites] = useState<Record<string, boolean>>({});
+  const [savingFavorite, setSavingFavorite] = useState(false);
 
   const pan = useRef(new Animated.ValueXY()).current;
   const busy = useRef(false);
@@ -62,6 +66,17 @@ export function JudgementScreen({ location, onBack }: { location: string | null;
     }
     setAdvancing(false);
     busy.current = false;
+  }
+
+  // Adds the outfit being shown to the favorites, or takes it out again. Separate from the swipe.
+  async function toggleFavorite(id: string) {
+    setSavingFavorite(true);
+    setError(null);
+    const next = !favorites[id];
+    const result = await setOutfitFavorite(historyGateway, id, next);
+    setSavingFavorite(false);
+    if (result.ok) setFavorites((current) => ({ ...current, [id]: next }));
+    else setError(result.error);
   }
 
   // Slides the card off the screen, then commits the answer.
@@ -172,7 +187,16 @@ export function JudgementScreen({ location, onBack }: { location: string | null;
           >
             <Icon name="close" size={28} stroke={2} />
           </Pressable>
-          <Text style={styles.hint}>Swipe left to dislike, right to like</Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={favorites[current.suggestionId] ? "Remove outfit from favorites" : "Add outfit to favorites"}
+            accessibilityState={{ selected: !!favorites[current.suggestionId], busy: savingFavorite }}
+            disabled={advancing || savingFavorite}
+            onPress={() => toggleFavorite(current.suggestionId)}
+            style={[styles.answer, styles.answerPlain, (advancing || savingFavorite) && styles.dim]}
+          >
+            <Icon name="heart" size={28} filled={!!favorites[current.suggestionId]} />
+          </Pressable>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Like this outfit"
@@ -196,11 +220,14 @@ export function JudgementScreen({ location, onBack }: { location: string | null;
           <Text style={styles.backText}>Today</Text>
         </Pressable>
         <Text accessibilityRole="header" style={styles.title}>
-          Your judgement
+          Style Swipe
         </Text>
         <Text style={styles.count}>{state ? `${state.judged} judged` : ""}</Text>
       </View>
-      <Text style={type.body}>Swipe right on outfits you like and left on ones you do not. The AI learns your taste from every swipe.</Text>
+      <Text style={type.body}>
+        Swipe right on outfits you like and left on ones you do not. The AI learns your taste from every swipe. Tap the heart to
+        save an outfit to your favorites.
+      </Text>
       {weather !== "" && (
         <View style={styles.weather}>
           <Icon name="cloud" size={22} />

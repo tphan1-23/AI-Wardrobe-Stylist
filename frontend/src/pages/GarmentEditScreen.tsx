@@ -112,9 +112,9 @@ export function GarmentEditScreen({ item, myId, members, onBack, onChanged, onRe
   }
 
   function confirmDelete() {
-    Alert.alert("Delete this garment?", "This also removes its photo.", [
+    Alert.alert("Remove this garment?", "It will be removed from your closet, with its photo.", [
       { text: "Cancel", style: "cancel" },
-      { text: "Delete", style: "destructive", onPress: remove },
+      { text: "Remove", style: "destructive", onPress: remove },
     ]);
   }
 
@@ -142,8 +142,8 @@ export function GarmentEditScreen({ item, myId, members, onBack, onChanged, onRe
       <View style={styles.actions}>
         {error && <ErrorLine message={error} />}
         <Button label="Save changes" onPress={save} busy={busy === "save"} disabled={busy === "delete"} />
-        <Button label="Delete item" variant="secondary" onPress={confirmDelete} busy={busy === "delete"} disabled={busy === "save"} />
-        <Text style={styles.hint}>Deleting also removes the photo.</Text>
+        <Button label="Remove from closet" variant="secondary" onPress={confirmDelete} busy={busy === "delete"} disabled={busy === "save"} />
+        <Text style={styles.hint}>Removing a garment also removes its photo.</Text>
       </View>
     </Screen>
   );

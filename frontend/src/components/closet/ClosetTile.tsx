@@ -11,10 +11,12 @@ interface Props {
   badge: string;
   ownerLabel: string;
   onPress: () => void;
+  // Holding the tile: the closet uses it to offer removing the garment.
+  onLongPress?: () => void;
 }
 
 // One garment in the closet grid: its photo, who owns it, and whether it is in the laundry.
-export function ClosetTile({ item, size, badge, ownerLabel, onPress }: Props) {
+export function ClosetTile({ item, size, badge, ownerLabel, onPress, onLongPress }: Props) {
   const name = garmentName(item);
   const dirty = item.status === "dirty";
   return (
@@ -22,6 +24,7 @@ export function ClosetTile({ item, size, badge, ownerLabel, onPress }: Props) {
       accessibilityRole="button"
       accessibilityLabel={`${name}, ${dirty ? "dirty" : "clean"}, ${item.favorite ? "favorite, " : ""}${ownerLabel}`}
       onPress={onPress}
+      onLongPress={onLongPress}
       style={[styles.tile, { width: size, height: size }]}
     >
       {item.photoUrl ? (

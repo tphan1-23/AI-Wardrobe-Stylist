@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { ActivityIndicator, Alert, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { Button } from "../components/common/Button";
 import { Chip } from "../components/common/Chip";
 import { ErrorLine } from "../components/common/ErrorLine";
@@ -13,13 +13,16 @@ import {
   OWNER_OPTIONS,
   STATUS_OPTIONS,
   countLabel,
+  deleteItem,
   filterItems,
+  isMine,
   loadCloset,
   ownerBadge,
   ownerName,
   type ClosetFilters,
   type ClosetItem,
 } from "../services/closet";
+import { garmentName } from "../services/garment";
 import type { MemberRow } from "../services/household";
 import { closetGateway } from "../services/supabase";
 import { colors, fonts, type } from "../theme";
@@ -72,6 +75,27 @@ export function ClosetScreen({ myId, members }: { myId: string; members: MemberR
   useEffect(() => {
     load();
   }, [load]);
+
+  // Hold a tile to remove that garment (and its photo) without opening it. Only the owner can.
+  function confirmRemove(item: ClosetItem) {
+    if (!isMine(item, myId)) {
+      Alert.alert("Not your garment", `Only ${ownerName(item, myId, members)} can remove it.`);
+      return;
+    }
+    Alert.alert("Remove this garment?", `${garmentName(item)} will be removed from your closet, with its photo.`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Remove",
+        style: "destructive",
+        onPress: async () => {
+          setError(null);
+          const result = await deleteItem(closetGateway, item);
+          if (result.ok) await load();
+          else setError(result.error);
+        },
+      },
+    ]);
+  }
 
   if (selected) {
     return (
@@ -129,6 +153,7 @@ export function ClosetScreen({ myId, members }: { myId: string; members: MemberR
             badge={ownerBadge(item, myId, members)}
             ownerLabel={ownerName(item, myId, members)}
             onPress={() => setSelected(item)}
+            onLongPress={() => confirmRemove(item)}
           />
         ))}
       </View>
@@ -160,6 +185,7 @@ export function ClosetScreen({ myId, members }: { myId: string; members: MemberR
         <FilterRow label="Owner" options={OWNER_OPTIONS} value={filters.owner} onChange={(owner) => setFilters((f) => ({ ...f, owner }))} />
       )}
       {error && items ? <ErrorLine message={error} /> : null}
+      {items && items.length > 0 ? <Text style={type.caption}>Tap a garment to open it. Hold one to remove it.</Text> : null}
       {body()}
     </Screen>
   );

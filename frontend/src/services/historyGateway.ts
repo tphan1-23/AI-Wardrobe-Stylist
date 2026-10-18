@@ -57,7 +57,8 @@ export function supabaseHistoryGateway(client: HistoryClientLike): HistoryGatewa
           .from("suggestions")
           .select(OUTFIT_COLUMNS)
           .eq("user_id", id)
-          .eq("kind", "today")
+          // Any kind: an outfit idea hearted in Style Swipe is a favorite too. (The 7-day history
+          // above reads only kind = 'today', so unworn ideas never show up there.)
           .eq("favorite", true)
           .order("date", { ascending: false })
           .order("created_at", { ascending: false }),

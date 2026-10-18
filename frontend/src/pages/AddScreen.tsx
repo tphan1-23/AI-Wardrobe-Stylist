@@ -1,4 +1,5 @@
 import { decode } from "base64-arraybuffer";
+import * as ImageManipulator from "expo-image-manipulator";
 import * as ImagePicker from "expo-image-picker";
 import { useState } from "react";
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from "react-native";
@@ -8,20 +9,31 @@ import { Icon, type IconName } from "../components/common/Icon";
 import { Screen } from "../components/common/Screen";
 import { GarmentForm } from "../components/closet/GarmentForm";
 import { addPhoto, confirmTag, discardPhoto, saveGarment, setTag, unconfirmedFields, type ReviewState } from "../services/add";
+import type { CropRegion } from "../services/crop";
 import { draftFromTags } from "../services/garment";
 import { newPhotoId } from "../services/photoId";
 import { addGateway } from "../services/supabase";
 import { colors, fonts, radius, size, type } from "../theme";
+import { CropScreen } from "./CropScreen";
+
+// A photo that was just taken or chosen, before it is cropped (or kept as it is).
+interface PickedPhoto {
+  uri: string;
+  width: number;
+  height: number;
+  base64: string;
+}
 
 type Step =
   | { kind: "choose" }
+  | { kind: "crop"; photo: PickedPhoto }
   | { kind: "working" }
   | { kind: "review"; uri: string; review: ReviewState };
 
-// `allowsEditing` opens the system crop screen after the photo is taken or chosen, so the person can
-// trim the photo to just the garment. Quality 0.7 is smaller than a full-resolution photo, still sharp enough for the AI to read. With a quality
-// below 1 the picker hands back a JPEG, which is what the upload is told it is.
-const PICKER_OPTIONS = { quality: 0.7, base64: true, allowsEditing: true } as const;
+// Smaller than a full-resolution photo, still sharp enough for the AI to read. With a quality
+// below 1 the picker hands back a JPEG, which is what the upload is told it is. The picker's own
+// crop screen is off: the person chooses on the Crop screen whether to crop or keep the photo.
+const PICKER_OPTIONS = { quality: 0.7, base64: true, allowsEditing: false } as const;
 
 function OptionCard({ icon, title, subtitle, onPress }: { icon: IconName; title: string; subtitle: string; onPress: () => void }) {
   return (
@@ -53,14 +65,42 @@ export function AddScreen({ userId }: { userId: string }) {
     }
     setError(null);
     setSaved(false);
+    setStep({ kind: "crop", photo: { uri: asset.uri, width: asset.width, height: asset.height, base64: asset.base64 } });
+  }
+
+  // Uploads the photo and asks the AI about it, then shows the review.
+  async function analyze(uri: string, base64: string) {
     setStep({ kind: "working" });
-    const added = await addPhoto(addGateway, userId, { data: decode(asset.base64), extension: "jpg" }, newPhotoId);
+    const added = await addPhoto(addGateway, userId, { data: decode(base64), extension: "jpg" }, newPhotoId);
     if (!added.ok) {
       setStep({ kind: "choose" });
       setError(added.error);
       return;
     }
-    setStep({ kind: "review", uri: asset.uri, review: added.value });
+    setStep({ kind: "review", uri, review: added.value });
+  }
+
+  // "Use full photo" (region is null) keeps the photo exactly as taken; otherwise the chosen part is cut out.
+  async function useCrop(photo: PickedPhoto, region: CropRegion | null) {
+    if (region === null) {
+      await analyze(photo.uri, photo.base64);
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const cropped = await ImageManipulator.manipulateAsync(photo.uri, [{ crop: region }], {
+        compress: 0.7,
+        format: ImageManipulator.SaveFormat.JPEG,
+        base64: true,
+      });
+      setBusy(false);
+      if (!cropped.base64) throw new Error("no image data");
+      await analyze(cropped.uri, cropped.base64);
+    } catch {
+      setBusy(false);
+      setError("Could not crop that photo. Try again, or use the full photo.");
+    }
   }
 
   async function takePhoto() {
@@ -105,6 +145,23 @@ export function AddScreen({ userId }: { userId: string }) {
     } else {
       setError(result.error);
     }
+  }
+
+  if (step.kind === "crop") {
+    const { photo } = step;
+    return (
+      <CropScreen
+        key="crop"
+        uri={photo.uri}
+        image={{ width: photo.width, height: photo.height }}
+        busy={busy}
+        onUse={(region) => useCrop(photo, region)}
+        onCancel={() => {
+          setError(null);
+          setStep({ kind: "choose" });
+        }}
+      />
+    );
   }
 
   if (step.kind === "working") {

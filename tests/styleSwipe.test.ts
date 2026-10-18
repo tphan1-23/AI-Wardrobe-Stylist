@@ -5,7 +5,7 @@ import {
   createDeck,
   decideSwipe,
   feedbackFor,
-} from "../frontend/src/services/judgement.ts";
+} from "../frontend/src/services/styleSwipe.ts";
 import type { GarmentRow, TodayGateway } from "../frontend/src/services/today.ts";
 import type { GenerateOutfitResponse } from "../supabase/functions/_shared/types.ts";
 

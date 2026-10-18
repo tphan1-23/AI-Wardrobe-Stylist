@@ -1,8 +1,8 @@
-// "Your judgement": a deck of outfit ideas to swipe through. Swipe right to like an idea, left to
+// "Style Swipe": a deck of outfit ideas to swipe through. Swipe right to like an idea, left to
 // dislike it; either way the AI learns from it (a thumbs-up or thumbs-down through update-preferences,
 // once per idea). The ideas are not today's outfit: they are saved as kind = 'explore'. Pure
 // TypeScript with an injected gateway so it is unit-tested without React Native or a network
-// (see tests/judgement.test.ts).
+// (see tests/styleSwipe.test.ts).
 //
 // Choosing the ideas and learning from the swipes is the AI core's job (owned by Manuel + Claude);
 // this file only asks for the next idea, sends the answer, and keeps the next one ready.

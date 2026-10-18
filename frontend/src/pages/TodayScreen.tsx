@@ -8,6 +8,7 @@ import { MissingCard, OutfitCard } from "../components/outfit/OutfitCard";
 import {
   formatToday,
   loadToday,
+  newOutfitToday,
   rejectOutfit,
   todayString,
   weatherLine,
@@ -17,7 +18,7 @@ import {
 } from "../services/today";
 import { todayGateway } from "../services/supabase";
 import { colors, fonts, type } from "../theme";
-import { JudgementScreen } from "./JudgementScreen";
+import { StyleSwipeScreen } from "./StyleSwipeScreen";
 
 const BUTTON = 64;
 
@@ -69,9 +70,9 @@ export function TodayScreen({ location }: { location: string | null }) {
   const date = todayString(now);
   const [state, setState] = useState<TodayState | null>(null);
   const [loading, setLoading] = useState(true);
-  const [acting, setActing] = useState<"yes" | "no" | null>(null);
+  const [acting, setActing] = useState<"yes" | "no" | "new" | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // The swipe deck of outfit ideas ("Your judgement") opens in place of this screen.
+  // The swipe deck of outfit ideas ("Style Swipe") opens in place of this screen.
   const [judging, setJudging] = useState(false);
 
   const load = useCallback(async () => {
@@ -100,6 +101,16 @@ export function TodayScreen({ location }: { location: string | null }) {
     setActing("no");
     setError(null);
     const result = await rejectOutfit(todayGateway, date, outfit.suggestionId);
+    setActing(null);
+    if (result.ok) setState(result.value);
+    else setError(result.error);
+  }
+
+  // After one outfit was approved: another outfit for the same day (for example after changing clothes).
+  async function changeOutfit() {
+    setActing("new");
+    setError(null);
+    const result = await newOutfitToday(todayGateway, date);
     setActing(null);
     if (result.ok) setState(result.value);
     else setError(result.error);
@@ -147,9 +158,13 @@ export function TodayScreen({ location }: { location: string | null }) {
         {outfit.reasoning && <Why text={outfit.reasoning} />}
         {error && <ErrorLine message={error} />}
         {outfit.accepted ? (
-          <View style={styles.worn}>
-            <Icon name="check" />
-            <Text style={styles.wornText}>You are wearing this today. Marked as worn.</Text>
+          <View style={styles.gap}>
+            <View style={styles.worn}>
+              <Icon name="check" />
+              <Text style={styles.wornText}>You are wearing this today. Marked as worn.</Text>
+            </View>
+            <Button label="New outfit" variant="secondary" onPress={changeOutfit} busy={acting === "new"} disabled={acting !== null} />
+            <Text style={styles.ideasHint}>Changing clothes? Get another outfit for today. This one stays in your history.</Text>
           </View>
         ) : (
           <View style={styles.answers}>
@@ -176,7 +191,7 @@ export function TodayScreen({ location }: { location: string | null }) {
     );
   }
 
-  if (judging) return <JudgementScreen location={location} onBack={() => setJudging(false)} />;
+  if (judging) return <StyleSwipeScreen location={location} onBack={() => setJudging(false)} />;
 
   const weatherText = weatherLine(location, state?.weather ?? null);
   return (
@@ -196,7 +211,7 @@ export function TodayScreen({ location }: { location: string | null }) {
       {body()}
       {!loading && (
         <View style={styles.ideas}>
-          <Button label="Your judgement" variant="secondary" onPress={() => setJudging(true)} />
+          <Button label="Style Swipe" variant="secondary" onPress={() => setJudging(true)} />
           <Text style={styles.ideasHint}>Swipe through new outfit ideas and teach the AI your taste.</Text>
         </View>
       )}

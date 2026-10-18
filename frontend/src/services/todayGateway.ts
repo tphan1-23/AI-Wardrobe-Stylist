@@ -51,7 +51,7 @@ export function supabaseTodayGateway(client: TodayClientLike): TodayGateway {
           .select("id, date, garment_ids, feedback, accepted, created_at")
           .eq("user_id", id)
           .eq("date", date)
-          // Ideas from the "Your judgement" deck are kind = 'explore' and never replace today's outfit.
+          // Ideas from the "Style Swipe" deck are kind = 'explore' and never replace today's outfit.
           .eq("kind", "today")
           .order("created_at", { ascending: true }),
       );
