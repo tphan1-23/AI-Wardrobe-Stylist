@@ -103,9 +103,14 @@ export interface AnalyzeGarmentResponse {
 // ---- Edge function: generate-outfit ---------------------------------------
 // User and location come from the authenticated profile (D5), not the body.
 
+// "today" (default) is the outfit for the Today screen; "explore" is an idea for the
+// "Your judgement" deck: saved with kind = 'explore', so it never replaces today's outfit.
+export type SuggestionKind = "today" | "explore";
+
 export interface GenerateOutfitRequest {
   date: ISODate;
-  exclude_suggestion_ids?: UUID[]; // re-roll after thumbs down (D9)
+  exclude_suggestion_ids?: UUID[]; // re-roll after thumbs down (D9); in explore mode, the ideas already judged
+  purpose?: SuggestionKind;
 }
 
 // Pure result of the scoring engine (no persistence).
