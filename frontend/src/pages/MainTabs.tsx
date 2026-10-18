@@ -23,7 +23,7 @@ export function MainTabs({ overview, onChanged }: { overview: Overview; onChange
     <View style={styles.root}>
       <View style={styles.body}>
         {tab === "today" && <TodayScreen location={overview.profile.location} />}
-        {tab === "add" && <AddScreen />}
+        {tab === "add" && <AddScreen userId={overview.profile.id} />}
         {tab === "household" && <HomeScreen overview={overview} onChanged={onChanged} />}
       </View>
       <TabBar tabs={TABS} active={tab} onChange={setTab} />

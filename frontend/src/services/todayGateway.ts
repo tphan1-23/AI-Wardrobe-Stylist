@@ -1,7 +1,7 @@
 // Adapter from the Supabase client to TodayGateway. Typed structurally so it can be
 // tested with a fake client; frontend/src/services/supabase.ts supplies the real one.
 import type { FeedbackValue, GenerateOutfitResponse } from "../../../supabase/functions/_shared/types.ts";
-import { invokeFunction, type FunctionsClientLike } from "./edgeFunctions.ts";
+import { functionError, invokeFunction, type FunctionsClientLike } from "./edgeFunctions.ts";
 import type { GatewayError, GatewayResult } from "./household.ts";
 import type { GarmentRow, SuggestionRow, TodayGateway } from "./today.ts";
 
@@ -32,6 +32,9 @@ export interface TodayClientLike {
   };
   auth: { getUser(): PromiseLike<{ data: { user: { id: string } | null }; error: { message: string } | null }> };
 }
+
+// Kept exported from here for add.ts / addGateway.ts, which import it from this file.
+export { functionError };
 
 export const GARMENT_BUCKET = "garments";
 // Long enough to stay open for a day's use, short enough that a leaked link expires.

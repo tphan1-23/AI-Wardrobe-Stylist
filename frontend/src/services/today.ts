@@ -17,6 +17,7 @@ import type {
   GenerateOutfitResponse,
   ISODate,
   UUID,
+  WeatherSnapshot,
 } from "../../../supabase/functions/_shared/types.ts";
 import { garmentDetail, garmentName } from "./garment.ts";
 import type { GatewayError, GatewayResult, Result } from "./household.ts";
@@ -77,16 +78,32 @@ export interface OutfitView {
   accepted: boolean;
 }
 
+// `weather` is the weather the AI based its answer on. It is only known for an outfit that was just
+// generated: a saved suggestion does not store it, so a reopened screen has none.
 export type TodayState =
-  | { kind: "outfit"; outfit: OutfitView }
-  | { kind: "incomplete"; missing: OutfitSlot[]; reasoning: string }
-  | { kind: "exhausted"; reasoning: string };
+  | { kind: "outfit"; outfit: OutfitView; weather: WeatherSnapshot | null }
+  | { kind: "incomplete"; missing: OutfitSlot[]; reasoning: string; weather: WeatherSnapshot | null }
+  | { kind: "exhausted"; reasoning: string; weather: WeatherSnapshot | null };
 
 const NETWORK_ERROR = "Could not reach the server. Check your connection and try again.";
 
 // ---- Labels -----------------------------------------------------------------
 
 export const SLOT_LABELS: Record<OutfitSlot, string> = { top: "Top", bottom: "Bottom", shoes: "Shoes" };
+
+// ---- Weather line ----
+
+const toFahrenheit = (celsius: number) => Math.round((celsius * 9) / 5 + 32);
+
+// "Conway · 58° · Rain": the place, then what the AI knew about the weather (degrees Fahrenheit).
+export function weatherLine(location: string | null, weather: WeatherSnapshot | null): string {
+  const parts = [location?.trim() ?? ""];
+  if (weather) {
+    parts.push(`${toFahrenheit(weather.temp_c)}°`);
+    if (weather.is_precipitating) parts.push("Rain");
+  }
+  return parts.filter((part) => part !== "").join(" · ");
+}
 
 // ---- Dates ------------------------------------------------------------------
 
@@ -192,9 +209,9 @@ async function generate(gateway: TodayGateway, date: ISODate, rejectedIds: UUID[
 
   const body = response.value;
   if (body.status === "incomplete") {
-    return { ok: true, value: { kind: "incomplete", missing: body.missing_slots, reasoning: body.reasoning } };
+    return { ok: true, value: { kind: "incomplete", missing: body.missing_slots, reasoning: body.reasoning, weather: body.weather } };
   }
-  if (body.status === "exhausted") return { ok: true, value: { kind: "exhausted", reasoning: body.reasoning } };
+  if (body.status === "exhausted") return { ok: true, value: { kind: "exhausted", reasoning: body.reasoning, weather: body.weather } };
 
   const outfit = await buildOutfit(
     gateway,
@@ -203,7 +220,7 @@ async function generate(gateway: TodayGateway, date: ISODate, rejectedIds: UUID[
   );
   if (!outfit.ok) return outfit;
   if (!outfit.value) return { ok: false, error: "Could not load your outfit. Please try again." };
-  return { ok: true, value: { kind: "outfit", outfit: outfit.value } };
+  return { ok: true, value: { kind: "outfit", outfit: outfit.value, weather: body.weather } };
 }
 
 // Opening the screen again on the same day shows the same outfit instead of
@@ -218,7 +235,7 @@ export async function loadToday(gateway: TodayGateway, date: ISODate): Promise<R
   if (latest && latest.feedback !== "down") {
     const outfit = await buildOutfit(gateway, latest, null);
     if (!outfit.ok) return outfit;
-    if (outfit.value) return { ok: true, value: { kind: "outfit", outfit: outfit.value } };
+    if (outfit.value) return { ok: true, value: { kind: "outfit", outfit: outfit.value, weather: null } };
   }
   return generate(gateway, date, rejected);
 }

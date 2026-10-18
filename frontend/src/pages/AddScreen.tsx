@@ -1,3 +1,4 @@
+import { decode } from "base64-arraybuffer";
 import * as ImagePicker from "expo-image-picker";
 import { useState } from "react";
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from "react-native";
@@ -6,17 +7,19 @@ import { ErrorLine } from "../components/common/ErrorLine";
 import { Icon, type IconName } from "../components/common/Icon";
 import { Screen } from "../components/common/Screen";
 import { GarmentForm } from "../components/closet/GarmentForm";
-import { addPhoto, discardPhoto, saveGarment, type UploadedPhoto } from "../services/add";
-import { chooseValue, confirmField, missingFields, needsAttention, type ReviewState } from "../services/garment";
+import { addPhoto, confirmTag, discardPhoto, saveGarment, setTag, unconfirmedFields, type ReviewState } from "../services/add";
+import { draftFromTags } from "../services/garment";
+import { newPhotoId } from "../services/photoId";
 import { addGateway } from "../services/supabase";
 import { colors, fonts, radius, size, type } from "../theme";
 
 type Step =
   | { kind: "choose" }
   | { kind: "working" }
-  | { kind: "review"; photo: UploadedPhoto; uri: string; review: ReviewState };
+  | { kind: "review"; uri: string; review: ReviewState };
 
-// Smaller than a full-resolution photo, still sharp enough for the AI to read.
+// Smaller than a full-resolution photo, still sharp enough for the AI to read. With a quality
+// below 1 the picker hands back a JPEG, which is what the upload is told it is.
 const PICKER_OPTIONS = { quality: 0.7, base64: true } as const;
 
 function OptionCard({ icon, title, subtitle, onPress }: { icon: IconName; title: string; subtitle: string; onPress: () => void }) {
@@ -32,7 +35,9 @@ function OptionCard({ icon, title, subtitle, onPress }: { icon: IconName; title:
 }
 
 // Add a garment (decisions D4 and D18): photo, the AI suggests tags, the person confirms, save.
-export function AddScreen() {
+// The steps (upload, ask the AI, review rules, save) are in services/add.ts; this screen picks
+// the photo and shows the review.
+export function AddScreen({ userId }: { userId: string }) {
   const [step, setStep] = useState<Step>({ kind: "choose" });
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -48,13 +53,13 @@ export function AddScreen() {
     setError(null);
     setSaved(false);
     setStep({ kind: "working" });
-    const added = await addPhoto(addGateway, asset.base64);
+    const added = await addPhoto(addGateway, userId, { data: decode(asset.base64), extension: "jpg" }, newPhotoId);
     if (!added.ok) {
       setStep({ kind: "choose" });
       setError(added.error);
       return;
     }
-    setStep({ kind: "review", photo: added.value, uri: asset.uri, review: added.value.review });
+    setStep({ kind: "review", uri: asset.uri, review: added.value });
   }
 
   async function takePhoto() {
@@ -80,18 +85,18 @@ export function AddScreen() {
     }
   }
 
-  async function retake(photo: UploadedPhoto) {
+  async function retake(review: ReviewState) {
     setBusy(true);
-    await discardPhoto(addGateway, photo.path);
+    await discardPhoto(addGateway, review);
     setBusy(false);
     setError(null);
     setStep({ kind: "choose" });
   }
 
-  async function save(current: Extract<Step, { kind: "review" }>) {
+  async function save(review: ReviewState) {
     setBusy(true);
     setError(null);
-    const result = await saveGarment(addGateway, current.photo, current.review);
+    const result = await saveGarment(addGateway, userId, review);
     setBusy(false);
     if (result.ok) {
       setSaved(true);
@@ -113,13 +118,13 @@ export function AddScreen() {
   }
 
   if (step.kind === "review") {
-    const { photo, uri, review } = step;
-    const update = (next: ReviewState) => setStep({ kind: "review", photo, uri, review: next });
-    const suggested = missingFields(review.draft).length < 4;
+    const { uri, review } = step;
+    const update = (next: ReviewState) => setStep({ kind: "review", uri, review: next });
+    const notice = review.warnings.join(" ");
     return (
       <Screen key="review" top={20}>
         <View style={styles.reviewHeader}>
-          <Pressable accessibilityRole="button" onPress={() => retake(photo)} disabled={busy} hitSlop={8} style={styles.retake}>
+          <Pressable accessibilityRole="button" onPress={() => retake(review)} disabled={busy} hitSlop={8} style={styles.retake}>
             <Icon name="back" size={24} />
             <Text style={styles.retakeText}>Retake</Text>
           </Pressable>
@@ -129,21 +134,21 @@ export function AddScreen() {
           <View style={styles.retake} />
         </View>
         <Image source={{ uri }} accessibilityLabel="Your photo" style={styles.photo} resizeMode="cover" />
-        {photo.notice && <Text style={styles.notice}>{photo.notice}</Text>}
+        {notice !== "" && <Text style={styles.notice}>{notice}</Text>}
         <Text style={type.body}>
-          {suggested
-            ? "Tags are filled in for you. Check them and fix anything that is off before saving."
-            : "Choose the tags for this garment."}
+          {review.manual
+            ? "Choose the tags for this garment."
+            : "Tags are filled in for you. Check them and fix anything that is off before saving."}
         </Text>
         <GarmentForm
-          draft={review.draft}
-          attention={needsAttention(review)}
-          onChoose={(field, value) => update(chooseValue(review, field, value))}
-          onConfirm={(field) => update(confirmField(review, field))}
+          draft={draftFromTags(review.tags)}
+          attention={unconfirmedFields(review)}
+          onChoose={(field, value) => update(setTag(review, field, value))}
+          onConfirm={(field) => update(confirmTag(review, field))}
         />
         <View style={styles.actions}>
           {error && <ErrorLine message={error} />}
-          <Button label="Confirm and save" onPress={() => save(step)} busy={busy} />
+          <Button label="Confirm and save" onPress={() => save(review)} busy={busy} />
         </View>
       </Screen>
     );

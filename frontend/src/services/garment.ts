@@ -15,7 +15,7 @@ import {
   type Season,
   type Warmth,
 } from "../../../supabase/functions/_shared/tag-schema.ts";
-import type { AnalyzeGarmentResponse, GarmentTags } from "../../../supabase/functions/_shared/types.ts";
+import type { GarmentTags } from "../../../supabase/functions/_shared/types.ts";
 
 export const TYPE_LABELS: Record<GarmentType, string> = {
   t_shirt: "t-shirt",
@@ -125,51 +125,4 @@ export function missingFields(draft: GarmentDraft): TagField[] {
 
 export function isComplete(draft: GarmentDraft): draft is GarmentTags {
   return missingFields(draft).length === 0;
-}
-
-// ---- Review: the person confirms what the AI suggested (decision D4) ---------
-
-export interface ReviewState {
-  draft: GarmentDraft;
-  // Fields the AI left out or was unsure about: the person must settle each before saving.
-  flagged: TagField[];
-  // Flagged fields the person has settled, by choosing a value or confirming the suggestion.
-  confirmed: TagField[];
-}
-
-export function startReview(analysis: Pick<AnalyzeGarmentResponse, "tags" | "needs_review">): ReviewState {
-  const draft = draftFromTags(analysis.tags);
-  const flagged = TAG_FIELDS.filter((f) => analysis.needs_review.includes(f) || draft[f] === null);
-  return { draft, flagged, confirmed: [] };
-}
-
-// No suggestion at all (the AI was unavailable): every field is up to the person.
-export function manualReview(): ReviewState {
-  return { draft: emptyDraft(), flagged: [...TAG_FIELDS], confirmed: [] };
-}
-
-const settle = (confirmed: TagField[], field: TagField) => (confirmed.includes(field) ? confirmed : [...confirmed, field]);
-
-// Choosing a value counts as checking that field.
-export function chooseValue<F extends TagField>(state: ReviewState, field: F, value: GarmentTags[F]): ReviewState {
-  return { ...state, draft: setField(state.draft, field, value), confirmed: settle(state.confirmed, field) };
-}
-
-// "Looks right": keeps the suggested value. A field with no value cannot be confirmed.
-export function confirmField(state: ReviewState, field: TagField): ReviewState {
-  if (state.draft[field] === null) return state;
-  return { ...state, confirmed: settle(state.confirmed, field) };
-}
-
-export const needsAttention = (state: ReviewState): TagField[] =>
-  state.flagged.filter((f) => !state.confirmed.includes(f));
-
-export function reviewProblem(state: ReviewState): string | null {
-  const missing = missingFields(state.draft);
-  if (missing.length > 0) return `Choose ${missing.map((f) => FIELD_LABELS[f].toLowerCase()).join(", ")}.`;
-  const unsettled = needsAttention(state);
-  if (unsettled.length > 0) {
-    return `Check ${unsettled.map((f) => FIELD_LABELS[f].toLowerCase()).join(", ")} before saving.`;
-  }
-  return null;
 }
