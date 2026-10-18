@@ -76,6 +76,13 @@ Individual AI audit log for CSCI 4397/6397 (capstone). Manuel keeps his in `used
 - **AI mistakes caught:** after rewriting `today.ts` with PowerShell it had again added an invisible byte-order mark to the file; it checked the first bytes, found it and removed it before any commit.
 - **Not verified:** the camera and library on my phone; a real upload and a real `analyze-garment` call against the project; that the base64 decoding works on the device. The review screen's look is unchecked against the board.
 
+### 10. Closet screen: list, filters, edit, delete, clean/dirty (2026-10-18, PR pending)
+- **Asked:** the third missing MVP piece, the closet view with marking clean or dirty.
+- **AI produced:** read the board's Closet and Edit garment screens, then built `services/closet.ts` (filters by category, status and owner; load newest first with photo links; save edits; delete the garment and then its photo), `closetGateway.ts`, a shared `storage.ts` (signed photo links in batches of 100, now used by Today, Add and Closet), `ClosetScreen`, `ClosetTile`, `GarmentEditScreen` (reusing the Add review's `GarmentForm`) and the Closet tab. A household member's garment opens read-only. It pointed out a trap I would not have thought of: when the database refuses an edit or delete (someone else's garment), Supabase answers **success with zero rows changed**, so the app would have said "Saved" for a change that did nothing. The gateway now asks for the changed rows back and treats an empty answer as a failure, with tests.
+- **Verified:** 447 tests, 100% coverage on the new files, `tsc` clean in both projects, iOS bundle builds. Then I had it **break its own code six ways** (the "Others" filter also showing mine, deleting the photo when the garment delete failed, saving an edit with a tag missing, not listing newest first, treating a refused edit as success, skipping photo-link batches): **every break was caught by a test**.
+- **AI mistake caught:** one of its own new tests failed on first run; the cause was its test data (every photo path was built from my id, even for a housemate's garment), not the app code. It fixed the test helper rather than weakening the check.
+- **Not verified:** the whole screen on my phone; real photos in the grid; edit and delete against the real project; a household member's read-only view with a second account (it needs one). The grid sizing and the look against the board are unchecked.
+
 ---
 
 ## Where the AI was wrong (friction summary)
@@ -92,3 +99,4 @@ Individual AI audit log for CSCI 4397/6397 (capstone). Manuel keeps his in `used
 | 2026-10-08 | My audit-log branch wrote to Manuel's `usedPrompts.md`; his file already existed on `main` | Fetched `main` before opening the PR and read `CLAUDE.md` |
 | 2026-10-08 | Stacked PRs: the quiz was merged into an already-merged branch and never reached `main` | `git fetch` showed the quiz commits missing from `main` |
 | 2026-10-18 | PowerShell added an invisible byte-order mark to `today.ts` (second time) | Checked the file's first bytes before committing |
+| 2026-10-18 | A new test failed on its first run because its own test data was wrong (not the app) | Test failure output; the AI fixed the data, not the check |

@@ -4,6 +4,10 @@ import type { AnalyzeGarmentResponse } from "../../../supabase/functions/_shared
 import type { AddGateway } from "./add.ts";
 import { invokeFunction, type FunctionsClientLike } from "./edgeFunctions.ts";
 import type { GatewayError, GatewayResult } from "./household.ts";
+import { GARMENT_BUCKET } from "./storage.ts";
+
+// Kept exported from here for the tests that already import it.
+export { GARMENT_BUCKET };
 
 type Reply = { data: unknown; error: { message: string } | null };
 
@@ -17,8 +21,6 @@ export interface AddClientLike extends FunctionsClientLike {
   };
   auth: { getUser(): PromiseLike<{ data: { user: { id: string } | null }; error: { message: string } | null }> };
 }
-
-export const GARMENT_BUCKET = "garments";
 
 const typed = <T>(res: Reply): GatewayResult<T> => ({ data: res.error ? null : (res.data as T), error: res.error });
 

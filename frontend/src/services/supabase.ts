@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { supabaseGateway, type SupabaseLike } from "./householdGateway";
 import { decode } from "base64-arraybuffer";
 import { supabaseAddGateway, type AddClientLike } from "./addGateway";
+import { supabaseClosetGateway, type ClosetClientLike } from "./closetGateway";
 import { supabaseTodayGateway, type TodayClientLike } from "./todayGateway";
 
 const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
@@ -29,3 +30,4 @@ export const supabase = createClient(url, anonKey, {
 export const gateway = supabaseGateway(supabase as unknown as SupabaseLike);
 export const todayGateway = supabaseTodayGateway(supabase as unknown as TodayClientLike);
 export const addGateway = supabaseAddGateway(supabase as unknown as AddClientLike, decode);
+export const closetGateway = supabaseClosetGateway(supabase as unknown as ClosetClientLike);

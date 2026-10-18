@@ -3,6 +3,10 @@
 import type { FeedbackValue, GenerateOutfitResponse } from "../../../supabase/functions/_shared/types.ts";
 import { invokeFunction, type FunctionsClientLike } from "./edgeFunctions.ts";
 import type { GatewayError, GatewayResult } from "./household.ts";
+import { GARMENT_BUCKET, PHOTO_LINK_SECONDS, signPhotoUrls, type StorageClientLike } from "./storage.ts";
+
+// Kept exported from here for the tests that already import them.
+export { GARMENT_BUCKET, PHOTO_LINK_SECONDS };
 import type { GarmentRow, SuggestionRow, TodayGateway } from "./today.ts";
 
 type Reply = { data: unknown; error: { message: string } | null };
@@ -15,27 +19,12 @@ interface Query {
   then: PromiseLike<Reply>["then"];
 }
 
-export interface TodayClientLike {
+export interface TodayClientLike extends StorageClientLike {
   from(table: string): Query;
   rpc(fn: string, args: Record<string, unknown>): PromiseLike<Reply>;
   functions: FunctionsClientLike["functions"];
-  storage: {
-    from(bucket: string): {
-      createSignedUrls(
-        paths: string[],
-        expiresIn: number,
-      ): Promise<{
-        data: { path: string | null; signedUrl: string; error: string | null }[] | null;
-        error: { message: string } | null;
-      }>;
-    };
-  };
   auth: { getUser(): PromiseLike<{ data: { user: { id: string } | null }; error: { message: string } | null }> };
 }
-
-export const GARMENT_BUCKET = "garments";
-// Long enough to stay open for a day's use, short enough that a leaked link expires.
-export const PHOTO_LINK_SECONDS = 3600;
 
 const typed = <T>(res: Reply): GatewayResult<T> => ({
   data: res.error ? null : (res.data as T),
@@ -67,14 +56,8 @@ export function supabaseTodayGateway(client: TodayClientLike): TodayGateway {
         await client.from("garments").select("id, type, color, season, warmth, status, image_path").in("id", ids),
       );
     },
-    async signPhotos(paths) {
-      const { data, error } = await client.storage.from(GARMENT_BUCKET).createSignedUrls(paths, PHOTO_LINK_SECONDS);
-      if (error) return { data: null, error };
-      const urls: Record<string, string> = {};
-      for (const entry of data ?? []) {
-        if (entry.path && !entry.error) urls[entry.path] = entry.signedUrl;
-      }
-      return { data: urls, error: null };
+    signPhotos(paths) {
+      return signPhotoUrls(client, paths);
     },
     generateOutfit(date, excludeSuggestionIds) {
       const body = excludeSuggestionIds.length > 0 ? { date, exclude_suggestion_ids: excludeSuggestionIds } : { date };
