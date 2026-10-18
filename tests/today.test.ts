@@ -384,6 +384,12 @@ describe("nextIdea (the Style Swipe deck)", () => {
     });
   });
 
+  it("shows an idea made of dirty clothes, but today's outfit still refuses them", async () => {
+    const dirty = CLOSET.map((x) => ({ ...x, status: "dirty" as const }));
+    expect(await nextIdea(gateway({}, dirty), DATE, [])).toMatchObject({ ok: true, value: { kind: "outfit" } });
+    expect(await loadToday(gateway({}, dirty), DATE)).toEqual({ ok: false, error: "Could not load your outfit. Please try again." });
+  });
+
   it("never asks the saved suggestions for today, and today's own requests carry no purpose", async () => {
     const g = gateway({ loadSuggestions: vi.fn(async () => ok([suggestion("s-1", { feedback: "down" })])) });
     await loadToday(g, DATE);

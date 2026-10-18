@@ -84,6 +84,7 @@ export async function handleGenerateOutfit(
     tempComfort: profile.quiz_preferences?.temp_comfort ?? "neutral",
     date: request.date,
     excludedOutfits,
+    includeDirty: purpose === "explore",
   });
   if (result.status !== "ok") return { ok: true, body: { ...result, weather } };
 

@@ -147,6 +147,14 @@ describe("handleGenerateOutfit", () => {
     expect(kinds).toEqual([undefined, undefined, "explore"]);
   });
 
+  it("only explore ideas may use dirty clothes; today's outfit never does", async () => {
+    const dirtyCloset = closet().map((x) => ({ ...x, status: "dirty" as const }));
+    const today = await handleGenerateOutfit(USER, { date: "2026-10-05" }, fakeBackend({ garments: dirtyCloset }).generate);
+    expect(today).toMatchObject({ ok: true, body: { status: "incomplete" } });
+    const explore = await handleGenerateOutfit(USER, { date: "2026-10-05", purpose: "explore" }, fakeBackend({ garments: dirtyCloset }).generate);
+    expect(explore).toMatchObject({ ok: true, body: { status: "ok" } });
+  });
+
   it("explore mode skips the ideas already judged, like a re-roll", async () => {
     const b = fakeBackend();
     const seen = new Set<string>();

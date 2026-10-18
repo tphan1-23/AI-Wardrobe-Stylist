@@ -117,6 +117,12 @@ Individual AI audit log for CSCI 4397/6397 (capstone). Manuel keeps his in `used
 - **Verified:** in-memory Postgres run of all seven migrations (top and bottom dirty, shoes still clean, items not in the outfit untouched, another person's clothes and suggestions untouched, running it twice is harmless); a test that keeps the shoe list in the SQL equal to the shoes in the app's type list; 539 tests, type checks. A deliberate break (removing boots from the SQL list) made the test fail, then I restored it.
 - **Not verified:** the migration on the real Supabase project (I have to paste it in by hand) and the new Today message on my phone. Manuel's `scripts/e2e.ts` accepts a suggestion, so its test clothes end up dirty after a run; I told him in the Work Plan.
 
+### 16. Style Swipe ignores laundry status (2026-10-18, PR pending)
+- **Asked:** Style Swipe is only for training the AI, so it should recommend clothes whether they are clean or dirty.
+- **AI produced:** a point I should have noticed after entry 15: once wearing marks clothes dirty, Style Swipe ideas would shrink to whatever is clean, because both screens share the same outfit engine. It added an `includeDirty` option to the scoring function, turned on only when the request is an "explore" idea (Today never sets it), and let the Style Swipe screen show dirty items. This touches Manuel's AI core (`scoring.ts`, `handlers.ts`), so he reviews it.
+- **Verified:** three new tests (scoring with and without the option; Today's request still refuses dirty clothes while an explore request accepts them; the screen logic shows a dirty idea but still refuses it for Today). A deliberate break (allowing dirty for every request) made the handler test fail. 542 tests pass.
+- **Not verified:** on my phone. The `generate-outfit` function must be redeployed before the app behaves this way; until then Style Swipe still skips dirty clothes.
+
 ---
 
 ## Where the AI was wrong (friction summary)
