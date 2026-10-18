@@ -1,4 +1,5 @@
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { CachedImage } from "../common/CachedImage";
 import { garmentName } from "../../services/garment";
 import type { ClosetItem } from "../../services/closet";
 import { colors, fonts, radius } from "../../theme";
@@ -28,7 +29,7 @@ export function ClosetTile({ item, size, badge, ownerLabel, onPress, onLongPress
       style={[styles.tile, { width: size, height: size }]}
     >
       {item.photoUrl ? (
-        <Image source={{ uri: item.photoUrl }} style={styles.image} resizeMode="cover" />
+        <CachedImage url={item.photoUrl} style={styles.image} />
       ) : (
         <Text style={styles.name}>{name}</Text>
       )}

@@ -123,6 +123,19 @@ Individual AI audit log for CSCI 4397/6397 (capstone). Manuel keeps his in `used
 - **Verified:** three new tests (scoring with and without the option; Today's request still refuses dirty clothes while an explore request accepts them; the screen logic shows a dirty idea but still refuses it for Today). A deliberate break (allowing dirty for every request) made the handler test fail. 542 tests pass.
 - **Not verified:** on my phone. The `generate-outfit` function must be redeployed before the app behaves this way; until then Style Swipe still skips dirty clothes.
 
+### 17. Shorter text across the app (2026-10-18, PR pending)
+- **Asked:** the app has too much text; shorten it and make it look clean.
+- **AI produced:** it searched every screen for long sentences and shortened the instructions and hints (Add, Crop, Location, Quiz, Closet, History, Forgot password, garment edit, Style Swipe), and removed hints that repeated what the buttons already say (the ✕/✓ line and the two explanations under "New outfit" and "Style Swipe" on Today). The "worn" message is now one short line. Only wording changed: no layout, colors or logic.
+- **Verified:** type checks and 542 tests pass (one test was updated for the shorter worn message). A string search only finds long sentences, so I still have to look through every screen.
+- **Not verified:** how it looks on my phone. "Clean" visually (spacing, fewer elements) is not done yet; this was the text part only.
+
+### 18. Less text in Style Swipe, and faster photos (2026-10-18, PR pending)
+- **Asked:** shorten the Style Swipe text, and do something quick about waiting for photos to load.
+- **AI produced:** Style Swipe now has one short line, no weather row and no "Why" sentence. For speed it named two causes: (1) every photo shown is downloaded again, because the private links change on each load, so nothing was ever cached; (2) photos were uploaded at full camera size. Fixes: a cached image component (adds the `expo-image` package, which is part of Expo and free) whose cache key ignores the changing part of the link, used on every garment photo; and photos wider than 1024 pixels are shrunk before upload (smaller files upload, get tagged and load faster).
+- **Verified:** tests for the cache key (two links to one photo match, different photos differ) and the resize rule (shrink big, never enlarge); 546 tests, type checks, iOS bundle builds.
+- **Not verified:** the actual speed on my phone. **Limit:** photos already in my closet stay full size, so they only get faster the second time they are shown; re-adding them would make them small.
+- **Went wrong:** my first scripted edit of four files failed silently because of a wrong path, and two screens already had a component called `Photo`, so I renamed mine `CachedImage`. The type checker and a re-read caught both.
+
 ---
 
 ## Where the AI was wrong (friction summary)

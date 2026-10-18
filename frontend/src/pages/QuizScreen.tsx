@@ -49,7 +49,7 @@ export function QuizScreen({ onDone }: { onDone: () => void }) {
   }
 
   return (
-    <Screen title="Your style" subtitle="Pick what fits. This sets your starting preferences.">
+    <Screen title="Your style" subtitle="Pick what fits you.">
       <StepIndicator step={2} total={2} />
 
       <Question title="How do you usually dress?" hint="Pick at least one">

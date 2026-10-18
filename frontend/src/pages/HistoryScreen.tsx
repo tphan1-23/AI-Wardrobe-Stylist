@@ -88,8 +88,8 @@ export function HistoryScreen() {
           <Text style={type.cardTitle}>{view === "worn" ? "Nothing worn yet" : "No favorite outfits yet"}</Text>
           <Text style={type.body}>
             {view === "worn"
-              ? "Tap the check on the Today screen when you wear an outfit, and it will show up here for 7 days."
-              : "Open the last 7 days and tap the heart on an outfit you like."}
+              ? "Outfits you wear show up here for 7 days."
+              : "Tap the heart on an outfit you like."}
           </Text>
         </View>
       );

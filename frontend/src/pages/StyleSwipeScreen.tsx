@@ -8,7 +8,7 @@ import { OutfitCard } from "../components/outfit/OutfitCard";
 import { setOutfitFavorite } from "../services/history";
 import { SWIPE_DISTANCE_FRACTION, createDeck, decideSwipe, type DeckState, type Swipe } from "../services/styleSwipe";
 import { historyGateway, todayGateway } from "../services/supabase";
-import { todayString, weatherLine } from "../services/today";
+import { todayString } from "../services/today";
 import { colors, fonts, radius, size, type } from "../theme";
 
 const BUTTON = 64;
@@ -120,7 +120,7 @@ export function StyleSwipeScreen({ location, onBack }: { location: string | null
       return (
         <View style={styles.center}>
           <ActivityIndicator color={colors.ink} />
-          <Text style={type.body}>Finding outfit ideas…</Text>
+          <Text style={type.body}>Finding ideas…</Text>
         </View>
       );
     }
@@ -142,7 +142,7 @@ export function StyleSwipeScreen({ location, onBack }: { location: string | null
           </Text>
           <Text style={type.body}>
             {state.end.kind === "exhausted"
-              ? `You judged ${state.judged} ${state.judged === 1 ? "outfit" : "outfits"}. Add more clothes to your closet for more ideas, or come back later.`
+              ? `You judged ${state.judged} ${state.judged === 1 ? "outfit" : "outfits"}. Add more clothes for more ideas.`
               : state.end.reasoning}
           </Text>
           <Button label="Back to Today" onPress={onBack} />
@@ -169,12 +169,6 @@ export function StyleSwipeScreen({ location, onBack }: { location: string | null
             </View>
           )}
         </View>
-        {current.reasoning ? (
-          <Text style={styles.why}>
-            <Text style={styles.whyLabel}>Why: </Text>
-            {current.reasoning}
-          </Text>
-        ) : null}
         {state.warning && <ErrorLine message={`Your last swipe could not be saved. ${state.warning}`} />}
         {error && <ErrorLine message={error} />}
         <View style={styles.answers}>
@@ -211,7 +205,6 @@ export function StyleSwipeScreen({ location, onBack }: { location: string | null
     );
   }
 
-  const weather = weatherLine(location, state?.weather ?? null);
   return (
     <Screen top={20}>
       <View style={styles.header}>
@@ -224,16 +217,7 @@ export function StyleSwipeScreen({ location, onBack }: { location: string | null
         </Text>
         <Text style={styles.count}>{state ? `${state.judged} judged` : ""}</Text>
       </View>
-      <Text style={type.body}>
-        Swipe right on outfits you like and left on ones you do not. The AI learns your taste from every swipe. Tap the heart to
-        save an outfit to your favorites.
-      </Text>
-      {weather !== "" && (
-        <View style={styles.weather}>
-          <Icon name="cloud" size={22} />
-          <Text style={styles.weatherText}>{weather}</Text>
-        </View>
-      )}
+      <Text style={type.body}>Swipe right to like, left to skip.</Text>
       {body()}
     </Screen>
   );

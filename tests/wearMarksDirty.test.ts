@@ -13,7 +13,7 @@ describe("laundry after wearing an outfit", () => {
   it("tells the person what happened", () => {
     const message = wornMessage();
     expect(message).toContain("top and bottom");
-    expect(message).toContain("Shoes stay clean");
+    expect(message.toLowerCase()).not.toContain("shoes");
   });
 });
 

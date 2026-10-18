@@ -32,7 +32,7 @@ export function LocationScreen({ initialLocation = "", submitLabel = "Save locat
   }
 
   return (
-    <Screen title="Where are you?" subtitle="We use your city or ZIP code to check the weather for your daily outfit.">
+    <Screen title="Where are you?" subtitle="City or ZIP code, for the weather.">
       {step && <StepIndicator step={step.current} total={step.total} />}
       <TextField
         label="City or ZIP code"

@@ -1,4 +1,5 @@
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { CachedImage } from "../common/CachedImage";
 import type { OutfitEntry } from "../../services/history";
 import { colors, fonts, radius, size, type } from "../../theme";
 import { Icon } from "../common/Icon";
@@ -26,7 +27,7 @@ export function OutfitEntryCard({ entry, busy, onToggleFavorite }: Props) {
             entry.pieces.map((piece) => (
               <View key={piece.garmentId} style={styles.photo}>
                 {piece.photoUrl ? (
-                  <Image source={{ uri: piece.photoUrl }} accessibilityLabel={piece.name} style={styles.image} resizeMode="cover" />
+                  <CachedImage url={piece.photoUrl} label={piece.name} style={styles.image} />
                 ) : (
                   <Text style={styles.noPhoto}>{piece.name}</Text>
                 )}

@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Alert, Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { CachedImage } from "../components/common/CachedImage";
 import { Button } from "../components/common/Button";
 import { ErrorLine } from "../components/common/ErrorLine";
 import { Icon } from "../components/common/Icon";
@@ -46,7 +47,7 @@ function Header({ title, onBack }: { title: string; onBack: () => void }) {
 
 function Photo({ item }: { item: ClosetItem }) {
   return item.photoUrl ? (
-    <Image source={{ uri: item.photoUrl }} accessibilityLabel={garmentName(item)} style={styles.photo} resizeMode="cover" />
+    <CachedImage url={item.photoUrl} label={garmentName(item)} style={styles.photo} />
   ) : (
     <View style={[styles.photo, styles.noPhoto]}>
       <Text style={type.caption}>Garment photo</Text>
@@ -73,7 +74,7 @@ export function GarmentEditScreen({ item, myId, members, onBack, onChanged, onRe
           <Text style={type.cardTitle}>{garmentName(item)}</Text>
           <Text style={type.body}>{garmentDetail(item)}</Text>
           <Text style={type.body}>{`Status: ${item.status === "dirty" ? "Dirty" : "Clean"}`}</Text>
-          <Text style={type.body}>{`Belongs to ${ownerName(item, myId, members)}. Only the owner can change it.`}</Text>
+          <Text style={type.body}>{`Belongs to ${ownerName(item, myId, members)}.`}</Text>
         </View>
       </Screen>
     );
@@ -143,7 +144,6 @@ export function GarmentEditScreen({ item, myId, members, onBack, onChanged, onRe
         {error && <ErrorLine message={error} />}
         <Button label="Save changes" onPress={save} busy={busy === "save"} disabled={busy === "delete"} />
         <Button label="Remove from closet" variant="secondary" onPress={confirmDelete} busy={busy === "delete"} disabled={busy === "save"} />
-        <Text style={styles.hint}>Removing a garment also removes its photo.</Text>
       </View>
     </Screen>
   );

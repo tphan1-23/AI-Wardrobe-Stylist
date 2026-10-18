@@ -64,7 +64,7 @@ export function ForgotPasswordScreen({ onBack, onDone }: Props) {
       <Screen
         top={72}
         title="Forgot your password?"
-        subtitle="Enter your email and we will send you a code to choose a new one."
+        subtitle="We will email you a code."
       >
         <TextField
           label="Email"
@@ -90,7 +90,7 @@ export function ForgotPasswordScreen({ onBack, onDone }: Props) {
     <Screen
       top={72}
       title="Check your email"
-      subtitle={`If an account exists for ${email.trim()}, we sent it a code. Enter it below with your new password.`}
+      subtitle={`Code sent to ${email.trim()}, if it has an account.`}
     >
       <View style={styles.form}>
         <TextField
