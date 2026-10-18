@@ -97,6 +97,19 @@ const NETWORK_ERROR = "Could not reach the server. Check your connection and try
 
 export const SLOT_LABELS: Record<OutfitSlot, string> = { top: "Top", bottom: "Bottom", shoes: "Shoes" };
 
+// ---- Laundry after wearing (decision D21) ----
+
+// Wearing an outfit sends everything except the shoes to the laundry (the database function
+// `accept_suggestion`, migration 0007, does it). Shoes are not marked dirty automatically.
+export function laundrySlots(): OutfitSlot[] {
+  return OUTFIT_SLOTS.filter((slot) => slot !== "shoes");
+}
+
+export function wornMessage(): string {
+  const names = laundrySlots().map((slot) => SLOT_LABELS[slot].toLowerCase());
+  return `You are wearing this today. The ${names.join(" and ")} are now in the laundry, so a new outfit will not use them. Shoes stay clean.`;
+}
+
 // ---- Weather line ----
 
 const toFahrenheit = (celsius: number) => Math.round((celsius * 9) / 5 + 32);

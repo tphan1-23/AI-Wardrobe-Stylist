@@ -90,7 +90,7 @@ clothes. Daily suggestions use the user's own closet only. Preferences, location
    AI is at its limit (429) or down (502), the user types the tags.
 3. **Daily suggestion:** the app calls `generate-outfit` → the function reads the user's clean garments, weather and
    preference weights → returns an outfit (or `incomplete` / `exhausted`) and saves it to `suggestions`.
-   Accepting it calls the `accept_suggestion` RPC, which marks the items worn today.
+   Accepting it calls the `accept_suggestion` RPC, which marks the items worn today and sends everything except the shoes to the laundry (dirty), so a second outfit that day cannot reuse them.
 4. **Feedback loop:** thumbs up/down → `update-preferences` adjusts the weights once per suggestion; a thumbs down
    immediately re-rolls with the rejected suggestion excluded.
 

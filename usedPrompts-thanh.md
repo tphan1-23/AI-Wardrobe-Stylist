@@ -111,6 +111,12 @@ Individual AI audit log for CSCI 4397/6397 (capstone). Manuel keeps his in `used
 - **Verified:** 534 tests, type checks, iOS bundle; seven more deliberate breaks (frame dragged off the photo, frame shrinking to nothing, wrong pixel scale, a cropped photo counted as full, photo not centered, New outfit repeating the worn one, Favorites listing the wrong outfits): all caught.
 - **Not verified:** the crop gestures and the real cut on my phone (they use `PanResponder` inside a scrolling screen), the long-press removal, and the heart in Style Swipe against the real database.
 
+### 15. Wearing an outfit sends it to the laundry, except shoes (2026-10-18, PR pending)
+- **Asked:** "when an outfit is worn, mark the items that are in the outfit dirty except the shoes, then if the users want a new outfit for the day, it can't be recommended the dirty stuff." While it was working I added: "we don't auto mark shoes as dirty."
+- **AI produced:** it found that the suggestion engine already skips anything not clean, so the rule only needed to live where the outfit is accepted: a new migration (`0007`) that replaces the `accept_suggestion` database function so it also marks every worn item dirty except sneakers, boots, sandals and dress shoes. It recorded the change as decision D21 (it overrides the "no auto-dirty" line of D3) and made the Today message say what happened.
+- **Verified:** in-memory Postgres run of all seven migrations (top and bottom dirty, shoes still clean, items not in the outfit untouched, another person's clothes and suggestions untouched, running it twice is harmless); a test that keeps the shoe list in the SQL equal to the shoes in the app's type list; 539 tests, type checks. A deliberate break (removing boots from the SQL list) made the test fail, then I restored it.
+- **Not verified:** the migration on the real Supabase project (I have to paste it in by hand) and the new Today message on my phone. Manuel's `scripts/e2e.ts` accepts a suggestion, so its test clothes end up dirty after a run; I told him in the Work Plan.
+
 ---
 
 ## Where the AI was wrong (friction summary)

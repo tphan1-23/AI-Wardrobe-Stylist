@@ -12,6 +12,7 @@ import {
   rejectOutfit,
   todayString,
   weatherLine,
+  wornMessage,
   wearOutfit,
   type OutfitView,
   type TodayState,
@@ -161,7 +162,7 @@ export function TodayScreen({ location }: { location: string | null }) {
           <View style={styles.gap}>
             <View style={styles.worn}>
               <Icon name="check" />
-              <Text style={styles.wornText}>You are wearing this today. Marked as worn.</Text>
+              <Text style={styles.wornText}>{wornMessage()}</Text>
             </View>
             <Button label="New outfit" variant="secondary" onPress={changeOutfit} busy={acting === "new"} disabled={acting !== null} />
             <Text style={styles.ideasHint}>Changing clothes? Get another outfit for today. This one stays in your history.</Text>
