@@ -60,6 +60,8 @@ weights, and avoids recently worn items.
 **Request** `{ "date": "YYYY-MM-DD", "exclude_suggestion_ids": ["uuid"] }` (the second field is optional; send the
 rejected suggestion ids to re-roll after a thumbs down; at most 50).
 
+Optional `"purpose"`: `"today"` (default) or `"explore"`. An **explore** idea is for the "Your judgement" deck: it is saved with `kind = 'explore'`, so it never replaces today's outfit and the Today screen and history must read only `kind = 'today'` suggestions. In explore mode `exclude_suggestion_ids` is the list of ideas already judged (thumbs up/down through `update-preferences`, once per idea). Any other value is a 400.
+
 **Response 200**, one of three shapes, told apart by `status`:
 ```json
 { "status": "ok", "suggestion_id": "uuid", "outfit": { "top": "uuid", "bottom": "uuid", "shoes": "uuid" },

@@ -138,6 +138,38 @@ describe("handleGenerateOutfit", () => {
     expect(res).toMatchObject({ ok: true, body: { status: "ok" } });
   });
 
+  it("stores today's suggestion without a kind and an explore idea as kind explore", async () => {
+    const b = fakeBackend();
+    await handleGenerateOutfit(USER, { date: "2026-10-05" }, b.generate);
+    await handleGenerateOutfit(USER, { date: "2026-10-05", purpose: "today" }, b.generate);
+    await handleGenerateOutfit(USER, { date: "2026-10-05", purpose: "explore" }, b.generate);
+    const kinds = [...b.state.suggestions.values()].map((s) => (s as { kind?: string }).kind);
+    expect(kinds).toEqual([undefined, undefined, "explore"]);
+  });
+
+  it("explore mode skips the ideas already judged, like a re-roll", async () => {
+    const b = fakeBackend();
+    const seen = new Set<string>();
+    const judged: string[] = [];
+    for (let i = 0; i < 2; i++) {
+      const res = await handleGenerateOutfit(USER, { date: "2026-10-05", purpose: "explore", exclude_suggestion_ids: judged }, b.generate);
+      if (!res.ok || res.body.status !== "ok") throw new Error("expected ok");
+      seen.add(Object.values(res.body.outfit).join("|"));
+      judged.push(res.body.suggestion_id);
+    }
+    expect(seen.size).toBe(2);
+    const last = await handleGenerateOutfit(USER, { date: "2026-10-05", purpose: "explore", exclude_suggestion_ids: judged }, b.generate);
+    expect(last).toMatchObject({ ok: true, body: { status: "exhausted" } });
+  });
+
+  it("rejects an unknown purpose", async () => {
+    const b = fakeBackend();
+    for (const purpose of ["history", "", 1, null]) {
+      expect(await handleGenerateOutfit(USER, { date: "2026-10-05", purpose } as never, b.generate)).toMatchObject({ ok: false, status: 400 });
+    }
+    expect(b.state.suggestions.size).toBe(0);
+  });
+
   it("never suggests a housemate's clothes, even when they are the best match (D18)", async () => {
     const theirs = (id: string, type: Garment["type"]) => g(id, type, "navy", { owner_id: HOUSEMATE });
     const b = fakeBackend({ garments: [...closet(), theirs("their-top", "t_shirt"), theirs("their-bottom", "jeans"), theirs("their-shoes", "sneakers")] });
