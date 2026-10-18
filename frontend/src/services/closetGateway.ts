@@ -49,7 +49,7 @@ export function supabaseClosetGateway(client: ClosetClientLike): ClosetGateway {
       return typed<ClosetRow[]>(
         await client
           .from("garments")
-          .select("id, owner_id, type, color, season, warmth, status, image_path, created_at")
+          .select("id, owner_id, type, color, season, warmth, status, favorite, image_path, created_at")
           .order("created_at", { ascending: false }),
       );
     },
@@ -58,6 +58,9 @@ export function supabaseClosetGateway(client: ClosetClientLike): ClosetGateway {
     },
     async updateGarment(id, changes) {
       return changedOne(await client.from("garments").update({ ...changes }).eq("id", id).select("id"));
+    },
+    async setFavorite(id, favorite) {
+      return changedOne(await client.from("garments").update({ favorite }).eq("id", id).select("id"));
     },
     async deleteGarment(id) {
       return changedOne(await client.from("garments").delete().eq("id", id).select("id"));

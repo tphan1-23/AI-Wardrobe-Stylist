@@ -1,27 +1,30 @@
 import Svg, { Circle, Path, Rect } from "react-native-svg";
 import { colors } from "../../theme";
 
-export type IconName = "logo" | "alert" | "copy" | "check" | "close" | "sun" | "home" | "plus" | "cloud" | "back" | "camera" | "image" | "grid";
+export type IconName = "logo" | "alert" | "copy" | "check" | "close" | "sun" | "home" | "plus" | "cloud" | "back" | "camera" | "image" | "grid" | "heart" | "clock";
 
-// Paths copied from the design board (24x24, rounded). `stroke` defaults to the board's 1.75;
-// the big answer buttons on the Today screen use 2.
+// Paths copied from the design board (24x24, rounded); heart and clock follow the same style.
+// `stroke` defaults to the board's 1.75 (the big answer buttons on the Today screen use 2).
+// `filled` fills the shape with the icon color: a heart is filled when the item is a favorite.
 export function Icon({
   name,
   size = 18,
   color = colors.ink,
   stroke = 1.75,
+  filled = false,
 }: {
   name: IconName;
   size?: number;
   color?: string;
   stroke?: number;
+  filled?: boolean;
 }) {
   return (
     <Svg
       width={size}
       height={size}
       viewBox="0 0 24 24"
-      fill="none"
+      fill={filled ? color : "none"}
       stroke={color}
       strokeWidth={stroke}
       strokeLinecap="round"
@@ -67,6 +70,15 @@ export function Icon({
         </>
       )}
       {name === "back" && <Path d="M15 5l-7 7 7 7" />}
+      {name === "heart" && (
+        <Path d="M12 20.5l-7.2-7.3a4.6 4.6 0 016.5-6.5l.7.7.7-.7a4.6 4.6 0 016.5 6.5z" />
+      )}
+      {name === "clock" && (
+        <>
+          <Circle cx={12} cy={12} r={9} />
+          <Path d="M12 7v5l3 2" />
+        </>
+      )}
       {name === "camera" && (
         <>
           <Path d="M4 8h3l2-3h6l2 3h3v12H4z" />

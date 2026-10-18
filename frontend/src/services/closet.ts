@@ -18,6 +18,7 @@ export interface ClosetRow {
   season: Season;
   warmth: Warmth;
   status: GarmentStatus;
+  favorite: boolean;
   image_path: string;
   created_at: string;
 }
@@ -42,6 +43,8 @@ export interface ClosetGateway {
   updateGarment(id: UUID, changes: GarmentChanges): Promise<GatewayResult<unknown>>;
   deleteGarment(id: UUID): Promise<GatewayResult<unknown>>;
   removePhoto(path: string): Promise<GatewayResult<unknown>>;
+  // Fails when the garment is not the caller's, like the two above.
+  setFavorite(id: UUID, favorite: boolean): Promise<GatewayResult<unknown>>;
 }
 
 // ---- Filters ----------------------------------------------------------------
@@ -49,14 +52,16 @@ export interface ClosetGateway {
 export type CategoryFilter = "all" | "top" | "bottom" | "shoes" | "other";
 export type StatusFilter = "all" | GarmentStatus;
 export type OwnerFilter = "all" | "mine" | "others";
+export type FavoritesFilter = "all" | "favorites";
 
 export interface ClosetFilters {
   category: CategoryFilter;
   status: StatusFilter;
   owner: OwnerFilter;
+  favorites: FavoritesFilter;
 }
 
-export const DEFAULT_FILTERS: ClosetFilters = { category: "all", status: "all", owner: "all" };
+export const DEFAULT_FILTERS: ClosetFilters = { category: "all", status: "all", owner: "all", favorites: "all" };
 
 export const CATEGORY_OPTIONS: { value: CategoryFilter; label: string }[] = [
   { value: "all", label: "All" },
@@ -78,6 +83,11 @@ export const OWNER_OPTIONS: { value: OwnerFilter; label: string }[] = [
   { value: "others", label: "Others" },
 ];
 
+export const FAVORITE_OPTIONS: { value: FavoritesFilter; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "favorites", label: "Favorites" },
+];
+
 export const isMine = (item: Pick<ClosetRow, "owner_id">, myId: UUID): boolean => item.owner_id === myId;
 
 export function filterItems<T extends ClosetRow>(items: T[], filters: ClosetFilters, myId: UUID): T[] {
@@ -86,6 +96,7 @@ export function filterItems<T extends ClosetRow>(items: T[], filters: ClosetFilt
     if (filters.status !== "all" && item.status !== filters.status) return false;
     if (filters.owner === "mine" && !isMine(item, myId)) return false;
     if (filters.owner === "others" && isMine(item, myId)) return false;
+    if (filters.favorites === "favorites" && !item.favorite) return false;
     return true;
   });
 }
@@ -167,6 +178,11 @@ export async function saveEdits(
   const changes: GarmentChanges = { type: draft.type, color: draft.color, season: draft.season, warmth: draft.warmth, status };
   const saved = await succeeded(() => gateway.updateGarment(id, changes));
   return saved.ok ? { ok: true, value: changes } : saved;
+}
+
+// Marks one of the person's own garments as a favorite, or removes it from the favorites.
+export async function setGarmentFavorite(gateway: ClosetGateway, id: UUID, favorite: boolean): Promise<Result<true>> {
+  return succeeded(() => gateway.setFavorite(id, favorite));
 }
 
 // Deletes the garment, then its photo. The garment is what matters: if the photo cannot be

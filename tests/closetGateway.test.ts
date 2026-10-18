@@ -37,7 +37,7 @@ describe("loadGarments", () => {
     expect(await supabaseClosetGateway(client).loadGarments()).toEqual({ data: rows, error: null });
     expect(ops).toEqual([
       ["from", "garments"],
-      ["select", "id, owner_id, type, color, season, warmth, status, image_path, created_at"],
+      ["select", "id, owner_id, type, color, season, warmth, status, favorite, image_path, created_at"],
       ["order", "created_at", { ascending: false }],
     ]);
   });
@@ -72,6 +72,27 @@ describe("updateGarment", () => {
     expect(await supabaseClosetGateway(failing.client).updateGarment("g", changes)).toEqual({ data: null, error: { message: "boom" } });
     const odd = fakeClient({ data: null, error: null });
     expect((await supabaseClosetGateway(odd.client).updateGarment("g", changes)).error).not.toBeNull();
+  });
+});
+
+describe("setFavorite", () => {
+  it("changes only the favorite flag of the chosen garment and asks for the changed row back", async () => {
+    const { client, ops } = fakeClient({ data: [{ id: "g-1" }], error: null });
+    expect((await supabaseClosetGateway(client).setFavorite("g-1", true)).error).toBeNull();
+    expect(ops).toEqual([["from", "garments"], ["update", { favorite: true }], ["eq", "id", "g-1"], ["select", "id"]]);
+  });
+
+  it("reports a refused change (not the person's garment, zero rows) as a failure", async () => {
+    const { client } = fakeClient({ data: [], error: null });
+    expect(await supabaseClosetGateway(client).setFavorite("someone-elses", true)).toEqual({
+      data: null,
+      error: { message: "garment not found or not yours" },
+    });
+  });
+
+  it("passes on a database error", async () => {
+    const { client } = fakeClient({ data: null, error: { message: "boom" } });
+    expect(await supabaseClosetGateway(client).setFavorite("g", false)).toEqual({ data: null, error: { message: "boom" } });
   });
 });
 

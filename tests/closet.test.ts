@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   CATEGORY_OPTIONS,
   DEFAULT_FILTERS,
+  FAVORITE_OPTIONS,
   OWNER_OPTIONS,
   STATUS_OPTIONS,
   countLabel,
@@ -13,6 +14,7 @@ import {
   ownerBadge,
   ownerName,
   saveEdits,
+  setGarmentFavorite,
   type ClosetGateway,
   type ClosetRow,
 } from "../frontend/src/services/closet.ts";
@@ -31,6 +33,7 @@ const row = (id: string, overrides: Partial<ClosetRow> = {}): ClosetRow => ({
   season: "all",
   warmth: 2,
   status: "clean",
+  favorite: false,
   image_path: `${overrides.owner_id ?? ME}/${id}.jpg`,
   created_at: "2026-10-01T10:00:00Z",
   ...overrides,
@@ -49,6 +52,7 @@ function gateway(overrides: Partial<ClosetGateway> = {}, rows: ClosetRow[] = [])
     updateGarment: vi.fn(async () => ok([{ id: "x" }])),
     deleteGarment: vi.fn(async () => ok([{ id: "x" }])),
     removePhoto: vi.fn(async () => ok(null)),
+    setFavorite: vi.fn(async () => ok([{ id: "x" }])),
     ...overrides,
   };
 }
@@ -85,6 +89,15 @@ describe("filters", () => {
     expect(ids({ owner: "others" })).toEqual(["boots", "coat"]);
   });
 
+  it("shows only favorites when asked", () => {
+    const withFavorites = [row("a", { favorite: true }), row("b"), row("c", { favorite: true, owner_id: "user-ben" })];
+    const ids = (favorites: "all" | "favorites") =>
+      filterItems(withFavorites, { ...DEFAULT_FILTERS, favorites }, ME).map((i) => i.id);
+    expect(ids("all")).toEqual(["a", "b", "c"]);
+    expect(ids("favorites")).toEqual(["a", "c"]);
+    expect(filterItems(withFavorites, { ...DEFAULT_FILTERS, favorites: "favorites", owner: "mine" }, ME).map((i) => i.id)).toEqual(["a"]);
+  });
+
   it("combines filters", () => {
     expect(ids({ owner: "others", status: "dirty" })).toEqual(["coat"]);
     expect(ids({ category: "top", status: "dirty" })).toEqual([]);
@@ -94,6 +107,7 @@ describe("filters", () => {
     expect(CATEGORY_OPTIONS.map((o) => o.label)).toEqual(["All", "Tops", "Bottoms", "Shoes", "Other"]);
     expect(STATUS_OPTIONS.map((o) => o.label)).toEqual(["All", "Clean", "Dirty"]);
     expect(OWNER_OPTIONS.map((o) => o.label)).toEqual(["All", "Mine", "Others"]);
+    expect(FAVORITE_OPTIONS.map((o) => o.label)).toEqual(["All", "Favorites"]);
   });
 });
 
@@ -200,6 +214,26 @@ describe("saveEdits", () => {
   it("reports network failures", async () => {
     const g = gateway({ updateGarment: vi.fn(async () => { throw new Error("offline"); }) });
     expect(await saveEdits(g, "g-1", draft, "clean")).toMatchObject({ ok: false, error: expect.stringContaining("Could not reach") });
+  });
+});
+
+describe("setGarmentFavorite", () => {
+  it("marks a garment as a favorite and removes it again", async () => {
+    const g = gateway();
+    expect(await setGarmentFavorite(g, "g-1", true)).toEqual({ ok: true, value: true });
+    expect(await setGarmentFavorite(g, "g-1", false)).toEqual({ ok: true, value: true });
+    expect(g.setFavorite).toHaveBeenNthCalledWith(1, "g-1", true);
+    expect(g.setFavorite).toHaveBeenNthCalledWith(2, "g-1", false);
+  });
+
+  it("says so when the garment is not the person's own", async () => {
+    const g = gateway({ setFavorite: vi.fn(async () => err("garment not found or not yours")) });
+    expect(await setGarmentFavorite(g, "g-1", true)).toMatchObject({ ok: false, error: expect.stringMatching(/belong to someone else/i) });
+  });
+
+  it("reports network failures", async () => {
+    const g = gateway({ setFavorite: vi.fn(async () => { throw new Error("offline"); }) });
+    expect(await setGarmentFavorite(g, "g-1", true)).toMatchObject({ ok: false, error: expect.stringContaining("Could not reach") });
   });
 });
 
