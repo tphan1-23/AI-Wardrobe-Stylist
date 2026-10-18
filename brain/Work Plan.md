@@ -46,6 +46,20 @@ Build each screen on a branch, open a PR, and wait for Manuel's approval on File
 4. **AI quality:** keep improving tagging accuracy (season is the weakest at 73%) with `scripts/eval-tagging.ts`; once Today and feedback run in the app, check real recommendations and extend the simulated-user tests.
 5. **Milestone 3 prep:** decide the demo type (Expo Go, hosted web build or a built app), the Site URL and email setup, the Apple sign-in decision, the Week 8 live demo and the AI friction log.
 
+## Demo feature list (requested 2026-10-18, Thanh + Manuel)
+Wanted for the MVP demo video, on top of Add, Closet, Today and the quiz. Size: S = under a day, M = a day or two, L = several days and touches the AI core.
+
+| # | Feature | Who | What it needs | Size |
+|---|---|---|---|---|
+| 1 | **Crop photos** when adding | Thanh | `allowsEditing` in the image picker gives a native crop screen (camera and library); a custom crop tool later if the native one is not enough | S |
+| 2 | **Remove clothes** from the closet | Thanh | Already built: Closet, open an item, Delete (asks first, removes the photo). Add swipe-to-delete or multi-delete only if wanted | done |
+| 3 | **History of worn outfits (last 7 days)**, **favorite outfits** and **favorite clothes**, each removable from favorites | Thanh | History = accepted suggestions of the last 7 days (no new table). Favorites need migration `0005` (`suggestions.favorite`, `garments.favorite`, owner-only by the existing policies). History/Favorites screens, a heart on outfits and on Closet items, a Favorites filter in the Closet | M |
+| 4 | **"Your judgement"**: swipe right to like / left to dislike outfit ideas (trains the AI), and **recommended outfits beyond today's** | Thanh (screen) + Manuel (`generate-outfit`) | One swipeable deck of generated outfits; each swipe is a thumbs up/down through `update-preferences` (once per suggestion), and the deck asks for the next outfit while skipping the ones already judged. **Blocker for Manuel:** every `ok` answer of `generate-outfit` is saved as a suggestion for the date and the Today screen shows the latest one, so judged outfits would replace today's outfit. Needs an "explore" mode: the request says `purpose: "explore"`, the suggestion is stored as not-for-today (for example `suggestions.kind = 'explore'`, migration) and Today and History ignore it | M to L |
+| 5 | **Multi-select colors and seasons** when a photo is analyzed and saved | Manuel + Thanh | Today a garment has one color and one season (check constraints, tag schema, AI prompt and validation, scoring, `color:x` preference tags, types, tests). Needs a design with Manuel first, for example `colors[]` (the first is the main one) and `seasons[]`, a data migration of existing rows, season fit = any selected season, color preference = best of the selected colors. The AI can keep proposing one value that the person adds to | L |
+
+Suggested order: 1, then 3, then 4, then 5 (5 last: it changes the AI core, so it is the riskiest to finish before the demo). Items 1 and 3 need nothing from Manuel.
+**Requests for Manuel:** (a) the "explore" mode of `generate-outfit` for item 4; (b) a decision on the multi-select design for item 5, including whether it fits before the demo.
+
 ## People and laptops
 | Who | Works on | Owns |
 |---|---|---|
