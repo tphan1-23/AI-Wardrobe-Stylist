@@ -79,6 +79,11 @@ Individual AI audit log for CSCI 4397/6397 (capstone). Thanh keeps her own log i
 - **AI produced:** a new `README.md` (problem, features and status, stack, layout, setup, testing, doc index) and `docs/ai-development.md` (tools, shared context, ownership, verification methods, examples of AI mistakes caught, rules, audit log).
 - **Verified:** written from `CLAUDE.md`, `docs/`, `brain/` and both audit logs; figures (95/86/73/95 %, 39 and 34 checks) were copied from the tuning log, not recalculated. **Not yet checked:** the setup steps were not re-run on a clean machine. [needs review by Manuel]
 
+### 12. Weather in the generate-outfit response (2026-10-18)
+- **Asked:** Thanh's PR #13 asked the AI core to return the weather so the Today screen can show it (one of her three requests).
+- **AI produced:** `GenerateOutfitResponse` now carries `weather` on every status (ok, incomplete, exhausted); the handler adds it; `docs/api_endpoints.md` updated. The change is additive, so the merged Today screen keeps working.
+- **Verified:** 356 tests pass, typecheck clean in root and app, `deno check` on the function; handler tests assert the weather on all three statuses; two deliberate breaks (weather dropped from incomplete results, dropped from ok results) were both caught.
+- **Not done yet:** the other two requests (return the found items on `incomplete`, store the reasoning with the suggestion) and the redeploy of the function, which waits for the PR approval and merge.
 ### 11. Add-garment logic written during the demo crunch (2026-10-18)
 - **Asked:** Thanh's Today screen was merged and the Add screen (photo to garment) did not exist, so a new account had no clothes and the demo loop could not run. I asked Claude to write the Add screen's logic and tests so Thanh only has to wire the screen.
 - **AI produced:** `frontend/src/services/add.ts` (upload to the person's own folder, call `analyze-garment`, review state, save) and `addGateway.ts`, with `tests/add.test.ts` (29 tests).
