@@ -36,7 +36,7 @@ Read `brain/Work Plan.md` first: it has the branch map, PR order, who owns what,
 
 - Done (PRs #1 to #8 merged on `main`): tooling and contracts, Supabase schema + RLS + migrations 0001 to 0004 (applied by hand on the real project), auth (email, password reset by code, Google via tunnel), personal closets with optional households, and the AI core: `analyze-garment`, `generate-outfit`, `update-preferences` deployed and verified end to end (`scripts/e2e.ts`).
 - Next: Thanh builds the Add, Closet, Quiz and Today screens in that order (details in the Roadmap section of `brain/Work Plan.md`); Manuel + Claude review them, verify household sharing with a second account, and tune the AI.
-- Not verified yet: `scripts/e2e-household.ts` has never run; CI "Supabase Preview" check stays red until the migration history is repaired (harmless).
+- Household sharing verified on the real project (2026-10-08, `scripts/e2e-household.ts`, 34 of 34 checks). Not verified yet: CI "Supabase Preview" check stays red until the migration history is repaired (harmless).
 - Goal now: Milestone 2 (core feature + >80% coverage, teammate-reviewed PRs), then Milestone 3 (deploy).
 
 ## MVP scope (must ship for the capstone)
