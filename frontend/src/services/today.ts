@@ -56,7 +56,7 @@ export interface TodayGateway {
   loadGarments(ids: UUID[]): Promise<GatewayResult<GarmentRow[]>>;
   // Short-lived links to private photos, keyed by storage path.
   signPhotos(paths: string[]): Promise<GatewayResult<Record<string, string>>>;
-  // `purpose` is only sent for "explore": an idea for the "Your judgement" deck (saved as
+  // `purpose` is only sent for "explore": an idea for the "Style Swipe" deck (saved as
   // kind = 'explore', so it never replaces today's outfit). Left out, it is today's outfit.
   generateOutfit(
     date: ISODate,
@@ -254,7 +254,16 @@ export async function loadToday(gateway: TodayGateway, date: ISODate): Promise<R
   return generate(gateway, date, rejected);
 }
 
-// The next outfit idea for the "Your judgement" deck. `judgedIds` are the ideas already shown
+// "New outfit" after one was already approved: another outfit for the same day (for example after
+// changing clothes). Every outfit already suggested today (worn, rejected or just shown) is skipped,
+// and the new one becomes the one Today shows. The earlier worn outfit stays in the history.
+export async function newOutfitToday(gateway: TodayGateway, date: ISODate): Promise<Result<TodayState>> {
+  const rows = await call(() => gateway.loadSuggestions(date));
+  if (!rows.ok) return rows;
+  return generate(gateway, date, rows.value.map((row) => row.id));
+}
+
+// The next outfit idea for the "Style Swipe" deck. `judgedIds` are the ideas already shown
 // (the server skips them). It is never today's outfit: it is saved as an idea only.
 export async function nextIdea(gateway: TodayGateway, date: ISODate, judgedIds: UUID[]): Promise<Result<TodayState>> {
   return generate(gateway, date, judgedIds, "explore");

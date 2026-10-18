@@ -67,7 +67,7 @@ describe("loadFavoriteOutfits", () => {
       ["from", "suggestions"],
       ["select", COLUMNS],
       ["eq", "user_id", "user-1"],
-      ["eq", "kind", "today"],
+      // No kind filter: favorited Style Swipe ideas (kind 'explore') belong here too.
       ["eq", "favorite", true],
       ["order", "date", { ascending: false }],
       ["order", "created_at", { ascending: false }],

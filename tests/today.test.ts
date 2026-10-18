@@ -8,6 +8,7 @@ import {
   garmentName,
   judgeIdea,
   loadToday,
+  newOutfitToday,
   nextIdea,
   rejectOutfit,
   todayString,
@@ -333,7 +334,46 @@ describe("loadToday: failures", () => {
   });
 });
 
-describe("nextIdea (the Your judgement deck)", () => {
+describe("newOutfitToday (another outfit after one was approved)", () => {
+  it("asks for a new outfit that skips everything already suggested today, worn or not", async () => {
+    const g = gateway({
+      loadSuggestions: vi.fn(async () =>
+        ok([
+          suggestion("s-1", { feedback: "down" }),
+          suggestion("s-2", { feedback: "up", accepted: true }),
+          suggestion("s-3", { feedback: null }),
+        ]),
+      ),
+    });
+    const result = await newOutfitToday(g, DATE);
+    expect(g.generateOutfit).toHaveBeenCalledWith(DATE, ["s-1", "s-2", "s-3"]);
+    expect(result).toMatchObject({ ok: true, value: { kind: "outfit", outfit: { suggestionId: "s-new", accepted: false }, weather: MILD } });
+  });
+
+  it("is today's outfit, not an idea: no purpose is sent", async () => {
+    const g = gateway({ loadSuggestions: vi.fn(async () => ok([suggestion("s-1", { accepted: true })])) });
+    await newOutfitToday(g, DATE);
+    expect((g.generateOutfit as ReturnType<typeof vi.fn>).mock.calls[0]).toHaveLength(2);
+  });
+
+  it("works when nothing was suggested yet", async () => {
+    const g = gateway();
+    await newOutfitToday(g, DATE);
+    expect(g.generateOutfit).toHaveBeenCalledWith(DATE, []);
+  });
+
+  it("reports when there is no other combination, not enough clothes, or an error", async () => {
+    const exhausted = gateway({
+      generateOutfit: vi.fn(async () => ok<GenerateOutfitResponse>({ status: "exhausted", reasoning: "All used.", weather: MILD })),
+    });
+    expect(await newOutfitToday(exhausted, DATE)).toEqual({ ok: true, value: { kind: "exhausted", reasoning: "All used.", weather: MILD } });
+    expect(await newOutfitToday(gateway({ loadSuggestions: vi.fn(async () => err("denied")) }), DATE)).toEqual({ ok: false, error: "denied" });
+    const g = gateway({ generateOutfit: vi.fn(async () => err("weather", 502)) });
+    expect(await newOutfitToday(g, DATE)).toMatchObject({ ok: false, error: expect.stringMatching(/weather service/i) });
+  });
+});
+
+describe("nextIdea (the Style Swipe deck)", () => {
   it("asks for an explore idea, skipping the ones already judged, and shows it like an outfit", async () => {
     const g = gateway();
     const result = await nextIdea(g, DATE, ["i-1", "i-2"]);
