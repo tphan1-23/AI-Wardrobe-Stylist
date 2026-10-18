@@ -82,14 +82,14 @@ export async function handleGenerateOutfit(
     date: request.date,
     excludedOutfits,
   });
-  if (result.status !== "ok") return { ok: true, body: result };
+  if (result.status !== "ok") return { ok: true, body: { ...result, weather } };
 
   const suggestionId = await deps.saveSuggestion({
     user_id: userId,
     date: request.date,
     garment_ids: [result.outfit.top, result.outfit.bottom, result.outfit.shoes],
   });
-  return { ok: true, body: { ...result, suggestion_id: suggestionId } };
+  return { ok: true, body: { ...result, suggestion_id: suggestionId, weather } };
 }
 
 // ---- update-preferences -----------------------------------------------------

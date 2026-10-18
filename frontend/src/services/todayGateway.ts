@@ -1,7 +1,7 @@
 // Adapter from the Supabase client to TodayGateway. Typed structurally so it can be
 // tested with a fake client; frontend/src/services/supabase.ts supplies the real one.
 import type { FeedbackValue, GenerateOutfitResponse } from "../../../supabase/functions/_shared/types.ts";
-import { invokeFunction, type FunctionsClientLike } from "./edgeFunctions.ts";
+import { functionError, invokeFunction, type FunctionsClientLike } from "./edgeFunctions.ts";
 import type { GatewayError, GatewayResult } from "./household.ts";
 import { GARMENT_BUCKET, PHOTO_LINK_SECONDS, signPhotoUrls, type StorageClientLike } from "./storage.ts";
 
@@ -25,6 +25,9 @@ export interface TodayClientLike extends StorageClientLike {
   functions: FunctionsClientLike["functions"];
   auth: { getUser(): PromiseLike<{ data: { user: { id: string } | null }; error: { message: string } | null }> };
 }
+
+// Kept exported from here for addGateway.ts, which imports it from this file.
+export { functionError };
 
 const typed = <T>(res: Reply): GatewayResult<T> => ({
   data: res.error ? null : (res.data as T),

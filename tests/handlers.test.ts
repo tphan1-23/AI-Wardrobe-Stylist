@@ -79,6 +79,7 @@ describe("handleGenerateOutfit", () => {
     expect(res.ok && res.body.status).toBe("ok");
     if (!res.ok || res.body.status !== "ok") throw new Error("expected ok");
     expect(res.body.suggestion_id).toBe("sug-1");
+    expect(res.body.weather).toEqual(MILD);
     expect(b.state.suggestions.get("sug-1")!.garment_ids).toEqual([res.body.outfit.top, res.body.outfit.bottom, res.body.outfit.shoes]);
   });
 
@@ -95,7 +96,7 @@ describe("handleGenerateOutfit", () => {
   it("returns incomplete/exhausted results without saving anything", async () => {
     const b = fakeBackend({ garments: [g("t", "t_shirt", "blue")] });
     const res = await handleGenerateOutfit(USER, { date: "2026-10-05" }, b.generate);
-    expect(res).toMatchObject({ ok: true, body: { status: "incomplete", missing_slots: ["bottom", "shoes"] } });
+    expect(res).toMatchObject({ ok: true, body: { status: "incomplete", missing_slots: ["bottom", "shoes"], weather: MILD } });
     expect(b.state.suggestions.size).toBe(0);
   });
 
@@ -106,7 +107,7 @@ describe("handleGenerateOutfit", () => {
     if (!first.ok || first.body.status !== "ok" || !second.ok || second.body.status !== "ok") throw new Error("expected ok");
     expect(second.body.outfit.top).not.toBe(first.body.outfit.top);
     const third = await handleGenerateOutfit(USER, { date: "2026-10-05", exclude_suggestion_ids: ["sug-1", "sug-2"] }, b.generate);
-    expect(third).toMatchObject({ ok: true, body: { status: "exhausted" } });
+    expect(third).toMatchObject({ ok: true, body: { status: "exhausted", weather: MILD } });
     expect(b.state.suggestions.size).toBe(2);
   });
 

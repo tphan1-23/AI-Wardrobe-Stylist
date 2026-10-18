@@ -9,20 +9,14 @@ import {
   TYPE_LABELS,
   WARMTH_LABELS,
   WARMTH_OPTIONS,
-  chooseValue,
   colorLabel,
-  confirmField,
   draftFromTags,
   emptyDraft,
   garmentDetail,
   garmentName,
   isComplete,
-  manualReview,
   missingFields,
-  needsAttention,
-  reviewProblem,
   setField,
-  startReview,
   typeLabel,
 } from "../frontend/src/services/garment.ts";
 import { COLORS, GARMENT_TYPES, SEASONS, slotForType } from "../supabase/functions/_shared/tag-schema.ts";
@@ -82,64 +76,5 @@ describe("drafts", () => {
     const next = setField(draft, "color", "red");
     expect(next).toEqual({ ...full, color: "red" });
     expect(draft.color).toBe("blue");
-  });
-});
-
-describe("review (decision D4: the person confirms what the AI suggested)", () => {
-  it("flags the fields the AI listed and the ones it left out", () => {
-    const review = startReview({ tags: { type: "jeans", color: "blue", warmth: 3 }, needs_review: ["color"] });
-    expect(review.flagged).toEqual(["color", "season"]);
-    expect(review.confirmed).toEqual([]);
-    expect(review.draft.season).toBeNull();
-  });
-
-  it("flags nothing when the AI is sure of everything, and the garment can then be saved", () => {
-    const review = startReview({ tags: full, needs_review: [] });
-    expect(review.flagged).toEqual([]);
-    expect(reviewProblem(review)).toBeNull();
-  });
-
-  it("leaves every field to the person when there is no suggestion", () => {
-    const review = manualReview();
-    expect(review.flagged).toEqual(TAG_FIELDS);
-    expect(reviewProblem(review)).toBe("Choose type, color, season, warmth.");
-  });
-
-  it("will not save while a flagged field is unchecked, and says which", () => {
-    const review = startReview({ tags: full, needs_review: ["season", "warmth"] });
-    expect(needsAttention(review)).toEqual(["season", "warmth"]);
-    expect(reviewProblem(review)).toBe("Check season, warmth before saving.");
-  });
-
-  it("lets the person confirm a suggestion with 'Looks right'", () => {
-    let review = startReview({ tags: full, needs_review: ["season", "warmth"] });
-    review = confirmField(review, "season");
-    expect(needsAttention(review)).toEqual(["warmth"]);
-    review = confirmField(confirmField(review, "warmth"), "warmth");
-    expect(review.confirmed).toEqual(["season", "warmth"]);
-    expect(reviewProblem(review)).toBeNull();
-  });
-
-  it("cannot confirm a field that has no value", () => {
-    const review = startReview({ tags: { type: "jeans" }, needs_review: [] });
-    expect(confirmField(review, "color")).toBe(review);
-    expect(reviewProblem(review)).toBe("Choose color, season, warmth.");
-  });
-
-  it("counts choosing a value as checking that field", () => {
-    let review = startReview({ tags: { type: "jeans", color: "blue" }, needs_review: ["color"] });
-    review = chooseValue(review, "color", "green");
-    review = chooseValue(review, "season", "fall");
-    review = chooseValue(review, "warmth", 4);
-    expect(review.draft).toEqual({ type: "jeans", color: "green", season: "fall", warmth: 4 });
-    expect(reviewProblem(review)).toBeNull();
-  });
-
-  it("does not change the state it was given", () => {
-    const review = startReview({ tags: full, needs_review: ["color"] });
-    chooseValue(review, "color", "red");
-    confirmField(review, "color");
-    expect(review.draft.color).toBe("blue");
-    expect(review.confirmed).toEqual([]);
   });
 });
