@@ -30,6 +30,8 @@ export interface OutfitInput {
   date: ISODate;
   // Garment id sets of previously rejected suggestions (re-roll).
   excludedOutfits?: UUID[][];
+  // Style Swipe ideas (purpose "explore") are only for training the AI, so laundry status is ignored.
+  includeDirty?: boolean;
 }
 
 export function garmentTags(g: Pick<Garment, "type" | "color" | "season">): string[] {
@@ -98,7 +100,7 @@ export function scoreOutfit(input: OutfitInput): OutfitResult {
 
   const bySlot: Record<OutfitSlot, ScoredGarment[]> = { top: [], bottom: [], shoes: [] };
   for (const garment of garments) {
-    if (garment.status !== "clean") continue;
+    if (garment.status !== "clean" && !input.includeDirty) continue;
     const slot = slotForType(garment.type);
     if (slot === "other") continue;
     const preference = preferenceScore(garment, weights);

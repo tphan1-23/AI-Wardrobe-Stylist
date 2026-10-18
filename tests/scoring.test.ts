@@ -91,6 +91,13 @@ describe("scoreOutfit", () => {
     expect(result.status === "ok" && result.outfit.top).toBe("top-a");
   });
 
+  it("can use dirty items when asked to (Style Swipe ideas only train the AI)", () => {
+    const closet = [garment({ id: "top-dirty", type: "shirt", status: "dirty" }), garment({ type: "jeans", status: "dirty" }), garment({ type: "sneakers", status: "dirty" })];
+    expect(scoreOutfit(input(closet))).toMatchObject({ status: "incomplete" });
+    const result = scoreOutfit({ ...input(closet), includeDirty: true });
+    expect(result).toMatchObject({ status: "ok", outfit: { top: "top-dirty" } });
+  });
+
   it("reports missing slots instead of inventing an outfit", () => {
     const closet = [garment({ type: "t_shirt" }), garment({ type: "jeans", status: "dirty" })];
     const result = scoreOutfit(input(closet));

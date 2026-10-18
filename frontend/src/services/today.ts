@@ -179,6 +179,8 @@ async function buildOutfit(
   gateway: TodayGateway,
   suggestion: Pick<SuggestionRow, "id" | "garment_ids" | "accepted">,
   reasoning: string | null,
+  // Style Swipe ideas are for training, so they may use clothes that are in the laundry.
+  showDirty = false,
 ): Promise<Result<OutfitView | null>> {
   const garments = await call(() => gateway.loadGarments(suggestion.garment_ids));
   if (!garments.ok) return garments;
@@ -187,7 +189,7 @@ async function buildOutfit(
   for (const garment of garments.value) {
     const slot = slotForType(garment.type);
     if (slot === "other" || bySlot.has(slot)) return { ok: true, value: null };
-    if (garment.status !== "clean" && !suggestion.accepted) return { ok: true, value: null };
+    if (garment.status !== "clean" && !suggestion.accepted && !showDirty) return { ok: true, value: null };
     bySlot.set(slot, garment);
   }
   const top = bySlot.get("top");
@@ -244,6 +246,7 @@ async function generate(
     gateway,
     { id: body.suggestion_id, garment_ids: [body.outfit.top, body.outfit.bottom, body.outfit.shoes], accepted: false },
     body.reasoning,
+    purpose === "explore",
   );
   if (!outfit.ok) return outfit;
   if (!outfit.value) return { ok: false, error: "Could not load your outfit. Please try again." };
