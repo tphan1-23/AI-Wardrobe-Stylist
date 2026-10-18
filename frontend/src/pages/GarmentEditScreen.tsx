@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Alert, Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { CachedImage } from "../components/common/CachedImage";
 import { Button } from "../components/common/Button";
 import { ErrorLine } from "../components/common/ErrorLine";
 import { Icon } from "../components/common/Icon";
@@ -46,7 +47,7 @@ function Header({ title, onBack }: { title: string; onBack: () => void }) {
 
 function Photo({ item }: { item: ClosetItem }) {
   return item.photoUrl ? (
-    <Image source={{ uri: item.photoUrl }} accessibilityLabel={garmentName(item)} style={styles.photo} resizeMode="cover" />
+    <CachedImage url={item.photoUrl} label={garmentName(item)} style={styles.photo} />
   ) : (
     <View style={[styles.photo, styles.noPhoto]}>
       <Text style={type.caption}>Garment photo</Text>

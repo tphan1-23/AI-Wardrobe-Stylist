@@ -11,6 +11,7 @@ import { GarmentForm } from "../components/closet/GarmentForm";
 import { addPhoto, confirmTag, discardPhoto, saveGarment, setTag, unconfirmedFields, type ReviewState } from "../services/add";
 import type { CropRegion } from "../services/crop";
 import { draftFromTags } from "../services/garment";
+import { resizeWidth } from "../services/photoCache";
 import { newPhotoId } from "../services/photoId";
 import { addGateway } from "../services/supabase";
 import { colors, fonts, radius, size, type } from "../theme";
@@ -82,14 +83,19 @@ export function AddScreen({ userId }: { userId: string }) {
 
   // "Use full photo" (region is null) keeps the photo exactly as taken; otherwise the chosen part is cut out.
   async function useCrop(photo: PickedPhoto, region: CropRegion | null) {
-    if (region === null) {
+    // Big photos are shrunk before upload: they upload, tag and load much faster.
+    const shrinkTo = resizeWidth(region ? region.width : photo.width);
+    if (region === null && shrinkTo === null) {
       await analyze(photo.uri, photo.base64);
       return;
     }
+    const actions: ImageManipulator.Action[] = [];
+    if (region) actions.push({ crop: region });
+    if (shrinkTo !== null) actions.push({ resize: { width: shrinkTo } });
     setBusy(true);
     setError(null);
     try {
-      const cropped = await ImageManipulator.manipulateAsync(photo.uri, [{ crop: region }], {
+      const cropped = await ImageManipulator.manipulateAsync(photo.uri, actions, {
         compress: 0.7,
         format: ImageManipulator.SaveFormat.JPEG,
         base64: true,

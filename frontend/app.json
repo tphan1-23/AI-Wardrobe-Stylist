@@ -33,7 +33,8 @@
           "photosPermission": "DressWell uses your photos to add clothes to your closet.",
           "cameraPermission": "DressWell uses the camera to photograph your clothes."
         }
-      ]
+      ],
+      "expo-image"
     ]
   }
 }

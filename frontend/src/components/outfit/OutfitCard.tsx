@@ -1,4 +1,5 @@
-import { Image, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import { CachedImage } from "../common/CachedImage";
 import { OUTFIT_SLOTS, SLOT_LABELS, type OutfitItem, type OutfitSlot } from "../../services/today";
 import { colors, fonts, radius, size, type } from "../../theme";
 import { Icon } from "../common/Icon";
@@ -9,7 +10,7 @@ function Photo({ url, label }: { url: string | null; label: string }) {
   return (
     <View style={styles.photo}>
       {url ? (
-        <Image source={{ uri: url }} accessibilityLabel={label} style={styles.image} resizeMode="cover" />
+        <CachedImage url={url} label={label} style={styles.image} />
       ) : (
         <Text style={type.caption}>Photo</Text>
       )}
