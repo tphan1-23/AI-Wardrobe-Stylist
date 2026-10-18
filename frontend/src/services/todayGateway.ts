@@ -51,7 +51,7 @@ const typed = <T>(res: Reply): GatewayResult<T> => ({
 const NETWORK_ERROR = "Could not reach the server. Check your connection and try again.";
 
 // Reads the status and the server's own message out of a failed function call.
-async function functionError(error: FunctionsError): Promise<GatewayError> {
+export async function functionError(error: FunctionsError): Promise<GatewayError> {
   const status = typeof error.context?.status === "number" ? error.context.status : undefined;
   // No status means the request never reached the function (offline, DNS, timeout).
   if (status === undefined) return { message: NETWORK_ERROR };
