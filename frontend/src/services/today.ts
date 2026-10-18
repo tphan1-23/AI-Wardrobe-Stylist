@@ -18,7 +18,11 @@ import type {
   ISODate,
   UUID,
 } from "../../../supabase/functions/_shared/types.ts";
+import { garmentDetail, garmentName } from "./garment.ts";
 import type { GatewayError, GatewayResult, Result } from "./household.ts";
+
+// Kept exported from here for the screens and tests that already import them.
+export { garmentDetail, garmentName };
 
 export type OutfitSlot = Exclude<Slot, "other">;
 export const OUTFIT_SLOTS: OutfitSlot[] = ["top", "bottom", "shoes"];
@@ -82,55 +86,7 @@ const NETWORK_ERROR = "Could not reach the server. Check your connection and try
 
 // ---- Labels -----------------------------------------------------------------
 
-const TYPE_LABELS: Record<GarmentType, string> = {
-  t_shirt: "t-shirt",
-  tank_top: "tank top",
-  shirt: "shirt",
-  blouse: "blouse",
-  sweater: "sweater",
-  hoodie: "hoodie",
-  jeans: "jeans",
-  trousers: "trousers",
-  shorts: "shorts",
-  skirt: "skirt",
-  leggings: "leggings",
-  sweatpants: "sweatpants",
-  sneakers: "sneakers",
-  boots: "boots",
-  sandals: "sandals",
-  dress_shoes: "dress shoes",
-  dress: "dress",
-  jacket: "jacket",
-  coat: "coat",
-  accessory: "accessory",
-};
-
-const SEASON_LABELS: Record<Season, string> = {
-  spring: "Spring",
-  summer: "Summer",
-  fall: "Fall",
-  winter: "Winter",
-  all: "All seasons",
-};
-
-const WARMTH_LABELS: Record<Warmth, string> = {
-  1: "Very light",
-  2: "Light",
-  3: "Medium",
-  4: "Warm",
-  5: "Very warm",
-};
-
 export const SLOT_LABELS: Record<OutfitSlot, string> = { top: "Top", bottom: "Bottom", shoes: "Shoes" };
-
-export function garmentName(garment: Pick<GarmentRow, "color" | "type">): string {
-  const color = garment.color.charAt(0).toUpperCase() + garment.color.slice(1);
-  return `${color} ${TYPE_LABELS[garment.type]}`;
-}
-
-export function garmentDetail(garment: Pick<GarmentRow, "season" | "warmth">): string {
-  return `${SEASON_LABELS[garment.season]} · ${WARMTH_LABELS[garment.warmth]}`;
-}
 
 // ---- Dates ------------------------------------------------------------------
 

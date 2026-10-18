@@ -63,6 +63,19 @@ Individual AI audit log for CSCI 4397/6397 (capstone). Manuel keeps his in `used
 - **Process mistake caught:** my audit-log branch had written into Manuel's `usedPrompts.md`; reading `main` and `CLAUDE.md` before opening the PR showed my log belongs in `usedPrompts-thanh.md`. The branch was redone and the stack (audit log, quiz, Today) rebased in order.
 - **Not verified:** the screen on a phone; the photo links and the function calls against the real project; anything with real garments (needs the Add screen).
 
+### 8. Stacked PRs and merge order (2026-10-08 to 2026-10-18)
+- **Asked:** open the next PR, then the next, for the audit log, the quiz and the Today screen.
+- **AI produced:** because the three branches build on each other, it set each PR's base to the branch below it so each PR showed only its own changes, and prepared the PR text. Manuel merged the audit-log PR into `main` first, then the quiz PR into the audit-log branch (its base), so **the quiz was merged into a branch that was already merged and never reached `main`**. The AI noticed on the next `git fetch` (the quiz commits were not in `main`), told me not to create the Today PR on the old base, and had me open one more PR ("Bring the quiz into main") with no new code. The Today PR then sat unmerged for 10 days because it waited on that chain.
+- **Verified:** `git fetch` and `git branch -r --merged origin/main` before opening each next PR; the Today branch was brought up to date with `main` and re-tested (356 tests) before its PR.
+- **Lesson:** with stacked PRs, merge the lower PR first and retarget the one above to `main` *before* merging it, or open each PR only after the one below it is in `main`. I now do the latter.
+
+### 9. Add screen, photo to garment (2026-10-18, PR pending)
+- **Asked:** start on the three missing MVP pieces (merge Today, photo upload with AI tagging, closet view).
+- **AI produced:** merged `main` into the Today branch and re-ran everything (356 tests), then decoded the design board's Add, Review tags, Closet and Edit screens. It built the Add flow: `services/add.ts` (upload, ask `analyze-garment`, review, save), `addGateway.ts`, `garment.ts` (labels and the review rules: every field the AI flagged or left out must be checked before saving), `AddScreen`, a shared `GarmentForm` (reused later for editing), the Add tab and the camera/photo permission text. It also moved two helpers into shared files so Today and Add use one copy (labels; the edge-function call) and checked the existing tests were unchanged (356 still passed).
+- **Verified:** 411 tests, 100% line coverage on the new files, `tsc` clean in both projects, iOS bundle builds. Then I had it **break its own code seven ways** (accept any photo size, keep a photo the AI refused, delete the photo on an AI limit, save without checking flagged tags, not flagging tags the AI left out, confirming a tag with no value, overwriting an existing photo): **every break was caught by a test**.
+- **AI mistakes caught:** after rewriting `today.ts` with PowerShell it had again added an invisible byte-order mark to the file; it checked the first bytes, found it and removed it before any commit.
+- **Not verified:** the camera and library on my phone; a real upload and a real `analyze-garment` call against the project; that the base64 decoding works on the device. The review screen's look is unchecked against the board.
+
 ---
 
 ## Where the AI was wrong (friction summary)
@@ -77,3 +90,5 @@ Individual AI audit log for CSCI 4397/6397 (capstone). Manuel keeps his in `used
 | 2026-10-08 | GitKraken PR tool unusable (not signed in) | Tool error; fell back to manual PR creation |
 | 2026-10-08 | Verification script used a method missing in PowerShell 5.1 | Script error output |
 | 2026-10-08 | My audit-log branch wrote to Manuel's `usedPrompts.md`; his file already existed on `main` | Fetched `main` before opening the PR and read `CLAUDE.md` |
+| 2026-10-08 | Stacked PRs: the quiz was merged into an already-merged branch and never reached `main` | `git fetch` showed the quiz commits missing from `main` |
+| 2026-10-18 | PowerShell added an invisible byte-order mark to `today.ts` (second time) | Checked the file's first bytes before committing |

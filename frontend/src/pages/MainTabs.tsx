@@ -3,14 +3,16 @@ import { StyleSheet, View } from "react-native";
 import { TabBar, type Tab } from "../components/common/TabBar";
 import type { Overview } from "../services/household";
 import { colors } from "../theme";
+import { AddScreen } from "./AddScreen";
 import { HomeScreen } from "./HomeScreen";
 import { TodayScreen } from "./TodayScreen";
 
-type TabId = "today" | "household";
+type TabId = "today" | "add" | "household";
 
-// Closet and Add join this list as those screens are built (see the design board).
+// Closet joins this list when it is built (see the design board).
 const TABS: Tab<TabId>[] = [
   { id: "today", label: "Today", icon: "sun" },
+  { id: "add", label: "Add", icon: "plus" },
   { id: "household", label: "Household", icon: "home" },
 ];
 
@@ -20,11 +22,9 @@ export function MainTabs({ overview, onChanged }: { overview: Overview; onChange
   return (
     <View style={styles.root}>
       <View style={styles.body}>
-        {tab === "today" ? (
-          <TodayScreen location={overview.profile.location} />
-        ) : (
-          <HomeScreen overview={overview} onChanged={onChanged} />
-        )}
+        {tab === "today" && <TodayScreen location={overview.profile.location} />}
+        {tab === "add" && <AddScreen />}
+        {tab === "household" && <HomeScreen overview={overview} onChanged={onChanged} />}
       </View>
       <TabBar tabs={TABS} active={tab} onChange={setTab} />
     </View>
