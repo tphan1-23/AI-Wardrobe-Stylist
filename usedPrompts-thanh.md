@@ -78,6 +78,20 @@ Individual AI audit log for CSCI 4397/6397 (capstone). Manuel keeps his in `used
 - **Lesson:** `git fetch` immediately before starting any large piece, and ask the other session which parts it is writing during a crunch. The mutation checks on my own Add logic became moot for his file; his tests carry that.
 - **Not verified:** the camera and library on my phone; a real upload and a real `analyze-garment` call; the base64 decode on the device; the review screen's look against the board.
 
+### 10. Closet screen: list, filters, edit, delete, clean/dirty (2026-10-18, PR pending)
+- **Asked:** the third missing MVP piece, the closet view with marking clean or dirty.
+- **AI produced:** read the board's Closet and Edit garment screens, then built `services/closet.ts` (filters by category, status and owner; load newest first with photo links; save edits; delete the garment and then its photo), `closetGateway.ts`, a shared `storage.ts` (signed photo links in batches of 100, now used by Today, Add and Closet), `ClosetScreen`, `ClosetTile`, `GarmentEditScreen` (reusing the Add review's `GarmentForm`) and the Closet tab. A household member's garment opens read-only. It pointed out a trap I would not have thought of: when the database refuses an edit or delete (someone else's garment), Supabase answers **success with zero rows changed**, so the app would have said "Saved" for a change that did nothing. The gateway now asks for the changed rows back and treats an empty answer as a failure, with tests.
+- **Verified:** 447 tests, 100% coverage on the new files, `tsc` clean in both projects, iOS bundle builds. Then I had it **break its own code six ways** (the "Others" filter also showing mine, deleting the photo when the garment delete failed, saving an edit with a tag missing, not listing newest first, treating a refused edit as success, skipping photo-link batches): **every break was caught by a test**.
+- **AI mistake caught:** one of its own new tests failed on first run; the cause was its test data (every photo path was built from my id, even for a housemate's garment), not the app code. It fixed the test helper rather than weakening the check.
+- **Not verified:** the whole screen on my phone; real photos in the grid; edit and delete against the real project; a household member's read-only view with a second account (it needs one). The grid sizing and the look against the board are unchecked.
+
+### 11. "The AI could not read my photo": debugging the tagging failure (2026-10-18)
+- **Asked:** after I added a Gemini key file to the app, the Add screen took a while and then said it could not read the photo; Manuel saw no request arrive at Google.
+- **AI produced:** explained the key does not belong in the app (the function on Supabase uses its own secret; names without `EXPO_PUBLIC_` are not bundled; D20 keeps the key server-side) and checked that my file is ignored by git and untracked, reading only the variable names. It then tested from outside instead of guessing: the key is valid (a harmless list-models call, key never printed), all six model names the function tries exist for it, and the three deployed functions answer in 0.2 to 0.7 seconds and refuse requests that are not signed in. It read the function code to explain that a **401** means the request reached the function and was refused for authentication, which also explains why Google saw nothing, and it added a temporary debug log (status and whether a session exists, no secrets) to the app, later removed.
+- **Verified:** the checks above; Supabase showed 401 for both invocations and logs, and the key in Supabase was confirmed up to date. **The cause of the 401 was not found by us:** after restarting the app everything worked, so it may have been a stale session or a function change that was redeployed, but I cannot say which.
+- **AI overstepped once:** it offered to test whether my Gemini key was valid, I answered with other information instead of saying yes, and it ran the test anyway (a harmless list-models request to Google's API, nothing printed or sent besides the key). It said so afterwards, but it should have waited for a yes before using a key I had not told it to use.
+- **Not verified:** why the 401 happened.
+
 ---
 
 ## Where the AI was wrong (friction summary)
@@ -94,4 +108,6 @@ Individual AI audit log for CSCI 4397/6397 (capstone). Manuel keeps his in `used
 | 2026-10-08 | My audit-log branch wrote to Manuel's `usedPrompts.md`; his file already existed on `main` | Fetched `main` before opening the PR and read `CLAUDE.md` |
 | 2026-10-08 | Stacked PRs: the quiz was merged into an already-merged branch and never reached `main` | `git fetch` showed the quiz commits missing from `main` |
 | 2026-10-18 | PowerShell added an invisible byte-order mark to `today.ts` (second time) | Checked the file's first bytes before committing |
+| 2026-10-18 | A new test failed on its first run because its own test data was wrong (not the app) | Test failure output; the AI fixed the data, not the check |
 | 2026-10-18 | Wrote a full Add-garment logic while Manuel merged his own version of the same files (duplicated work, merge conflicts) | `git fetch` after the work showed PR #14; the AI adopted his reviewed version |
+| 2026-10-18 | Ran a key-validity test against Google without waiting for my yes (it had only offered) | I noticed when reviewing what it had run; the AI then corrected its own log entry |

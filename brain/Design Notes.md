@@ -25,7 +25,7 @@ Source of truth: `docs/Wardrobe App.html` (design board, 11 phone screens at 390
 | 11 | Household | `HomeScreen` (name, invite code + Copy, profile rows, Log out) | done |
 | 4 | Style quiz | `QuizScreen` (shown once, after location) | built; not yet checked on a device |
 | 5, 6 | Today / Today, missing shoes | `TodayScreen` + `OutfitCard` | built; not yet checked on a device |
-| 7, 8 | Closet / Edit garment | — | not built (needs closet) |
+| 7, 8 | Closet / Edit garment | `ClosetScreen`, `ClosetTile`, `GarmentEditScreen` | built; not yet checked on a device |
 | 9, 10 | Add / Add: review tags | `AddScreen` (choose, upload, review) + `GarmentForm` | built; not yet checked on a device |
 
 ## Deliberate differences from the board
@@ -35,6 +35,14 @@ Source of truth: `docs/Wardrobe App.html` (design board, 11 phone screens at 390
 - **Invite code:** the board's placeholder says "6 characters"; the database generates **8** hex characters (`0001_init.sql`), so the app says "8 characters". The code is displayed uppercase as on the board; input is case-insensitive.
 - **Back button on Location:** the board has Back during onboarding. A household cannot be un-created, so onboarding shows no Back; the "Change location" flow from the Household tab does.
 - **Bottom tab bar:** `TabBar` is in (heavy top rule, 3 px bar over the active tab) with the two screens that exist, **Today** and **Household**. Closet and Add are added to the list in `MainTabs.tsx` when they are built.
+- **Closet / Edit garment differences:**
+  - **"Other" instead of "Outerwear"** in the category filter: it holds dresses, jackets, coats and accessories (the AI's four non-outfit types).
+  - **The Owner filter only appears when you are in a household,** and its options are All / Mine / **Others** (the board says "Partner's"). Tiles carry a badge: **M** for your own garments, otherwise the owner's first initial.
+  - **A dirty garment says "Dirty" on its tile** (a black label, not color alone); the board's tiles show no status.
+  - **Clean or dirty is changed in the Edit screen** (the Status row, then Save changes), as on the board; there is no quick toggle on the tile.
+  - **A household member's garment opens read-only** (details and "Belongs to ..."), with no form, Save or Delete. The database also refuses any change to someone else's garment.
+  - **Edit garment uses the same form as the Add review** (all 20 types, five seasons, five warmth levels). **Delete asks first** and also removes the photo.
+  - **Tab order matches the board:** Today, Closet, Add, Household.
 - **Add / Review tags differences:**
   - **All 20 garment types are offered,** grouped Tops, Bottoms, Shoes, Other (the board shows four broad categories). The AI tags with the 20 types, and the outfit logic needs them.
   - **Season has five choices** (Spring, Summer, Fall, Winter, **All seasons**) and **warmth has five levels** (Very light to Very warm), matching the tag schema; the board shows four seasons and three warmth levels.
