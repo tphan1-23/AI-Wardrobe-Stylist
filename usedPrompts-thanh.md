@@ -136,6 +136,12 @@ Individual AI audit log for CSCI 4397/6397 (capstone). Manuel keeps his in `used
 - **Not verified:** the actual speed on my phone. **Limit:** photos already in my closet stay full size, so they only get faster the second time they are shown; re-adding them would make them small.
 - **Went wrong:** my first scripted edit of four files failed silently because of a wrong path, and two screens already had a component called `Photo`, so I renamed mine `CachedImage`. The type checker and a re-read caught both.
 
+### 19. A test that could never fail (2026-10-19, PR pending)
+- **Asked:** a reviewer said one check in `tests/migration.test.ts` (line 103) "contains the backspace character, so it runs but will never fail". I asked the AI to check that claim before replying.
+- **AI produced:** it confirmed the reviewer was right. Two lines (103 and 140) had real backspace characters where a regex word boundary (`\b`) was meant, so the pattern looked for a backspace before the word and never matched. It did not trust the fix on sight: it first added a forbidden `update` statement to the migration and saw the old test still pass, then replaced the characters with `\b` and the test failed on the real file, because the word "delete" appears in a comment. It made the check ignore SQL comments, then showed it fails on a real statement, ignores a comment, and the whole suite passes (546).
+- **Went wrong:** the AI's test (written by an earlier session) was the bug, so an AI-written test that "passed" proved nothing. My first two repair attempts (a shell `sed` and a one-line `node -e`) did not change the file because of how the shell handled the backslash; a small script file worked.
+- **Lesson:** a passing negative check proves nothing until you have seen it fail once.
+
 ---
 
 ## Where the AI was wrong (friction summary)
