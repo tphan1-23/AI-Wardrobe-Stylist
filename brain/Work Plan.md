@@ -80,6 +80,9 @@ Suggested order: 1, then 3, then 4, then 5 (5 last: it changes the AI core, so i
 - **You must change Today and History to read only `kind = 'today'`** (`loadSuggestions` in `todayGateway.ts`: add `.eq("kind", "today")`), otherwise judged ideas replace today's outfit. Do this in the same PR that applies the migration, and apply the migration before the app change reaches a phone.
 - Multi-select colors and seasons (item 5) is not planned for the demo: it changes the schema, the AI prompt, validation, scoring and preference tags at once. "multicolor" and "all seasons" already exist as single values.
 
+### Security review of the database (2026-11-06, Manuel + Claude)
+- Supabase's security advisor, read through a read-only MCP connection, found that signed-out callers (the public key) could execute all our database functions; `create_household()` would create orphan households for them. Fix: migration `0008_revoke_anon_functions.sql` (apply by hand after review, then re-run the advisor). Also open: five unused template tables (`tasks`, `labels`, `task_labels`, `comments`, `activity_log`, all empty) and the function `set_updated_at()` that belongs to them can be dropped with Thanh's OK; leaked-password protection is off (a dashboard setting, may need a paid plan); the migration history table is empty, so the red "Supabase Preview" check stays until `supabase migration repair` is run.
+
 ## People and laptops
 | Who | Works on | Owns |
 |---|---|---|
