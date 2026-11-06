@@ -99,6 +99,8 @@ Only `type:` and `color:` tags of garments the caller owns are updated. A thumbs
 
 ## RPCs (SQL functions, called with `supabase.rpc`)
 
+All of them need a signed-in user: since migration 0008, signed-out callers get `permission denied for function` (HTTP 401).
+
 | Function | Does | Errors |
 |---|---|---|
 | `create_household(p_name)` | creates a household and puts the caller in it; returns its id | `already in a household` |
@@ -113,16 +115,17 @@ Only `type:` and `color:` tags of garments the caller owns are updated. A thumbs
 |---|---|
 | `users` | read yourself and your household members; update only `name`, `location`, `quiz_preferences` (changing `household_id` is only possible through the RPCs) |
 | `households` | members can read their household (name and invite code); created and changed only through the RPCs |
-| `garments` | read your own and your household members'; **insert, update and delete only your own** (`owner_id` must be you and cannot be changed) |
+| `garments` | read your own and your household members'; **insert, update and delete only your own** (`owner_id` must be you and cannot be changed); `favorite` is set the same way |
 | `preference_vector` | read and write your own rows. The quiz seeds it from the app with `quizToPreferences`; feedback updates it through the function |
-| `suggestions` | read and write your own rows; created by `generate-outfit`, feedback only through `update-preferences` |
+| `suggestions` | read and write your own rows; created by `generate-outfit` (`kind` is `today` by default, `explore` for Style Swipe ideas), feedback only through `update-preferences`; `favorite` marks a favorite outfit |
 
 **Storage**, private bucket `garments`, files at `<owner user id>/<file>`: the owner can upload and delete; the owner and
 household members can read. Uploading into another user's folder is refused.
 
 ## Verification
 
-`scripts/e2e.ts` exercises all of the above against the real project with a real account: sign-in, profile and location,
+`scripts/e2e.ts` exercises the functions against the real project with a real account: sign-in, profile and location,
 three security-rule rejections, photo upload, tagging, saving, outfit generation, once-only feedback, re-roll, accepting,
-and cleanup. Last full pass: 39 of 39 (2026-10-08). Two-person household sharing and the Google/Apple/reset flows are not
-covered by it.
+and cleanup. Last full pass: 38 of 38 (2026-11-06). `scripts/e2e-household.ts` covers two-account household sharing and
+the read-only rules: 34 of 34. The Google/Apple and password-reset flows are tested by hand. On 2026-11-06 a live check
+also confirmed that signed-out callers are refused by every RPC and that signed-in calls still work.
