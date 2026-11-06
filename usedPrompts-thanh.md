@@ -142,6 +142,12 @@ Individual AI audit log for CSCI 4397/6397 (capstone). Manuel keeps his in `used
 - **Went wrong:** the AI's test (written by an earlier session) was the bug, so an AI-written test that "passed" proved nothing. My first two repair attempts (a shell `sed` and a one-line `node -e`) did not change the file because of how the shell handled the backslash; a small script file worked.
 - **Lesson:** a passing negative check proves nothing until you have seen it fail once.
 
+### 20. The AI's crop suggestion in the Add screen (2026-11-06, PR pending)
+- **Asked:** after Manuel's PR #26 (the AI now returns a suggested crop box), open the crop tool with that box pre-selected after the tags arrive, never crop automatically, let me drag it or reset to the whole photo, upload the cropped file and remove the original. Also: loading and empty states on each screen.
+- **AI produced:** a pure function that turns the suggestion into a frame on screen (`regionToFrame`, the opposite of the existing pixel mapping), a swap function (`replaceWithCrop`: upload the cut photo first, then remove the original, keep the tags, drop the used suggestion), and an extra step in the Add flow before the tag review. It did not edit Manuel's `add.ts`; the new logic is in its own file. Because the AI reads the photo after it is uploaded, the original is already in storage by the time the suggestion appears, which is why the swap removes it. For the screens it found that Today, Closet, History and Style Swipe already had loading, empty and error states, so it only added an "Add a garment" button to the empty Closet and shortened one subtitle.
+- **Verified:** 28 new tests (frame mapping both ways, bars around the photo, never leaving the photo; upload first, original kept if the upload fails or the network is down, new photo still used if the old one cannot be removed, refusing empty or unsupported files). A deliberate break (ignoring an upload failure) made a test fail. 574 tests, both type checks, iOS bundle builds.
+- **Not verified:** on my phone. The pixel size of the photo is read from the picture itself (`Image.getSize`) in case of rotated photos, but I have not seen a rotated photo go through. I also have not run the full loop (add, wear, new outfit, Style Swipe) on a phone.
+
 ---
 
 ## Where the AI was wrong (friction summary)

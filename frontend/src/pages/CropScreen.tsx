@@ -11,6 +11,7 @@ import {
   moveFrame,
   resizeFrame,
   squareFrame,
+  regionToFrame,
   toImageRegion,
   type Corner,
   type CropRegion,
@@ -27,6 +28,11 @@ interface Props {
   // `null` means use the photo exactly as it was taken.
   onUse: (region: CropRegion | null) => void;
   onCancel: () => void;
+  // The AI's suggested crop, already selected when the screen opens. The person can drag it, or
+  // tap "Full photo" to start over. Nothing is cropped until they press the button.
+  suggestion?: CropRegion;
+  // Text of the second button (default: pick another photo).
+  cancelLabel?: string;
 }
 
 const HANDLE = 28;
@@ -40,7 +46,7 @@ const sameRect = (a: Rect, b: Rect) =>
 
 // Crop a photo: it starts as the whole picture, and the person can keep it as taken or drag the
 // frame (and its corners) to crop it. All the geometry is in services/crop.ts.
-export function CropScreen({ uri, image, busy, onUse, onCancel }: Props) {
+export function CropScreen({ uri, image, busy, onUse, onCancel, suggestion, cancelLabel = "Choose another photo" }: Props) {
   const { width: windowWidth } = useWindowDimensions();
   const box = useMemo<Size>(() => {
     const width = windowWidth - 48;
@@ -48,7 +54,8 @@ export function CropScreen({ uri, image, busy, onUse, onCancel }: Props) {
   }, [windowWidth]);
   const shown = useMemo(() => fitImage(image, box), [image, box]);
 
-  const [frame, setFrame] = useState<Rect>(() => fullFrame(shown));
+  const suggestedFrame = useMemo(() => (suggestion ? regionToFrame(suggestion, shown, image) : null), [suggestion, shown, image]);
+  const [frame, setFrame] = useState<Rect>(() => suggestedFrame ?? fullFrame(shown));
   const frameRef = useRef(frame);
   frameRef.current = frame;
   const shownRef = useRef(shown);
@@ -104,7 +111,9 @@ export function CropScreen({ uri, image, busy, onUse, onCancel }: Props) {
         <View style={styles.back} />
       </View>
 
-      <Text style={type.body}>Use the whole photo, or drag the frame to crop.</Text>
+      <Text style={type.body}>
+        {suggestedFrame ? "Suggested crop. Drag to adjust, or keep the whole photo." : "Use the whole photo, or drag the frame to crop."}
+      </Text>
 
       <View style={[styles.box, { width: box.width, height: box.height }]}>
         <Image source={{ uri }} accessibilityLabel="Your photo" style={styles.fill} resizeMode="contain" />
@@ -126,13 +135,16 @@ export function CropScreen({ uri, image, busy, onUse, onCancel }: Props) {
       </View>
 
       <View style={styles.chips}>
+        {suggestedFrame && (
+          <Chip role="radio" label="Suggested" selected={sameRect(frame, suggestedFrame)} onPress={() => setFrame(suggestedFrame)} />
+        )}
         <Chip role="radio" label="Full photo" selected={whole} onPress={() => setFrame(fullFrame(shown))} />
         <Chip role="radio" label="Square" selected={isSquare} onPress={() => setFrame(squareFrame(shown))} />
       </View>
 
       <View style={styles.actions}>
         <Button label={whole ? "Use full photo" : "Use cropped photo"} onPress={() => onUse(whole ? null : region)} busy={busy} />
-        <Button label="Choose another photo" variant="secondary" onPress={onCancel} disabled={busy} />
+        <Button label={cancelLabel} variant="secondary" onPress={onCancel} disabled={busy} />
         {busy && (
           <View style={styles.working}>
             <ActivityIndicator color={colors.ink} />
