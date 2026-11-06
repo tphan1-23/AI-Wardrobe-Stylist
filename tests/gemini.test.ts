@@ -35,6 +35,12 @@ describe("buildGeminiRequest", () => {
     expect(p.warmth).toMatchObject({ minimum: 1, maximum: 5 });
     expect(req.generationConfig.responseSchema.required).toContain("confidence");
   });
+
+  it("asks for an optional box of four integers, so a missing box can never cost the tags", () => {
+    const schema = req.generationConfig.responseSchema;
+    expect(schema.properties.box).toEqual({ type: "ARRAY", items: { type: "INTEGER" }, minItems: 4, maxItems: 4 });
+    expect(schema.required).not.toContain("box");
+  });
 });
 
 describe("extractText", () => {
@@ -58,6 +64,16 @@ describe("analyzeImage", () => {
     expect(url).not.toContain(KEY);
     expect((init.headers as Record<string, string>)["x-goog-api-key"]).toBe(KEY);
     expect(String(init.body)).not.toContain(KEY);
+  });
+
+  it("passes a usable crop box through and ignores an unusable one", async () => {
+    const withBox = vi.fn(async () => reply(200, geminiBody(JSON.stringify({ ...tags, box: [100, 100, 700, 600] }))));
+    const good = await analyzeImage({ fetch: withBox as never, apiKey: KEY }, image);
+    expect(good.box).toEqual({ x: 0.05, y: 0.05, width: 0.6, height: 0.7 });
+    const broken = vi.fn(async () => reply(200, geminiBody(JSON.stringify({ ...tags, box: [5, 5, 5, 5] }))));
+    const none = await analyzeImage({ fetch: broken as never, apiKey: KEY }, image);
+    expect(none).not.toHaveProperty("box");
+    expect(none.tags).toEqual({ type: "jeans", color: "navy", season: "all", warmth: 3 });
   });
 
   it("uses a custom model and cleans up fenced or sloppy output", async () => {

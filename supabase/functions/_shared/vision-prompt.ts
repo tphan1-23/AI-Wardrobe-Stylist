@@ -3,7 +3,8 @@
 import { COLORS, GARMENT_TYPES, SEASONS, WARMTH_MAX, WARMTH_MIN } from "./tag-schema.ts";
 
 // Bump on every prompt change and log the accuracy impact in brain/AI Logic Ownership.md.
-export const PROMPT_VERSION = "v1";
+export const PROMPT_VERSION = "v2";
+// v2 (2026-11-06): asks for a bounding box of the item ("box") so the app can suggest a crop. Tag wording unchanged.
 
 export function buildVisionPrompt(): string {
   return [
@@ -13,6 +14,7 @@ export function buildVisionPrompt(): string {
     `- "color": the dominant color, one of ${COLORS.join(", ")}`,
     `- "season": one of ${SEASONS.join(", ")} (use "all" if it suits any season)`,
     `- "warmth": integer ${WARMTH_MIN} (very light, e.g. tank top, sandals) to ${WARMTH_MAX} (very warm, e.g. heavy sweater, winter boots)`,
+    '- "box": where the tagged item is in the photo as [ymin, xmin, ymax, xmax], four integers from 0 to 1000 (fractions of the image height and width, times 1000), tight around the whole item',
     `- "confidence": an object with the keys type, color, season, warmth, each a number from 0 to 1 for how sure you are`,
     "If the photo shows several items, tag the most prominent one. If you cannot tell a field, give your best guess with low confidence.",
     "Do not invent values outside the lists above.",

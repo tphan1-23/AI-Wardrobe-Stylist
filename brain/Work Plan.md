@@ -83,6 +83,11 @@ Suggested order: 1, then 3, then 4, then 5 (5 last: it changes the AI core, so i
 ### Security review of the database (2026-11-06, Manuel + Claude)
 - Supabase's security advisor, read through a read-only MCP connection, found that signed-out callers (the public key) could execute all our database functions; `create_household()` would create orphan households for them. Fix: migration `0008_revoke_anon_functions.sql` (apply by hand after review, then re-run the advisor). Also open: five unused template tables (`tasks`, `labels`, `task_labels`, `comments`, `activity_log`, all empty) and the function `set_updated_at()` that belongs to them can be dropped with Thanh's OK; leaked-password protection is off (a dashboard setting, may need a paid plan); the migration history table is empty, so the red "Supabase Preview" check stays until `supabase migration repair` is run.
 
+### AI crop suggestion: ready for Thanh (2026-11-06, Manuel + Claude)
+- `analyze-garment` now returns an optional `box` (fractions of the photo: `x`, `y`, `width`, `height`, already padded) once the function is redeployed after PR approval. `reviewFromAnalysis` copies it to `ReviewState.box` (only if it is a valid box), and `cropRectFor(review.box, imageWidth, imageHeight)` in `services/add.ts` returns the pixel rectangle (`originX`, `originY`, `width`, `height`) for `expo-image-manipulator`, or `null` when there is nothing to crop.
+- **How to use it in the Add screen:** after the tags arrive, if `cropRectFor` is not null, open your crop tool with that rectangle pre-selected (the person can drag it, or reset to the whole photo), and keep the full-photo crop when it is null. Never crop automatically. The photo is uploaded before it is analyzed, so a crop means uploading the cropped file and removing the original (`discardPhoto`-style cleanup).
+- Measured: mean IoU 0.99 on 8 composite photos; unmeasured on messy real phone photos, which is why it is only a suggestion.
+
 ## People and laptops
 | Who | Works on | Owns |
 |---|---|---|

@@ -18,7 +18,7 @@ import {
   isWarmth,
   type Warmth,
 } from "../../../supabase/functions/_shared/tag-schema.ts";
-import type { AnalyzeGarmentResponse, GarmentTags, UUID } from "../../../supabase/functions/_shared/types.ts";
+import type { AnalyzeGarmentResponse, CropBox, GarmentTags, UUID } from "../../../supabase/functions/_shared/types.ts";
 import type { GatewayResult, Result } from "./household.ts";
 
 export const TAG_FIELDS = ["type", "color", "season", "warmth"] as const satisfies readonly (keyof GarmentTags)[];
@@ -84,6 +84,34 @@ export function photoPath(userId: UUID, id: string, extension: string): string {
   return `${userId}/${id}.${normalizeExtension(extension)}`;
 }
 
+// ---- Crop suggestion -------------------------------------------------------
+
+// Guards against a malformed box on its way from the server: four finite numbers that stay inside the photo.
+export function isCropBox(value: unknown): value is CropBox {
+  if (value === null || typeof value !== "object") return false;
+  const { x, y, width, height } = value as Record<string, unknown>;
+  const nums = [x, y, width, height];
+  if (!nums.every((n) => typeof n === "number" && Number.isFinite(n))) return false;
+  const [bx, by, bw, bh] = nums as number[];
+  return bx! >= 0 && by! >= 0 && bw! > 0 && bh! > 0 && bx! + bw! <= 1.0001 && by! + bh! <= 1.0001;
+}
+
+// The AI's suggested crop (a fraction of the photo, see CropBox) as whole pixels for the image
+// manipulator. Returns null when the box is missing, not usable, or would not change the photo.
+export function cropRectFor(
+  box: CropBox | undefined,
+  imageWidth: number,
+  imageHeight: number,
+): { originX: number; originY: number; width: number; height: number } | null {
+  if (!box || !(imageWidth > 0) || !(imageHeight > 0)) return null;
+  const originX = Math.max(0, Math.floor(box.x * imageWidth));
+  const originY = Math.max(0, Math.floor(box.y * imageHeight));
+  const width = Math.min(imageWidth - originX, Math.round(box.width * imageWidth));
+  const height = Math.min(imageHeight - originY, Math.round(box.height * imageHeight));
+  if (width < 1 || height < 1) return null;
+  return { originX, originY, width, height };
+}
+
 // ---- Review state -----------------------------------------------------------
 
 export interface ReviewState {
@@ -96,6 +124,8 @@ export interface ReviewState {
   // True when the AI gave no usable answer and every field is typed by hand.
   manual: boolean;
   warnings: string[];
+  // The AI's suggested crop for this photo (use cropRectFor to turn it into pixels); absent if none.
+  box?: CropBox;
 }
 
 function validTags(tags: Partial<GarmentTags>): Partial<GarmentTags> {
@@ -122,6 +152,7 @@ export function reviewFromAnalysis(path: string, response: AnalyzeGarmentRespons
     confirmed: [],
     manual: false,
     warnings: [...(response.warnings ?? [])],
+    ...(isCropBox(response.box) ? { box: response.box } : {}),
   };
 }
 

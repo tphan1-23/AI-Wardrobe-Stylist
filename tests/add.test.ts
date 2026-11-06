@@ -8,6 +8,8 @@ import {
   addPhoto,
   confirmTag,
   contentTypeFor,
+  cropRectFor,
+  isCropBox,
   discardPhoto,
   friendlyAddError,
   manualReview,
@@ -297,5 +299,57 @@ describe("supabaseAddGateway", () => {
     const invoke = async () => ({ data: null, error: { message: "non-2xx", context: { status: 429, json: async () => ({ error: "limit" }) } } });
     const g = supabaseAddGateway(fakeClient({ invoke }).client);
     expect((await g.analyze("u/p.jpg")).error).toEqual({ message: "limit", status: 429 });
+  });
+});
+
+describe("the AI's crop suggestion", () => {
+  const box = { x: 0.1, y: 0.2, width: 0.5, height: 0.6 };
+
+  it("is kept on the review state when it is usable and left off otherwise", () => {
+    expect(reviewFromAnalysis("u/p.jpg", { ...analysis(), box }).box).toEqual(box);
+    expect(reviewFromAnalysis("u/p.jpg", analysis())).not.toHaveProperty("box");
+    for (const bad of [{ x: 0.5, y: 0, width: 0.8, height: 1 }, { x: 0, y: 0, width: 0, height: 1 }, { x: "a" }, null, 7]) {
+      expect(reviewFromAnalysis("u/p.jpg", { ...analysis(), box: bad as never })).not.toHaveProperty("box");
+    }
+    expect(manualReview("u/p.jpg", "AI down")).not.toHaveProperty("box");
+  });
+
+  it("recognizes only boxes inside the photo", () => {
+    expect(isCropBox(box)).toBe(true);
+    expect(isCropBox({ x: 0, y: 0, width: 1, height: 1 })).toBe(true);
+    expect(isCropBox({ x: -0.1, y: 0, width: 0.5, height: 0.5 })).toBe(false);
+    expect(isCropBox({ x: 0, y: 0, width: 0.5, height: Number.NaN })).toBe(false);
+    expect(isCropBox({ x: 0.6, y: 0, width: 0.5, height: 0.5 })).toBe(false);
+    expect(isCropBox({ x: 0, y: 0.6, width: 0.5, height: 0.5 })).toBe(false);
+    expect(isCropBox(undefined)).toBe(false);
+  });
+
+  it("becomes whole pixels for the image manipulator", () => {
+    expect(cropRectFor(box, 1000, 2000)).toEqual({ originX: 100, originY: 400, width: 500, height: 1200 });
+    expect(cropRectFor(box, 1001, 999)).toEqual({ originX: 100, originY: 199, width: 501, height: 599 });
+  });
+
+  it("never reaches past the edge of the image", () => {
+    const edge = { x: 0.9, y: 0.9, width: 0.1, height: 0.1 };
+    const rect = cropRectFor(edge, 333, 777)!;
+    expect(rect.originX + rect.width).toBeLessThanOrEqual(333);
+    expect(rect.originY + rect.height).toBeLessThanOrEqual(777);
+  });
+
+  it("clamps a box that overshoots the edge by rounding error", () => {
+    // isCropBox tolerates 0.0001 of overshoot; the pixel rectangle must still stay inside the image.
+    expect(cropRectFor({ x: 0.5, y: 0.5, width: 0.5001, height: 0.5001 }, 10_000, 20_000)).toEqual({
+      originX: 5000,
+      originY: 10_000,
+      width: 5000,
+      height: 10_000,
+    });
+  });
+
+  it("gives nothing when there is no box or no usable image size", () => {
+    expect(cropRectFor(undefined, 1000, 1000)).toBeNull();
+    expect(cropRectFor(box, 0, 1000)).toBeNull();
+    expect(cropRectFor(box, 1000, Number.NaN)).toBeNull();
+    expect(cropRectFor({ x: 0.999, y: 0, width: 0.0001, height: 0.5 }, 100, 100)).toBeNull();
   });
 });
