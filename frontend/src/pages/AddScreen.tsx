@@ -8,8 +8,9 @@ import { ErrorLine } from "../components/common/ErrorLine";
 import { Icon, type IconName } from "../components/common/Icon";
 import { Screen } from "../components/common/Screen";
 import { GarmentForm } from "../components/closet/GarmentForm";
-import { addPhoto, confirmTag, discardPhoto, saveGarment, setTag, unconfirmedFields, type ReviewState } from "../services/add";
-import type { CropRegion } from "../services/crop";
+import { addPhoto, confirmTag, cropRectFor, discardPhoto, saveGarment, setTag, unconfirmedFields, type ReviewState } from "../services/add";
+import type { CropRegion, Size } from "../services/crop";
+import { replaceWithCrop } from "../services/cropSuggestion";
 import { draftFromTags } from "../services/garment";
 import { resizeWidth } from "../services/photoCache";
 import { newPhotoId } from "../services/photoId";
@@ -29,7 +30,19 @@ type Step =
   | { kind: "choose" }
   | { kind: "crop"; photo: PickedPhoto }
   | { kind: "working" }
+  | { kind: "suggest"; uri: string; review: ReviewState; size: Size; region: CropRegion }
   | { kind: "review"; uri: string; review: ReviewState };
+
+// The real size of the picture behind a link, or the size we expect if it cannot be read.
+function imageSize(uri: string, fallback: Size): Promise<Size> {
+  return new Promise((resolve) => {
+    Image.getSize(
+      uri,
+      (width, height) => resolve({ width, height }),
+      () => resolve(fallback),
+    );
+  });
+}
 
 // Smaller than a full-resolution photo, still sharp enough for the AI to read. With a quality
 // below 1 the picker hands back a JPEG, which is what the upload is told it is. The picker's own
@@ -69,8 +82,9 @@ export function AddScreen({ userId }: { userId: string }) {
     setStep({ kind: "crop", photo: { uri: asset.uri, width: asset.width, height: asset.height, base64: asset.base64 } });
   }
 
-  // Uploads the photo and asks the AI about it, then shows the review.
-  async function analyze(uri: string, base64: string) {
+  // Uploads the photo and asks the AI about it, then shows the review. If the AI suggested a crop,
+  // the person first sees it on the crop screen (and can ignore it).
+  async function analyze(uri: string, base64: string, expected: Size) {
     setStep({ kind: "working" });
     const added = await addPhoto(addGateway, userId, { data: decode(base64), extension: "jpg" }, newPhotoId);
     if (!added.ok) {
@@ -78,7 +92,48 @@ export function AddScreen({ userId }: { userId: string }) {
       setError(added.error);
       return;
     }
+    if (added.value.box) {
+      const size = await imageSize(uri, expected);
+      const region = cropRectFor(added.value.box, size.width, size.height);
+      if (region) {
+        setStep({ kind: "suggest", uri, review: added.value, size, region });
+        return;
+      }
+    }
     setStep({ kind: "review", uri, review: added.value });
+  }
+
+  // The person answered the suggested crop. No region (or the whole photo): keep the photo as it is.
+  // Otherwise cut it, upload the cut photo and remove the original. If anything fails the original
+  // is kept and the review simply continues.
+  async function useSuggestion(step: Extract<Step, { kind: "suggest" }>, region: CropRegion | null) {
+    const { uri, review } = step;
+    if (region === null) {
+      setStep({ kind: "review", uri, review });
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const cut = await ImageManipulator.manipulateAsync(uri, [{ crop: region }], {
+        compress: 0.7,
+        format: ImageManipulator.SaveFormat.JPEG,
+        base64: true,
+      });
+      if (!cut.base64) throw new Error("no image data");
+      const replaced = await replaceWithCrop(addGateway, userId, review, { data: decode(cut.base64), extension: "jpg" }, newPhotoId);
+      setBusy(false);
+      if (replaced.ok) {
+        setStep({ kind: "review", uri: cut.uri, review: replaced.value });
+      } else {
+        setError(replaced.error);
+        setStep({ kind: "review", uri, review });
+      }
+    } catch {
+      setBusy(false);
+      setError("Could not crop that photo. Your original was kept.");
+      setStep({ kind: "review", uri, review });
+    }
   }
 
   // "Use full photo" (region is null) keeps the photo exactly as taken; otherwise the chosen part is cut out.
@@ -86,7 +141,7 @@ export function AddScreen({ userId }: { userId: string }) {
     // Big photos are shrunk before upload: they upload, tag and load much faster.
     const shrinkTo = resizeWidth(region ? region.width : photo.width);
     if (region === null && shrinkTo === null) {
-      await analyze(photo.uri, photo.base64);
+      await analyze(photo.uri, photo.base64, { width: photo.width, height: photo.height });
       return;
     }
     const actions: ImageManipulator.Action[] = [];
@@ -102,7 +157,7 @@ export function AddScreen({ userId }: { userId: string }) {
       });
       setBusy(false);
       if (!cropped.base64) throw new Error("no image data");
-      await analyze(cropped.uri, cropped.base64);
+      await analyze(cropped.uri, cropped.base64, { width: cropped.width, height: cropped.height });
     } catch {
       setBusy(false);
       setError("Could not crop that photo. Try again, or use the full photo.");
@@ -166,6 +221,21 @@ export function AddScreen({ userId }: { userId: string }) {
           setError(null);
           setStep({ kind: "choose" });
         }}
+      />
+    );
+  }
+
+  if (step.kind === "suggest") {
+    return (
+      <CropScreen
+        key="suggest"
+        uri={step.uri}
+        image={step.size}
+        suggestion={step.region}
+        busy={busy}
+        onUse={(region) => useSuggestion(step, region)}
+        cancelLabel="Keep the photo as it is"
+        onCancel={() => useSuggestion(step, null)}
       />
     );
   }

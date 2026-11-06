@@ -55,7 +55,7 @@ function FilterRow<T extends string>({
 }
 
 // Your garments, and your household members' (read-only). Tap one to open it.
-export function ClosetScreen({ myId, members }: { myId: string; members: MemberRow[] }) {
+export function ClosetScreen({ myId, members, onAdd }: { myId: string; members: MemberRow[]; onAdd?: () => void }) {
   const { width } = useWindowDimensions();
   const [items, setItems] = useState<ClosetItem[] | null>(null);
   const [loading, setLoading] = useState(true);
@@ -138,7 +138,8 @@ export function ClosetScreen({ myId, members }: { myId: string; members: MemberR
       return (
         <View style={styles.gap}>
           <Text style={type.cardTitle}>Your closet is empty</Text>
-          <Text style={type.body}>Add your first garment from the Add tab.</Text>
+          <Text style={type.body}>Add your first garment to start.</Text>
+          {onAdd && <Button label="Add a garment" onPress={onAdd} />}
         </View>
       );
     }

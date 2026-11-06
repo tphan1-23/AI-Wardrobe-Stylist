@@ -33,7 +33,7 @@ export function HouseholdScreen({ onBack, onDone }: Props) {
   return (
     <Screen
       title="Share your closet"
-      subtitle="Everyone in a household can see each other's closets. Your clothes stay yours, and you can leave at any time."
+      subtitle="Members can see each other's closets. Your clothes stay yours."
     >
       <View style={styles.card}>
         <Text style={type.cardTitle}>Create a household</Text>

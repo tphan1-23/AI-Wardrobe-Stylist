@@ -17,6 +17,7 @@ export default defineConfig({
         "frontend/src/services/add.ts",
         "frontend/src/services/photoId.ts",
         "frontend/src/services/photoCache.ts",
+        "frontend/src/services/cropSuggestion.ts",
         "frontend/src/services/addGateway.ts",
         "frontend/src/services/today.ts",
         "frontend/src/services/garment.ts",

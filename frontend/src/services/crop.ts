@@ -48,6 +48,22 @@ export function fitImage(image: Size, box: Size): Rect {
 // The frame that shows the whole photo (the starting point: nothing is cropped yet).
 export const fullFrame = (shown: Rect): Rect => ({ ...shown });
 
+// The opposite of toImageRegion: a region of the real picture (for example the AI's suggested crop)
+// as a frame on screen, so the crop tool can start with it selected. Kept inside the photo.
+export function regionToFrame(region: CropRegion, shown: Rect, image: Size): Rect {
+  if (image.width <= 0 || image.height <= 0 || shown.width <= 0 || shown.height <= 0) return fullFrame(shown);
+  const scaleX = shown.width / image.width;
+  const scaleY = shown.height / image.height;
+  const x = clamp(shown.x + region.originX * scaleX, shown.x, shown.x + shown.width);
+  const y = clamp(shown.y + region.originY * scaleY, shown.y, shown.y + shown.height);
+  return {
+    x,
+    y,
+    width: Math.min(region.width * scaleX, shown.x + shown.width - x),
+    height: Math.min(region.height * scaleY, shown.y + shown.height - y),
+  };
+}
+
 // The biggest centered square inside the photo.
 export function squareFrame(shown: Rect): Rect {
   const side = Math.min(shown.width, shown.height);
