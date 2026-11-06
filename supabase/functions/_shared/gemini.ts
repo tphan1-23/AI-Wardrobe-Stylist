@@ -69,6 +69,8 @@ export function buildGeminiRequest(image: ImageInput) {
           color: str(COLORS),
           season: str(SEASONS),
           warmth: { type: "INTEGER", minimum: WARMTH_MIN, maximum: WARMTH_MAX },
+          // Optional on purpose: a missing box must never cost the tags.
+          box: { type: "ARRAY", items: { type: "INTEGER" }, minItems: 4, maxItems: 4 },
           confidence: {
             type: "OBJECT",
             properties: { type: confidence, color: confidence, season: confidence, warmth: confidence },

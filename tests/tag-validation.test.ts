@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_CONFIDENCE,
+  BOX_PADDING,
   LOW_CONFIDENCE,
+  MAX_BOX_AREA,
+  MIN_BOX_AREA,
   extractJson,
   parseModelOutput,
+  validateBox,
   validateTags,
 } from "../supabase/functions/_shared/tag-validation.ts";
 import { COLORS, GARMENT_TYPES, SEASONS, isWarmth } from "../supabase/functions/_shared/tag-schema.ts";
@@ -177,6 +181,69 @@ describe("vision prompt", () => {
     for (const v of [...GARMENT_TYPES, ...COLORS, ...SEASONS]) expect(prompt).toContain(v);
     expect(prompt).toContain("JSON");
     expect(prompt).toContain("confidence");
+    expect(prompt).toContain('"box"');
+    expect(prompt).toContain("ymin, xmin, ymax, xmax");
     expect(PROMPT_VERSION).toMatch(/^v\d+$/);
+  });
+});
+
+describe("validateBox (the crop suggestion)", () => {
+  it("turns the model's 0..1000 box into padded fractions of the photo", () => {
+    // item from 20% to 70% of the height and 30% to 60% of the width, plus 5% on every side
+    expect(BOX_PADDING).toBe(0.05);
+    expect(validateBox([200, 300, 700, 600])).toEqual({ x: 0.25, y: 0.15, width: 0.4, height: 0.6 });
+  });
+
+  it("never reaches outside the photo when the item touches an edge", () => {
+    const box = validateBox([0, 0, 600, 500])!;
+    expect(box.x).toBe(0);
+    expect(box.y).toBe(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(1);
+    expect(box.y + box.height).toBeLessThanOrEqual(1);
+    const far = validateBox([400, 500, 1000, 1000])!;
+    expect(far.x + far.width).toBeCloseTo(1, 4);
+    expect(far.y + far.height).toBeCloseTo(1, 4);
+  });
+
+  it("drops a box that is not four numbers in range, in order", () => {
+    const bad: unknown[] = [
+      undefined, null, "200,300,700,600", {}, [], [1, 2, 3], [1, 2, 3, 4, 5],
+      [200, 300, 700, "600"], [200, 300, 700, NaN], [200, 300, 700, Infinity],
+      [-1, 300, 700, 600], [200, 300, 1001, 600], [200, -5, 700, 600], [200, 300, 700, 2000],
+      [700, 300, 200, 600], [200, 600, 700, 300], [300, 300, 300, 600], [200, 300, 700, 300],
+    ];
+    for (const raw of bad) expect(validateBox(raw), JSON.stringify(raw)).toBeUndefined();
+  });
+
+  it("drops a box too small to be the garment, and one that fills the frame", () => {
+    expect(MIN_BOX_AREA).toBeGreaterThan(0);
+    expect(validateBox([400, 400, 450, 450])).toBeUndefined(); // 5% x 5% of the photo
+    expect(validateBox([0, 0, 1000, 1000])).toBeUndefined();
+    expect(validateBox([40, 20, 975, 960])).toBeUndefined(); // padded it covers almost everything
+    const area = (b: { width: number; height: number }) => b.width * b.height;
+    expect(area(validateBox([100, 100, 900, 800])!)).toBeLessThanOrEqual(MAX_BOX_AREA);
+  });
+
+  it("rounds to four decimals", () => {
+    const box = validateBox([123, 456, 789, 654])!;
+    for (const v of Object.values(box)) expect(Number.isInteger(Math.round(v * 10_000))).toBe(true);
+    expect(String(box.x).split(".")[1]?.length ?? 0).toBeLessThanOrEqual(4);
+  });
+
+  it("is added to the result only when it is usable, and never costs the tags", () => {
+    const withBox = validateTags({ ...good, box: [200, 300, 700, 600] });
+    expect(withBox.box).toBeDefined();
+    expect(withBox.tags).toEqual({ type: "jeans", color: "navy", season: "all", warmth: 3 });
+    for (const box of [undefined, [1, 2], "x", [900, 900, 100, 100]]) {
+      const result = validateTags({ ...good, box });
+      expect(result).not.toHaveProperty("box");
+      expect(result.tags).toEqual({ type: "jeans", color: "navy", season: "all", warmth: 3 });
+      expect(result.warnings).toEqual([]);
+    }
+  });
+
+  it("works through parseModelOutput for fenced model text", () => {
+    const text = "```json\n" + JSON.stringify({ ...good, box: [100, 100, 900, 800] }) + "\n```";
+    expect(parseModelOutput(text).box).toEqual(validateBox([100, 100, 900, 800]));
   });
 });

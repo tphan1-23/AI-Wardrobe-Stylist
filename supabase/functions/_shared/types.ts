@@ -90,6 +90,16 @@ export interface AnalyzeGarmentRequest {
   image_path: string;
 }
 
+// Where the tagged item is in the photo, as fractions of the image (0 to 1): the top-left corner
+// plus the size. Already padded so the item's edges are not clipped. Absent when the model gave no
+// usable box or the item fills the frame; the app then offers the normal full-photo crop.
+export interface CropBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 // Fields the model got wrong, left out or was unsure about are absent from
 // `tags` or listed in `needs_review`; the review screen must make the user
 // fill/confirm them before the garment is saved.
@@ -98,6 +108,7 @@ export interface AnalyzeGarmentResponse {
   confidence: Partial<Record<keyof GarmentTags, number>>; // 0..1 per field
   needs_review: (keyof GarmentTags)[];
   warnings: string[];
+  box?: CropBox;
 }
 
 // ---- Edge function: generate-outfit ---------------------------------------

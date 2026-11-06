@@ -33,9 +33,11 @@ allowed extensions: jpg, jpeg, png, webp, heic, heif).
   "tags": { "type": "jeans", "color": "blue", "season": "all", "warmth": 3 },
   "confidence": { "type": 0.95, "color": 0.9, "season": 0.8, "warmth": 0.8 },
   "needs_review": ["season"],
-  "warnings": []
+  "warnings": [],
+  "box": { "x": 0.12, "y": 0.2, "width": 0.55, "height": 0.6 }
 }
 ```
+`box` is the suggested crop for the photo: where the item is, as fractions of the image (top-left corner plus size, already padded by 5% so the edges are not clipped). It is **optional**: it is left out when the model gave no usable box, or when the item already fills the frame (the padded box would cover more than 90% of the photo). Never rely on it; offer the normal full-photo crop when it is missing. In the app, `cropRectFor(review.box, width, height)` in `services/add.ts` turns it into the pixel rectangle for the image manipulator.
 `tags` may be missing fields; any field that is missing or low-confidence (< 0.6) is listed in `needs_review`,
 and the review screen must make the user fill or confirm it. Even with no flags the user confirms the tags: the
 model's confidence has never separated right answers from wrong ones (see `brain/AI Logic Ownership.md`).

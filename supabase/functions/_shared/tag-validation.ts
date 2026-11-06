@@ -1,7 +1,7 @@
 // Turns untrusted vision-model output into the fixed tag schema. Never throws;
 // anything it cannot map is left out and flagged for the review screen.
 import { isColor, isGarmentType, isSeason, isWarmth } from "./tag-schema.ts";
-import type { AnalyzeGarmentResponse, GarmentTags } from "./types.ts";
+import type { AnalyzeGarmentResponse, CropBox, GarmentTags } from "./types.ts";
 
 export const LOW_CONFIDENCE = 0.6;
 export const DEFAULT_CONFIDENCE = 0.5; // used when the model reports none
@@ -83,6 +83,32 @@ function confidenceOf(raw: unknown, field: keyof GarmentTags): number {
   return typeof c === "number" && Number.isFinite(c) ? Math.min(1, Math.max(0, c)) : DEFAULT_CONFIDENCE;
 }
 
+// Boxes smaller than this share of the photo are not believable as "the garment".
+export const MIN_BOX_AREA = 0.05;
+// If the padded box covers this much of the photo, cropping would change nothing worth showing.
+export const MAX_BOX_AREA = 0.9;
+// Padding added on every side so the item's edges are not clipped.
+export const BOX_PADDING = 0.05;
+
+const round4 = (n: number) => Math.round(n * 10_000) / 10_000;
+
+// The model answers [ymin, xmin, ymax, xmax] on a 0..1000 scale (Gemini's own convention).
+// Anything that is not four sensible numbers in order is dropped: the box is a suggestion only.
+export function validateBox(raw: unknown): CropBox | undefined {
+  if (!Array.isArray(raw) || raw.length !== 4) return undefined;
+  if (!raw.every((v) => typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= 1000)) return undefined;
+  const [ymin, xmin, ymax, xmax] = (raw as number[]).map((v) => v / 1000) as [number, number, number, number];
+  if (ymax <= ymin || xmax <= xmin) return undefined;
+  if ((ymax - ymin) * (xmax - xmin) < MIN_BOX_AREA) return undefined;
+
+  const left = Math.max(0, xmin - BOX_PADDING);
+  const top = Math.max(0, ymin - BOX_PADDING);
+  const right = Math.min(1, xmax + BOX_PADDING);
+  const bottom = Math.min(1, ymax + BOX_PADDING);
+  const box = { x: round4(left), y: round4(top), width: round4(right - left), height: round4(bottom - top) };
+  return box.width * box.height > MAX_BOX_AREA ? undefined : box;
+}
+
 export function validateTags(input: unknown): AnalyzeGarmentResponse {
   const warnings: string[] = [];
   let raw = input;
@@ -114,7 +140,8 @@ export function validateTags(input: unknown): AnalyzeGarmentResponse {
     confidence[field] = confidenceOf(obj?.confidence, field);
     if (confidence[field]! < LOW_CONFIDENCE) needsReview.push(field);
   }
-  return { tags, confidence, needs_review: needsReview, warnings };
+  const box = validateBox(obj?.box);
+  return { tags, confidence, needs_review: needsReview, warnings, ...(box ? { box } : {}) };
 }
 
 export function parseModelOutput(text: string): AnalyzeGarmentResponse {
