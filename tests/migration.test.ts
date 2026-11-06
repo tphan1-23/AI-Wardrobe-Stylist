@@ -140,3 +140,34 @@ describe("migration 0006_suggestion_kind", () => {
     expect(kind).not.toMatch(/delete|truncate|drop|create policy|alter policy|disable row level security/i);
   });
 });
+
+describe("migration 0008_revoke_anon_functions", () => {
+  const revoke = readFileSync(new URL("../supabase/migrations/0008_revoke_anon_functions.sql", import.meta.url), "utf8");
+  const sqlOnly = revoke.replace(/--.*$/gm, "");
+  // Every function the earlier migrations create in the public schema.
+  const created = new Set<string>();
+  for (const file of ["0001_init.sql", "0002_personal_closets.sql", "0003_social_login_names.sql", "0004_ensure_profile.sql", "0007_wear_marks_dirty.sql"]) {
+    const text = readFileSync(new URL(`../supabase/migrations/${file}`, import.meta.url), "utf8");
+    for (const m of text.matchAll(/create (?:or replace )?function (\w+)\(/gi)) created.add(m[1]!);
+  }
+
+  it("covers every function the migrations create", () => {
+    expect(created.size).toBe(9);
+    const revokeBlock = /revoke all on function([\s\S]*?)from public, anon;/.exec(sqlOnly)?.[1] ?? "";
+    const grantBlock = /grant execute on function([\s\S]*?)to authenticated, service_role;/.exec(sqlOnly)?.[1] ?? "";
+    for (const name of created) {
+      expect(revokeBlock, `revoke ${name}`).toMatch(new RegExp(String.raw`\b${name}\(`));
+      expect(grantBlock, `grant ${name}`).toMatch(new RegExp(String.raw`\b${name}\(`));
+    }
+  });
+
+  it("takes access away from signed-out callers and only gives it to signed-in users and the service role", () => {
+    expect(sqlOnly).toMatch(/from public, anon;/);
+    expect(sqlOnly).toMatch(/to authenticated, service_role;/);
+    expect(sqlOnly).not.toMatch(/\bto\b[^;]*\b(anon|public)\b[^;]*;/i);
+  });
+
+  it("only changes permissions: no data, table or policy changes", () => {
+    expect(sqlOnly).not.toMatch(/\b(insert|update|delete|truncate|drop|create table|create policy|alter policy|alter table)\b/i);
+  });
+});
