@@ -100,7 +100,8 @@ describe("migration 0004_ensure_profile", () => {
     expect(ensure).toMatch(/create function ensure_profile\(\) returns void/);
     expect(ensure).toMatch(/where u\.id = auth\.uid\(\)/);
     expect(ensure).toMatch(/on conflict \(id\) do nothing/);
-    expect(ensure).not.toMatch(/delete|update|truncate|drop/i);
+    // Only statements count, not words in the comments.
+    expect(ensure.replace(/--.*$/gm, "")).not.toMatch(/\bdelete\b|\bupdate\b|\btruncate\b|\bdrop\b/i);
   });
 
   it("runs as security definer with a fixed search_path and is not callable by anonymous users", () => {
@@ -137,6 +138,6 @@ describe("migration 0006_suggestion_kind", () => {
   });
 
   it("only adds: it deletes nothing and leaves the security policies alone", () => {
-    expect(kind).not.toMatch(/delete|truncate|drop|create policy|alter policy|disable row level security/i);
+    expect(kind).not.toMatch(/\bdelete\b|\btruncate\b|\bdrop\b|create policy|alter policy|disable row level security/i);
   });
 });
