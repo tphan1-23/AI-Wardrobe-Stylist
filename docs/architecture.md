@@ -22,8 +22,8 @@ separate custom backend server — Supabase is the backend.
       │                                  │
       ▼                                  ▼
 ┌────────────┐                  ┌──────────────────┐
-│ OpenWeather │                  │ Vision model (e.g. │
-│  Map (free) │                  │  Gemini, free tier)│
+│ OpenWeather │                  │ Gemini vision model│
+│  Map (free) │                  │ (billing, D20)     │
 └────────────┘                  └──────────────────┘
 ```
 
@@ -31,18 +31,17 @@ separate custom backend server — Supabase is the backend.
 
 | Folder | Responsibility |
 |---|---|
-| `components/upload/` | Photo capture/upload UI, calls `analyze-garment` |
-| `components/closet/` | Closet inventory view, clean/dirty toggle |
-| `components/onboarding/` | Cold-start quiz, seeds `preference_vector` |
-| `components/outfit/` | Daily suggestion display, thumbs up/down feedback |
-| `components/common/` | Shared UI primitives |
-| `services/` | `supabase.ts` (client, AsyncStorage session), `auth.ts` (pure sign-up/log-in/log-out logic, unit-tested), weather client, calls to edge functions |
-| `hooks/` | Data-fetching/state hooks wrapping `services/` (`useSession` tracks the auth session) |
-| `pages/` | Screens composing the above (`AuthScreen` sign-up/log-in, `HomeScreen` placeholder) |
+| `pages/` | Screens: `AuthScreen`, `ForgotPasswordScreen`, `LocationScreen`, `QuizScreen` (onboarding); `MainTabs` with `TodayScreen`, `ClosetScreen` (+ `GarmentEditScreen`), `AddScreen` (+ `CropScreen`), `HistoryScreen`, `HomeScreen`/`HouseholdScreen`; `StyleSwipeScreen` |
+| `components/` | `common/` (buttons, fields, tab bar, icons, cached images), `closet/` (tiles, tag form), `outfit/` (outfit cards) |
+| `services/` | All logic that can be tested without a phone. Each feature is a pure module with an **injected gateway** plus a thin Supabase adapter: `auth.ts`, `household.ts` + `householdGateway.ts`, `quiz.ts`, `add.ts` + `addGateway.ts`, `closet.ts` + `closetGateway.ts`, `today.ts` + `todayGateway.ts`, `history.ts` + `historyGateway.ts`, `styleSwipe.ts`, `crop.ts`, `cropSuggestion.ts`, `storage.ts` (signed photo links), `edgeFunctions.ts` (calling the three functions), `supabase.ts` (the client) |
+| `hooks/` | Data-fetching hooks wrapping `services/` (`useSession`, `useOverview`) |
 
-The frontend talks to Postgres directly through the Supabase client SDK (auto-generated REST/RPC
-via PostgREST) for plain CRUD, and calls the three edge functions below for anything that needs
-server-side AI logic or secrets that can't live in the browser.
+**Why this split:** screens only show state and call a service function; the rules (validation, what is allowed, error
+messages) live in the services, where unit tests cover them with a fake gateway. That is how the app reaches 100%
+coverage on its logic without running React Native in tests. The screens themselves are checked by hand on a device.
+
+The app reads and writes Postgres directly through the Supabase client (row-level security decides what each user may
+touch) and calls the three edge functions for anything that needs server-side AI logic or secrets.
 
 ## Backend (`supabase/`)
 
@@ -53,27 +52,43 @@ Each function is a thin Deno wrapper (`index.ts`, shared `_deno/serve.ts`) over 
 
 - **`analyze-garment`** — takes the storage path of an uploaded photo (must be in the caller's own folder), calls the
   vision model through a fallback chain of Gemini models, validates and normalizes the answer against the fixed tag
-  vocabulary, and **returns proposed tags** (`type`, `color`, `season`, `warmth`) with `needs_review`. It saves nothing:
-  the app saves the garment after the user confirms on the review screen. The model key stays server-side.
+  vocabulary, and **returns proposed tags** (`type`, `color`, `season`, `warmth`) with `needs_review`, plus an optional
+  padded **crop box** for where the garment is. It saves nothing: the app saves the garment after the user confirms on
+  the review screen. The model key stays server-side.
 - **`generate-outfit`** — for the signed-in user, loads **their own** clean garments, today's weather for their
   location (OpenWeatherMap) and their preference weights, scores top + bottom + shoes combinations, and saves the
-  winner to `suggestions`. A household is not needed. Supports re-roll by excluding rejected suggestions.
+  winner to `suggestions`, and returns the weather it used. A household is not needed. Supports re-roll by excluding
+  rejected suggestions. With `purpose: "explore"` it produces Style Swipe ideas: stored with `kind = 'explore'` so they
+  never replace today's outfit, and allowed to use clothes in the laundry because they only train the AI.
 - **`update-preferences`** — takes a thumbs up or down on a suggestion, records it once, and updates the `type:` and
   `color:` weights of the garments in that suggestion.
 
 ### Data (`supabase/migrations/`)
 
-`0001` base schema, `0002` personal closets (D18), `0003` profile names from Google/Apple (D19). Migrations are the
-source of truth for the schema; keep this document and `_shared/types.ts` in sync with them.
+`0001` base schema, `0002` personal closets (D18), `0003` profile names from Google/Apple (D19), `0004` `ensure_profile()`,
+`0005` favorites, `0006` `suggestions.kind` for Style Swipe, `0007` wearing an outfit marks it dirty except shoes (D21),
+`0008` signed-out callers cannot run our functions. Migrations are the source of truth for the schema; keep this document
+and `_shared/types.ts` in sync with them. Applying them is described in [deployment.md](deployment.md).
+
+### Security model
+
+- **Row-level security on every table.** A user reads their own rows (and, in a household, members' garments and photos)
+  and writes only their own. `owner_id` cannot be changed, so clothes cannot be moved to another user.
+- **Private storage bucket**, files at `<owner user id>/<file>`; only the owner uploads or deletes; the owner and
+  household members read.
+- **Database functions (RPCs) are `security definer` with a fixed `search_path`, and only signed-in users can execute them**
+  (migration 0008; before it, the public key could run them).
+- **Secrets stay server-side:** the Gemini and weather keys are function secrets; the app ships only the public anon key.
+- The functions read the user from the login token, never from the request body.
 
 ## High-level data model
 
 ```
 households        (id, name, invite_code)                         -- optional, only shares closets
 users             (id = auth user, household_id?, name, location, quiz_preferences)
-garments          (owner_id, image_path, type, color, season, warmth, status: clean/dirty, last_worn_date)
+garments          (owner_id, image_path, type, color, season, warmth, status: clean/dirty, last_worn_date, favorite)
 preference_vector (user_id, tag, weight)   -- seeded by the quiz, updated by feedback
-suggestions       (user_id, date, garment_ids, feedback: up/down/null, accepted)
+suggestions       (user_id, date, garment_ids, feedback: up/down/null, accepted, kind: today/explore, favorite)
 ```
 
 **Personal closets (D18):** every account owns its garments (`owner_id`). A household is optional and only lets members
@@ -82,17 +97,25 @@ clothes. Daily suggestions use the user's own closet only. Preferences, location
 
 ## Core flows
 
-1. **Onboarding:** the user signs up (email + password, or Google/Apple; a database trigger creates the `users`
-   profile row) and sets a location. Creating or joining a household is optional and done later from the home screen.
-   The cold-start quiz (not built yet) seeds `preference_vector` with `quizToPreferences`.
-2. **Adding a garment:** the user uploads a photo to the private bucket under `<their user id>/` → `analyze-garment`
-   proposes tags → the user reviews and confirms on the review screen → the app inserts the `garments` row. If the
-   AI is at its limit (429) or down (502), the user types the tags.
-3. **Daily suggestion:** the app calls `generate-outfit` → the function reads the user's clean garments, weather and
-   preference weights → returns an outfit (or `incomplete` / `exhausted`) and saves it to `suggestions`.
-   Accepting it calls the `accept_suggestion` RPC, which marks the items worn today and sends everything except the shoes to the laundry (dirty), so a second outfit that day cannot reuse them.
-4. **Feedback loop:** thumbs up/down → `update-preferences` adjusts the weights once per suggestion; a thumbs down
-   immediately re-rolls with the rejected suggestion excluded.
+1. **Onboarding:** the user signs up (email + password, or Google; a database trigger creates the `users` profile row)
+   and sets a location, then answers the five-question style quiz, which seeds `preference_vector` with
+   `quizToPreferences` and is shown once. Creating or joining a household is optional and done later from the
+   Household tab.
+2. **Adding a garment:** pick or take a photo, crop it (the AI's suggested box is pre-selected when it found one),
+   upload it to the private bucket under `<their user id>/`, and `analyze-garment` proposes tags. The user checks every
+   flagged field on the review screen and the app inserts the `garments` row. If the AI is at its limit (429) or down
+   (502), the user types the tags; a photo the server rejects is removed from storage.
+3. **Daily suggestion:** the app calls `generate-outfit`, which reads the user's clean garments, weather and
+   preference weights, returns an outfit (or `incomplete` / `exhausted`) with the weather, and saves it to
+   `suggestions`. **Wear this** calls the `accept_suggestion` RPC, which marks the items worn today and sends everything
+   except the shoes to the laundry, so **New outfit** for the same day cannot reuse them.
+4. **Feedback loop:** thumbs up/down goes to `update-preferences`, which adjusts the weights once per suggestion; a
+   thumbs down immediately re-rolls with the rejected suggestion excluded.
+5. **Style Swipe:** the deck asks `generate-outfit` with `purpose: "explore"`, skipping ideas already judged; each swipe
+   is a thumbs up/down through `update-preferences`. Ideas are stored with `kind = 'explore'`, so Today and History
+   (which read only `kind = 'today'`) never show them as the day's outfit.
+6. **Closet, History, Favorites:** the closet lists the user's garments (and household members', read-only) with
+   category, status, owner and favorite filters; History lists accepted outfits of the last 7 days and favorites.
 
 ## External services
 
@@ -104,6 +127,7 @@ clothes. Daily suggestions use the user's own closet only. Preferences, location
 ## Status of the original open questions
 
 - Vision-model provider, tag schema and prompt: decided and measured (`brain/AI Logic Ownership.md`).
-- Household flow: decided (D18) and implemented (create, join, leave, members list).
-- Still open: color coordination and layering (stretch goals), outfit history, hosting a web demo build, and a real
-  email domain so auth emails stop landing in spam (Milestone 3 checklist in `brain/Work Plan.md`).
+- Household flow: decided (D18) and implemented (create, join, leave, members list), verified with two accounts.
+- Outfit history, favorites, the quiz, the closet and Style Swipe: built.
+- Still open: color coordination and layering (stretch goals), hosting beyond Expo Go (D22), and a real email domain so
+  auth emails stop landing in spam (Milestone 3 list in `brain/Work Plan.md`).
