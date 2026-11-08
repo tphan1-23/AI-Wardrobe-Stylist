@@ -34,7 +34,8 @@
           "cameraPermission": "DressWell uses the camera to photograph your clothes."
         }
       ],
-      "expo-image"
+      "expo-image",
+      "expo-status-bar"
     ]
   }
 }
