@@ -148,6 +148,13 @@ Individual AI audit log for CSCI 4397/6397 (capstone). Manuel keeps his in `used
 - **Verified:** 28 new tests (frame mapping both ways, bars around the photo, never leaving the photo; upload first, original kept if the upload fails or the network is down, new photo still used if the old one cannot be removed, refusing empty or unsupported files). A deliberate break (ignoring an upload failure) made a test fail. 574 tests, both type checks, iOS bundle builds.
 - **Not verified:** on my phone. The pixel size of the photo is read from the picture itself (`Image.getSize`) in case of rotated photos, but I have not seen a rotated photo go through. I also have not run the full loop (add, wear, new outfit, Style Swipe) on a phone.
 
+### 21. Expo Go would not open the app: moving to SDK 58 (2026-11-08, PR pending)
+- **Asked:** Expo Go on my phone said the project needed SDK 58, but I thought my Expo Go was SDK 57. "What should I do to update my expo?"
+- **AI produced:** first a wrong diagnosis: it trusted what I said about my phone and blamed running Expo from the wrong folder. The terminal output I pasted then showed the real cause: my Expo Go is SDK 58, the project was SDK 57, and Apple only offers the newest Expo Go, so the app had to move up. It also found that my own attempt (`npm install expo@^58` in the repo root, the wrong folder) had added Expo and TypeScript 6 to the root package files; it looked at the change, restored the two files from git, reinstalled, and confirmed all 574 tests and the type check still passed before starting. Then it upgraded inside `frontend/` with Expo's own commands on a new branch.
+- **Verified:** both type checks, 574 tests, iOS bundle builds, `npx expo install --check` reports everything aligned. No source file needed a change.
+- **Not verified:** on my phone; any change in behaviour or look from React Native 0.86 to 0.88.
+- **Went wrong:** the first diagnosis (wrong folder) was a guess that I presented as the likely cause; the error text told us the answer. **Lesson:** ask for the exact error text before explaining it, and never upgrade a framework to fix a mismatch without checking which side is actually out of date.
+
 ---
 
 ## Where the AI was wrong (friction summary)
