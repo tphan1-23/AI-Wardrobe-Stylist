@@ -123,8 +123,15 @@ describe("labels", () => {
     expect(isMine({ owner_id: "user-ben" }, ME)).toBe(false);
   });
 
-  it("badges a tile with M for the person's own garments, else the owner's initial", () => {
-    expect(ownerBadge({ owner_id: ME }, ME, MEMBERS)).toBe("M");
+  it("badges a tile with the first letter of the owner's name, the person's own name included", () => {
+    expect(ownerBadge({ owner_id: ME }, ME, MEMBERS, "Thanh")).toBe("T");
+    expect(ownerBadge({ owner_id: ME }, ME, MEMBERS, "  manuel ")).toBe("M");
+    // No name given: the person's own entry in the household list is used, else "Y" for "You".
+    expect(ownerBadge({ owner_id: ME }, ME, MEMBERS)).toBe("T");
+    expect(ownerBadge({ owner_id: ME }, ME, [], "")).toBe("Y");
+    expect(ownerBadge({ owner_id: ME }, ME, [MEMBERS[1]!], "   ")).toBe("Y");
+    // Someone else's garment never uses the person's own name.
+    expect(ownerBadge({ owner_id: "user-ben" }, ME, MEMBERS, "Thanh")).toBe("B");
     expect(ownerBadge({ owner_id: "user-ben" }, ME, MEMBERS)).toBe("B");
     expect(ownerBadge({ owner_id: "user-blank" }, ME, MEMBERS)).toBe("?");
     expect(ownerBadge({ owner_id: "someone-unknown" }, ME, MEMBERS)).toBe("?");
