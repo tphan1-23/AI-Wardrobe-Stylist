@@ -8,7 +8,7 @@ import { Icon } from "../common/Icon";
 interface Props {
   item: ClosetItem;
   size: number;
-  // "M" for the person's own garments, otherwise the owner's initial.
+  // The first letter of the owner's name (the person's own name for their own garments).
   badge: string;
   ownerLabel: string;
   onPress: () => void;

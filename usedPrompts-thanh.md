@@ -155,6 +155,12 @@ Individual AI audit log for CSCI 4397/6397 (capstone). Manuel keeps his in `used
 - **Not verified:** on my phone; any change in behaviour or look from React Native 0.86 to 0.88.
 - **Went wrong:** the first diagnosis (wrong folder) was a guess that I presented as the likely cause; the error text told us the answer. **Lesson:** ask for the exact error text before explaining it, and never upgrade a framework to fix a mismatch without checking which side is actually out of date.
 
+### 22. The closet badge always said "M" (2026-11-08, PR pending)
+- **Asked:** on my own clothes the letter in the corner of a tile showed M instead of T for Thanh. I also said the smart crop did not seem to work properly (see below).
+- **AI produced:** it found the cause in one search: the code returned a fixed "M" for the signed-in person's own garments (written as "M for mine"), so it looked like Manuel's initial on my account. Fix: the badge now uses the first letter of the person's own name (passed in from the profile), falls back to their entry in the household list, then to "Y" for "You".
+- **Verified:** closet tests updated (T for Thanh, M for a person named Manuel, other people's initials unchanged, blank names); re-inserting the old fixed "M" made the test fail; 574 tests, both type checks. One of my first test lines was wrong (the test's member list already contained my name), which the failing run showed; I fixed the test, not the code.
+- **Smart crop:** not fixed in this PR. The AI could not find a bug by reading the code and asked what I saw (no suggestion at all, or a wrong frame) before changing anything.
+
 ---
 
 ## Where the AI was wrong (friction summary)

@@ -103,11 +103,14 @@ export function filterItems<T extends ClosetRow>(items: T[], filters: ClosetFilt
 
 export const countLabel = (count: number): string => `${count} ${count === 1 ? "item" : "items"}`;
 
-// The small badge on a tile: "M" for the person's own garments, otherwise the owner's initial.
-export function ownerBadge(item: Pick<ClosetRow, "owner_id">, myId: UUID, members: MemberRow[]): string {
-  if (isMine(item, myId)) return "M";
-  const name = members.find((m) => m.id === item.owner_id)?.name.trim() ?? "";
-  return name === "" ? "?" : name.charAt(0).toUpperCase();
+// The small badge on a tile: the first letter of the owner's name, for the person's own garments
+// too (their own name: `myName`, or their entry in the members list). "Y" (for "You") if their
+// own name is not known; "?" for someone else whose name is not known.
+export function ownerBadge(item: Pick<ClosetRow, "owner_id">, myId: UUID, members: MemberRow[], myName = ""): string {
+  const mine = isMine(item, myId);
+  const name = (mine ? myName.trim() || (members.find((m) => m.id === myId)?.name.trim() ?? "") : members.find((m) => m.id === item.owner_id)?.name.trim() ?? "");
+  if (name === "") return mine ? "Y" : "?";
+  return name.charAt(0).toUpperCase();
 }
 
 export function ownerName(item: Pick<ClosetRow, "owner_id">, myId: UUID, members: MemberRow[]): string {

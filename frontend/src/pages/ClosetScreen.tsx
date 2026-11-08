@@ -55,7 +55,7 @@ function FilterRow<T extends string>({
 }
 
 // Your garments, and your household members' (read-only). Tap one to open it.
-export function ClosetScreen({ myId, members, onAdd }: { myId: string; members: MemberRow[]; onAdd?: () => void }) {
+export function ClosetScreen({ myId, myName, members, onAdd }: { myId: string; myName: string; members: MemberRow[]; onAdd?: () => void }) {
   const { width } = useWindowDimensions();
   const [items, setItems] = useState<ClosetItem[] | null>(null);
   const [loading, setLoading] = useState(true);
@@ -151,7 +151,7 @@ export function ClosetScreen({ myId, members, onAdd }: { myId: string; members: 
             key={item.id}
             item={item}
             size={size}
-            badge={ownerBadge(item, myId, members)}
+            badge={ownerBadge(item, myId, members, myName)}
             ownerLabel={ownerName(item, myId, members)}
             onPress={() => setSelected(item)}
             onLongPress={() => confirmRemove(item)}
