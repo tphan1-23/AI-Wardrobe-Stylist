@@ -228,6 +228,7 @@ Read this first if you are a Claude session picking up work.
 - **Tagging results** (23 real product photos, flash models): strict type 95 / color 86 / season 73 / warmth 95 %; see `AI Logic Ownership.md`. The model fallback chain lives in `_shared/gemini.ts`.
 ## Milestone 3 checklist (deployed app, Week 12, Nov 9-13)
 **Decision D22 (2026-11-06): hosting stays on Expo Go for now.** The items below marked "needs a real address" wait for that decision. Done since the last review: migrations 0001 to 0008 applied and recorded, `docs/deployment.md` and `docs/user-guide.md` written, README, architecture, API and AI-development docs updated, template tables removed, database functions locked to signed-in users (0008), security advisor reviewed.
+- [x] Governance: `.github/CODEOWNERS` and the migration lock (`supabase/migrations/checksums.json`, `npm run migrations:lock`). **Still to do by the repository owner:** turn on branch protection for `main` (require a PR, 1 approval, Code Owners review, the `test` and `frontend` checks).
 - [ ] Decide the hosting target (D22): keep Expo Go, a hosted web build (builds already; untested in a browser) or a built iOS app (paid Apple Developer Program). Everything below depends on it.
 - [ ] A per-user daily cap on `analyze-garment` before any public release (billing is on, D20).
 - [ ] Automated deploy on merge to `main` (needs a Supabase access token as a repository secret); today deploys are manual and confirmed.
