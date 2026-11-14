@@ -15,8 +15,11 @@ export function statusFromUrl(hash = "", search = "") {
     const text = (params.get("error_description") || "").toLowerCase();
     return code.includes("expired") || text.includes("expired") ? "expired" : "invalid";
   }
-  // Confirmation arrives with a session (implicit flow) or a code (PKCE flow).
-  if (params.has("access_token") || params.has("code") || params.get("type") === "signup") return "confirmed";
+  // Only a sign-up confirmation link says type=signup. A token WITHOUT it is a sign-in that landed here instead
+  // of in the app (for example Google sign-in when the app address is not in Supabase's redirect list), and
+  // calling that "Email confirmed" would be wrong.
+  if (params.get("type") === "signup") return "confirmed";
+  if (params.has("access_token") || params.has("code")) return "signed_in";
   return "none";
 }
 
@@ -33,6 +36,10 @@ export const MESSAGES = {
     title: "This link did not work",
     body: "It may have been used already. If your account is confirmed, open the DressWell app and log in. If not, sign up again with the same email.",
   },
+  signed_in: {
+    title: "Sign-in finished",
+    body: "The DressWell app did not receive it. Go back to the DressWell app and try again.",
+  },
   none: {
     title: "DressWell",
     body: "Open this page from the confirmation link in your email.",
@@ -40,7 +47,7 @@ export const MESSAGES = {
 };
 
 // The symbol in the circle: a check only when the account really is confirmed.
-export const MARKS = { confirmed: "✓", expired: "!", invalid: "!", none: "?" };
+export const MARKS = { confirmed: "✓", expired: "!", invalid: "!", signed_in: "!", none: "?" };
 
 // `win` and `doc` are passed in so this can be tested with stand-ins; the page passes the real ones.
 export function show(win, doc) {

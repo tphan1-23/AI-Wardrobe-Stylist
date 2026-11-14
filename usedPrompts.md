@@ -155,3 +155,12 @@ Individual AI audit log for CSCI 4397/6397 (capstone). Thanh keeps her own log i
 - **Verified:** 610 tests pass, `auth.ts` 100%; five deliberate breaks caught; and I checked the assumption against the real project with the test account's own address (HTTP 200, no session, `identities: []`, account unchanged: the original password still works afterwards).
 - **Not verified:** the whole flow with a brand-new address in the app (the email arriving, the link, the page, logging in). That needs a real address never used before.
 - **Process note:** I diagnosed from the logs only after being told twice that something was wrong; reading the logs first would have saved two rounds.
+
+### 22. "The account says email confirmed and will not open the app" (2026-11-14)
+- **Symptom (Manuel):** `tphan4@cub.uca.edu` showed a page saying the email was confirmed and never reached the app. He suspected the account had gone stale from our tests.
+- **What I got wrong first:** my previous answer blamed addresses that already had accounts. That was only half right: it explained the missing email, but not this. I had read the same logs and missed the clue in them: every Google login for that account succeeded, and every callback ended on the confirmation page (and before the Site URL change, on `localhost:3000`).
+- **Real cause:** that account is a Google account, not a stale email one. Google sign-in only returns to the app when the app address is on Supabase's redirect list; a plain network address (the app started without `--tunnel`) is not, so Supabase falls back to the Site URL. I confirmed this by probing the live project: the tunnel address and `dresswell://` are allowed, a plain network address is rejected and sent to the Site URL.
+- **Real bug found on my side:** the confirmation page said "Email confirmed" for any link carrying a token, including that fallen-back Google sign-in. It now says so only for `type=signup`, and shows "Sign-in finished, the app did not receive it" otherwise.
+- **Verified:** 611 tests pass; five deliberate breaks caught (any token counts as a confirmation, a code counts, sign-up links not recognized, the new message claiming confirmation, the new status getting a check mark).
+- **What Manuel has to do:** start the app with `npx expo start --tunnel -c` so Google sign-in can return to it. The code cannot fix that: it is how Expo Go and Supabase redirects work.
+- **Lesson:** I should read the evidence I already have for the failing step, not for the neighbouring one, before offering a theory.
