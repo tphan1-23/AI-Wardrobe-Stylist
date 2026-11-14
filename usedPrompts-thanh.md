@@ -168,6 +168,14 @@ Individual AI audit log for CSCI 4397/6397 (capstone). Manuel keeps his in `used
 - **Not verified:** the new CI job has not run on GitHub yet (it first runs on this PR); a Windows-made lockfile installing on the Linux runner is the likeliest thing to go wrong. Version pinning of `supabase-js` and the Supabase CLI, the vitest upgrade and database length limits are still open.
 - **Went wrong:** my script that edits the tests failed halfway on Windows line endings and left some files edited and some not; I finished the rest by hand with the editor and re-ran everything.
 
+### 24. Dropping Apple sign-in, keeping Google (2026-11-14, PR pending)
+- **Asked:** ignore Apple sign-in and keep only the Google one, to finish the app.
+- **AI produced:** it searched the whole repo first and found Apple in the login screen, the social-login service, its tests, `app.json` (a setting and a plugin), `package.json` (the Apple package) and several docs. It removed all of it rather than hiding the button, so no unused code or dependency is left, uninstalled the package with npm, and recorded the decision as D23 (the Apple half of D19 is superseded). It checked the old behaviour first: on my iPhone the Apple button showed in Expo Go but could not complete, and a real build needs the paid $99/year Apple program.
+- **Verified:** a search for "apple" in the app, tests and config finds only the note that explains the decision; both type checks; 571 tests (577 minus the 6 Apple tests, all Google tests unchanged); the iOS bundle builds.
+- **Not verified:** the login screen on my phone, and that Google sign-in still works after the change (it should, since no Google code was touched, but I have not run it).
+- **Left alone, on purpose:** historical notes (the Milestone 2 coverage report, the migration descriptions, the design export) and `CLAUDE.md` (Manuel's file; it still lists Apple under "Open"). The `exp://**` redirect must stay while the demo runs through Expo Go, because the Google login uses it.
+- **Went wrong:** my first edit command broke on quotes in the shell; I switched to small script files, which worked.
+
 ---
 
 ## Where the AI was wrong (friction summary)

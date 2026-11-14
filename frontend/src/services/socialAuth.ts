@@ -1,9 +1,9 @@
-// Sign in / sign up with Google or Apple. Pure TypeScript with injected clients
+// Sign in / sign up with Google. Pure TypeScript with injected clients
 // so it can be unit-tested without a device (see tests/socialAuth.test.ts).
 //
-// Both providers create the account on first use, so one button covers sign-up
-// and log-in. Google runs Supabase's OAuth flow in a system browser; Apple uses
-// the native sheet and hands Supabase the identity token.
+// Google creates the account on first use, so one button covers sign-up and
+// log-in. It runs Supabase's OAuth flow in a system browser. (Apple sign-in was
+// dropped, decision D23: it needs the paid Apple Developer Program.)
 
 interface AuthError {
   message: string;
@@ -16,19 +16,11 @@ export interface SocialAuthClient {
     options: { redirectTo: string; skipBrowserRedirect: boolean };
   }): Promise<{ data: { url: string | null }; error: AuthError | null }>;
   setSession(tokens: { access_token: string; refresh_token: string }): Promise<{ error: AuthError | null }>;
-  signInWithIdToken(credentials: { provider: "apple"; token: string }): Promise<{ error: AuthError | null }>;
-  updateUser(attributes: { data: Record<string, unknown> }): Promise<{ error: AuthError | null }>;
 }
 
 // The slice of expo-web-browser that this module uses.
 export interface AuthBrowser {
   openAuthSessionAsync(url: string, redirectUrl: string): Promise<{ type: string; url?: string }>;
-}
-
-export interface AppleCredential {
-  identityToken: string | null;
-  // Apple only sends the name the first time a person signs in with the app.
-  fullName: { givenName?: string | null; familyName?: string | null } | null;
 }
 
 export type SocialResult = { ok: true } | { ok: false; error: string; cancelled: boolean };
@@ -37,7 +29,6 @@ const cancelled: SocialResult = { ok: false, error: "", cancelled: true };
 const failed = (error: string): SocialResult => ({ ok: false, error, cancelled: false });
 
 const GOOGLE_FAILED = "Google sign-in did not finish. Please try again.";
-const APPLE_FAILED = "Apple sign-in did not finish. Please try again.";
 
 export type RedirectResult =
   | { kind: "session"; accessToken: string; refreshToken: string }
@@ -97,37 +88,5 @@ export async function signInWithGoogle(
     return { ok: true };
   } catch {
     return failed(GOOGLE_FAILED);
-  }
-}
-
-export function formatAppleName(fullName: AppleCredential["fullName"]): string {
-  return [fullName?.givenName, fullName?.familyName]
-    .map((part) => part?.trim() ?? "")
-    .filter((part) => part !== "")
-    .join(" ");
-}
-
-function isAppleCancel(error: unknown): boolean {
-  return typeof error === "object" && error !== null && (error as { code?: unknown }).code === "ERR_REQUEST_CANCELED";
-}
-
-export async function signInWithApple(
-  client: SocialAuthClient,
-  getCredential: () => Promise<AppleCredential>,
-): Promise<SocialResult> {
-  try {
-    const credential = await getCredential();
-    if (!credential.identityToken) return failed(APPLE_FAILED);
-
-    const { error } = await client.signInWithIdToken({ provider: "apple", token: credential.identityToken });
-    if (error) return failed(error.message);
-
-    // Apple shares the name once, so save it now. The sign-in already worked, so a
-    // failure here must not undo it (the profile just keeps an empty name).
-    const name = formatAppleName(credential.fullName);
-    if (name) await client.updateUser({ data: { name } }).catch(() => undefined);
-    return { ok: true };
-  } catch (error) {
-    return isAppleCancel(error) ? cancelled : failed(APPLE_FAILED);
   }
 }

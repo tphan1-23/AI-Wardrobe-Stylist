@@ -44,7 +44,7 @@ Build each screen on a branch, open a PR, and wait for Manuel's approval on File
 2. **Close the "not verified" items:** repair the Supabase migration history (`npx supabase migration repair --status applied 0001 0002 0003 0004`) to clear the red check; create a second email account and run `node scripts/e2e-household.ts` (proves members can see but not change each other's garments and photos).
 3. **Housekeeping:** budget alert on the Google Cloud billing account, rotate the Gemini key and re-set the Supabase secret, drop the five leftover template tables (with Thanh), fill in `usedPrompts.md` (individual AI audit logs).
 4. **AI quality:** keep improving tagging accuracy (season is the weakest at 73%) with `scripts/eval-tagging.ts`; once Today and feedback run in the app, check real recommendations and extend the simulated-user tests.
-5. **Milestone 3 prep:** decide the demo type (Expo Go, hosted web build or a built app), the Site URL and email setup, the Apple sign-in decision, the Week 8 live demo and the AI friction log.
+5. **Milestone 3 prep:** decide the demo type (Expo Go, hosted web build or a built app), the Site URL and email setup, the Week 8 live demo and the AI friction log.
 
 ## Demo feature list (requested 2026-10-18, Thanh + Manuel)
 Wanted for the MVP demo video, on top of Add, Closet, Today and the quiz. Size: S = under a day, M = a day or two, L = several days and touches the AI core.
@@ -234,7 +234,7 @@ Read this first if you are a Claude session picking up work.
 - [ ] Each teammate reads their audit-log entries and marks them `[reviewed]` (`usedPrompts.md`, `usedPrompts-thanh.md`).
 - [ ] **Fix email deliverability (Thanh decided on 2026-10-08 to leave it until Milestone 3).** Auth emails (password-reset code, sign-up confirmation) currently go out through a dedicated Gmail account over SMTP and **land in the recipient's spam folder**. This is accepted for the class demo (tell testers to check spam and click "Report not spam"). Before real users: get a domain (about $10/yr; the GitHub Student Developer Pack may give a free `.me`/`.tech` for a year; flag per the free-tier rule), sign up for Resend (free about 3,000/month, 100/day) or Brevo (free 300/day), add the SPF, DKIM and DMARC records at the registrar, then put the service's SMTP details in Supabase (Authentication → Emails → SMTP) with a sender such as `noreply@<domain>`. No app code changes. Also remove the `exp://**` redirect URL (D19) and re-test the reset email.
 - [ ] Remove `exp://**` from Supabase redirect URLs; keep only the real app scheme.
-- [ ] Apple sign-in for a real build needs the paid Apple Developer Program ($99/yr): decide ship or drop Apple/Google sign-in for the demo (D19).
+- [x] Apple sign-in dropped, Google stays (D23, `chore/remove-apple-signin`, 2026-11-14): the Apple button, its code and tests, the `expo-apple-authentication` package and the `usesAppleSignIn` setting are gone. Remember to switch the Apple provider off in the Supabase dashboard if it was ever turned on.
 
 ## Sign-up confirmation: link stays until deployment (decision 2026-10-08)
 PR #6 added a code-based sign-up confirmation (`confirmSignUp`, `resendSignUpCode` in `auth.ts`), but Manuel decided **not** to change the Confirm signup email template: it keeps the link. With a link-only email a "Check your email" code screen would ask for a code that is not in the email, so the screen was removed (`ConfirmEmailScreen`, the "Enter your confirmation code" link). Sign-up shows "Check your email to confirm your account, then log in." again.

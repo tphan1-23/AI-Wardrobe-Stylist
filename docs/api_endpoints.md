@@ -2,7 +2,7 @@
 
 There is no standalone REST server. The Expo app talks to Supabase directly, in three ways:
 
-1. **Supabase Auth** (sign up, log in, password reset, Google/Apple) through `supabase.auth` in the client SDK.
+1. **Supabase Auth** (sign up, log in, password reset, Google) through `supabase.auth` in the client SDK.
 2. **Tables, RPCs and Storage** through the client SDK, guarded by Row Level Security (RLS). Every query runs as the signed-in user.
 3. **Edge Functions** for anything that needs a server-side secret or the AI logic. Called with
    `supabase.functions.invoke("<name>", { body })`, which sends the user's session token.
@@ -127,5 +127,5 @@ household members can read. Uploading into another user's folder is refused.
 `scripts/e2e.ts` exercises the functions against the real project with a real account: sign-in, profile and location,
 three security-rule rejections, photo upload, tagging, saving, outfit generation, once-only feedback, re-roll, accepting,
 and cleanup. Last full pass: 38 of 38 (2026-11-06). `scripts/e2e-household.ts` covers two-account household sharing and
-the read-only rules: 34 of 34. The Google/Apple and password-reset flows are tested by hand. On 2026-11-06 a live check
+the read-only rules: 34 of 34. The Google and password-reset flows are tested by hand. On 2026-11-06 a live check
 also confirmed that signed-out callers are refused by every RPC and that signed-in calls still work.

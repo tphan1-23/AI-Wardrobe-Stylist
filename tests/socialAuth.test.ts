@@ -1,10 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  formatAppleName,
   parseAuthRedirect,
-  signInWithApple,
   signInWithGoogle,
-  type AppleCredential,
   type AuthBrowser,
   type SocialAuthClient,
 } from "../frontend/src/services/socialAuth.ts";
@@ -16,8 +13,6 @@ function fakeClient(overrides: Partial<SocialAuthClient> = {}): SocialAuthClient
   return {
     signInWithOAuth: vi.fn().mockResolvedValue({ data: { url: "https://auth.example/authorize" }, error: null }),
     setSession: vi.fn().mockResolvedValue({ error: null }),
-    signInWithIdToken: vi.fn().mockResolvedValue({ error: null }),
-    updateUser: vi.fn().mockResolvedValue({ error: null }),
     ...overrides,
   };
 }
@@ -125,69 +120,5 @@ describe("signInWithGoogle", () => {
       cancelled: false,
       error: expect.stringMatching(/did not finish/i),
     });
-  });
-});
-
-describe("formatAppleName", () => {
-  it("joins the parts that exist", () => {
-    expect(formatAppleName({ givenName: " Ana ", familyName: "Ruiz" })).toBe("Ana Ruiz");
-    expect(formatAppleName({ givenName: "Ana", familyName: null })).toBe("Ana");
-    expect(formatAppleName({ givenName: "  ", familyName: undefined })).toBe("");
-    expect(formatAppleName(null)).toBe("");
-  });
-});
-
-describe("signInWithApple", () => {
-  const credential = (overrides: Partial<AppleCredential> = {}): (() => Promise<AppleCredential>) =>
-    async () => ({ identityToken: "apple-token", fullName: { givenName: "Ana", familyName: "Ruiz" }, ...overrides });
-
-  it("signs in with the identity token and saves the name Apple shares", async () => {
-    const client = fakeClient();
-    expect(await signInWithApple(client, credential())).toEqual({ ok: true });
-    expect(client.signInWithIdToken).toHaveBeenCalledWith({ provider: "apple", token: "apple-token" });
-    expect(client.updateUser).toHaveBeenCalledWith({ data: { name: "Ana Ruiz" } });
-  });
-
-  it("does not touch the name when Apple sends none (every sign-in after the first)", async () => {
-    const client = fakeClient();
-    expect(await signInWithApple(client, credential({ fullName: null }))).toEqual({ ok: true });
-    expect(client.updateUser).not.toHaveBeenCalled();
-  });
-
-  it("still succeeds if saving the name fails", async () => {
-    const rejects = fakeClient({ updateUser: vi.fn().mockRejectedValue(new Error("offline")) });
-    expect(await signInWithApple(rejects, credential())).toEqual({ ok: true });
-  });
-
-  it("fails without a token and reports server errors", async () => {
-    const client = fakeClient();
-    expect(await signInWithApple(client, credential({ identityToken: null }))).toMatchObject({
-      ok: false,
-      cancelled: false,
-      error: expect.stringMatching(/did not finish/i),
-    });
-    expect(client.signInWithIdToken).not.toHaveBeenCalled();
-
-    const denied = fakeClient({ signInWithIdToken: vi.fn().mockResolvedValue({ error: { message: "bad audience" } }) });
-    expect(await signInWithApple(denied, credential())).toEqual({ ok: false, error: "bad audience", cancelled: false });
-    expect(denied.updateUser).not.toHaveBeenCalled();
-  });
-
-  it("treats cancelling the Apple sheet as a cancel and other failures as errors", async () => {
-    const client = fakeClient();
-    const cancel = async (): Promise<AppleCredential> => {
-      throw Object.assign(new Error("canceled"), { code: "ERR_REQUEST_CANCELED" });
-    };
-    expect(await signInWithApple(client, cancel)).toEqual({ ok: false, error: "", cancelled: true });
-
-    const crash = async (): Promise<AppleCredential> => {
-      throw new Error("boom");
-    };
-    expect(await signInWithApple(client, crash)).toMatchObject({ ok: false, cancelled: false });
-    const weird = async (): Promise<AppleCredential> => {
-      throw "string error";
-    };
-    expect(await signInWithApple(client, weird)).toMatchObject({ ok: false, cancelled: false });
-    expect(client.signInWithIdToken).not.toHaveBeenCalled();
   });
 });

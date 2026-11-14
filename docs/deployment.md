@@ -103,7 +103,7 @@ Record any change here, because the code cannot show it.
   in spam until a domain with SPF, DKIM and DMARC is set up.
 - **Authentication, URL Configuration:** the redirect list contains `exp://**` (Expo Go) and `dresswell://**`. Remove
   `exp://**` before any public release.
-- **Authentication, Providers:** Google is on (OAuth client in Google Cloud). Apple is off: a real Apple sign-in needs
+- **Authentication, Providers:** Google is on (OAuth client in Google Cloud). Apple sign-in was dropped (D23): it needs
   the paid Apple Developer Program.
 - **Password rules:** 8 to 72 characters with upper, lower, number and symbol at sign-up (the app and the dashboard agree).
 - **Leaked-password protection** is off; it needs a paid plan.
