@@ -138,6 +138,14 @@ the person to open the app and log in, and removes the login tokens from the add
 The site root (`https://tphan1-23.github.io/AI-Wardrobe-Stylist/`, the address GitHub shows under Pages) is a small landing page
 (`docs/index.html`) so that link is not a 404; the confirmation page itself is only at `/confirmed/`. Addresses are case-sensitive.
 
+**What the page says, and when:** "Email confirmed" only for a real sign-up link (the address carries `type=signup`).
+"This link has expired" or "did not work" for a rejected link. **"Sign-in finished ... the DressWell app did not receive it"**
+when the address carries a session but no `type=signup`: that is a **Google sign-in that landed here instead of in the app**.
+It happens when the app was started **without the tunnel**: Supabase only returns to addresses in its Redirect URLs list
+(`exp://**`, `dresswell://**`), and a plain network address such as `exp://192.168.1.50:8081/...` is not on it, so it falls back
+to the Site URL, which is this page. The fix is to start the app with `npx expo start --tunnel -c` (see section 5). The sign-in
+itself worked (the account and its session exist); only the hand-back to the app failed.
+
 **Check it works:** open the page address: it should load and say "Open this page from the confirmation link in your email".
 Then sign up in the app with a real address you can read, open the email, tap the link: the page says "Email confirmed", and
 logging in works. An expired link tells the person to sign up again with the same email; Supabase then sends a new link.

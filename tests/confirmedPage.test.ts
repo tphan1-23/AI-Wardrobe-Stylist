@@ -10,7 +10,15 @@ describe("statusFromUrl (what the confirmation link says)", () => {
   it("recognizes a confirmed account from the session Supabase puts in the address", () => {
     expect(statusFromUrl("#access_token=abc&refresh_token=def&expires_in=3600&token_type=bearer&type=signup")).toBe("confirmed");
     expect(statusFromUrl("#type=signup")).toBe("confirmed");
-    expect(statusFromUrl("", "?code=pkce-code")).toBe("confirmed");
+    expect(statusFromUrl("?type=signup", "")).toBe("confirmed");
+  });
+
+  it("does not call a sign-in that landed here an email confirmation (for example Google sign-in that missed the app)", () => {
+    // Google sign-in returns a session with a provider token and no type=signup.
+    expect(statusFromUrl("#access_token=abc&refresh_token=def&provider_token=g&token_type=bearer")).toBe("signed_in");
+    expect(statusFromUrl("", "?code=pkce-code")).toBe("signed_in");
+    expect(statusFromUrl("#access_token=abc&type=recovery")).toBe("signed_in");
+    expect(statusFromUrl("#access_token=abc&type=signup")).toBe("confirmed");
   });
 
   it("recognizes an expired link, from the code or the description", () => {
@@ -33,13 +41,15 @@ describe("statusFromUrl (what the confirmation link says)", () => {
   });
 
   it("has a message and a symbol for every status, and only confirmed gets the check", () => {
-    for (const status of ["confirmed", "expired", "invalid", "none"]) {
+    for (const status of ["confirmed", "expired", "invalid", "signed_in", "none"]) {
       expect(MESSAGES[status].title.length).toBeGreaterThan(0);
       expect(MESSAGES[status].body.length).toBeGreaterThan(0);
       expect(MARKS[status].length).toBeGreaterThan(0);
     }
     expect(MARKS.confirmed).toBe("✓");
-    for (const status of ["expired", "invalid", "none"]) expect(MARKS[status]).not.toBe("✓");
+    for (const status of ["expired", "invalid", "signed_in", "none"]) expect(MARKS[status]).not.toBe("✓");
+    expect(MESSAGES.signed_in.title).not.toMatch(/confirmed/i);
+    expect(MESSAGES.signed_in.body).toMatch(/did not receive/i);
     expect(MESSAGES.confirmed.title).toMatch(/confirmed/i);
     expect(MESSAGES.expired.body).toMatch(/sign up again/i);
   });
@@ -78,6 +88,12 @@ describe("show (what the page does with the address)", () => {
     const invalid = fakePage("#error=server_error");
     expect(show(invalid.win, invalid.doc)).toBe("invalid");
     expect(invalid.text.mark).toBe("!");
+    const google = fakePage("#access_token=secret&refresh_token=secret2&provider_token=secret3&token_type=bearer");
+    expect(show(google.win, google.doc)).toBe("signed_in");
+    expect(google.text.title).toBe(MESSAGES.signed_in.title);
+    expect(google.text.mark).toBe("!");
+    expect(JSON.stringify(google.text)).not.toContain("secret");
+    expect(google.replaced).toEqual([[null, "", "/AI-Wardrobe-Stylist/confirmed/"]]);
     const none = fakePage("");
     expect(show(none.win, none.doc)).toBe("none");
     expect(none.text.title).toBe(MESSAGES.none.title);
