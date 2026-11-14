@@ -23,6 +23,14 @@ export interface AuthBrowser {
   openAuthSessionAsync(url: string, redirectUrl: string): Promise<{ type: string; url?: string }>;
 }
 
+// Where Google sends the browser back to: the app's own scheme (`scheme` in app.json), which Supabase's
+// Redirect URLs list accepts (`dresswell://**`). Not `Linking.createURL(...)`: in Expo Go that builds
+// `exp://<address the phone loaded the project from>`, which can be a plain network address such as
+// `exp://10.1.10.161:8081/...`; Supabase rejects those and falls back to the Site URL, so the sign-in
+// never reached the app. On iPhone the system sign-in sheet intercepts a return to the scheme it was
+// given, so the app does not need to be registered for it.
+export const OAUTH_REDIRECT_URL = "dresswell://auth-callback";
+
 export type SocialResult = { ok: true } | { ok: false; error: string; cancelled: boolean };
 
 const cancelled: SocialResult = { ok: false, error: "", cancelled: true };
