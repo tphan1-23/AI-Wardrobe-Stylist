@@ -13,7 +13,6 @@ lower case, a number and a symbol), or tap **Continue with Google**. If you use 
 email: tap the link in it, then come back to the app and **log in**. The page the link opens may not load (the web
 address is not set up yet); the account is confirmed anyway. Emails can land in spam for now.
 
-> "Continue with Apple" is not available in this build.
 
 **Forgot your password?** On the log-in screen tap **Forgot your password?**, enter your email, then type the code we
 email you together with a new password.
