@@ -4,6 +4,7 @@
 // (see tests/household.test.ts).
 
 import type { PreferenceEntry, QuizAnswers } from "../../../supabase/functions/_shared/types.ts";
+import { unexpectedError } from "./errors.ts";
 
 export const MAX_HOUSEHOLD_NAME_LENGTH = 60;
 export const MAX_LOCATION_LENGTH = 100;
@@ -95,7 +96,7 @@ export function friendlyHouseholdError(message: string): string {
   if (text.includes("already in a household")) return "Leave your current household before joining or creating another.";
   if (text.includes("not in a household")) return "You are not in a household.";
   if (text.includes("jwt") || text.includes("not authenticated")) return "Your session expired. Please sign in again.";
-  return message;
+  return unexpectedError("household", message);
 }
 
 // What the signed-in user still has to do before the app is usable.

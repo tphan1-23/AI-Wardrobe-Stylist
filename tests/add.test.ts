@@ -27,6 +27,7 @@ import {
 import { supabaseAddGateway, type AddClientLike } from "../frontend/src/services/addGateway.ts";
 import { COLORS, GARMENT_TYPES, SEASONS } from "../supabase/functions/_shared/tag-schema.ts";
 import type { AnalyzeGarmentResponse } from "../supabase/functions/_shared/types.ts";
+import { GENERIC_ERROR } from "../frontend/src/services/errors.ts";
 
 const bytes = (n: number) => new ArrayBuffer(n);
 const photo = { data: bytes(10), extension: "JPG" };
@@ -194,7 +195,7 @@ describe("addPhoto", () => {
   });
 
   it("removes the photo again when the server says the photo is unusable", async () => {
-    for (const [status, text] of [[400, "could not be used"], [404, "did not upload"], [403, "forbidden"]] as const) {
+    for (const [status, text] of [[400, "could not be used"], [404, "did not upload"], [403, GENERIC_ERROR]] as const) {
       const gateway = fakeGateway({ analyze: vi.fn(async () => ({ data: null, error: { message: "forbidden", status } })) });
       const result = await addPhoto(gateway, "u-1", photo, newId);
       expect(result).toMatchObject({ ok: false, error: expect.stringContaining(text) });
@@ -252,7 +253,7 @@ describe("discardPhoto and errors", () => {
     expect(friendlyAddError("Payload too large")).toContain("too large");
     expect(friendlyAddError("duplicate key")).toContain("already added");
     expect(friendlyAddError("Network request failed")).toContain("Could not reach");
-    expect(friendlyAddError("something odd")).toBe("something odd");
+    expect(friendlyAddError("something odd")).toBe(GENERIC_ERROR);
     expect(friendlyAddError("")).toContain("Could not reach");
   });
 });

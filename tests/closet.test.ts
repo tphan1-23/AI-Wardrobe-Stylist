@@ -20,6 +20,7 @@ import {
 } from "../frontend/src/services/closet.ts";
 import { draftFromTags, emptyDraft } from "../frontend/src/services/garment.ts";
 import type { GatewayResult, MemberRow } from "../frontend/src/services/household.ts";
+import { GENERIC_ERROR } from "../frontend/src/services/errors.ts";
 
 const ok = <T>(data: T): GatewayResult<T> => ({ data, error: null });
 const err = (message: string): GatewayResult<never> => ({ data: null, error: { message } });
@@ -149,7 +150,7 @@ describe("labels", () => {
     expect(friendlyClosetError('violates row-level security policy for table "garments"')).toMatch(/belong to someone else/i);
     expect(friendlyClosetError("JWT expired")).toMatch(/session expired/i);
     expect(friendlyClosetError("not authenticated")).toMatch(/session expired/i);
-    expect(friendlyClosetError("Something odd")).toBe("Something odd");
+    expect(friendlyClosetError("Something odd")).toBe(GENERIC_ERROR);
   });
 });
 
@@ -187,7 +188,7 @@ describe("loadCloset", () => {
   });
 
   it("shows a server error and reports network failures", async () => {
-    expect(await loadCloset(gateway({ loadGarments: vi.fn(async () => err("denied")) }))).toEqual({ ok: false, error: "denied" });
+    expect(await loadCloset(gateway({ loadGarments: vi.fn(async () => err("denied")) }))).toEqual({ ok: false, error: GENERIC_ERROR });
     const down = gateway({ loadGarments: vi.fn(async () => { throw new Error("offline"); }) });
     expect(await loadCloset(down)).toMatchObject({ ok: false, error: expect.stringContaining("Could not reach") });
     const empty = gateway({ loadGarments: vi.fn(async () => ({ data: null, error: null })) });

@@ -20,6 +20,7 @@ import {
 } from "../../../supabase/functions/_shared/tag-schema.ts";
 import type { AnalyzeGarmentResponse, CropBox, GarmentTags, UUID } from "../../../supabase/functions/_shared/types.ts";
 import type { GatewayResult, Result } from "./household.ts";
+import { unexpectedError } from "./errors.ts";
 
 export const TAG_FIELDS = ["type", "color", "season", "warmth"] as const satisfies readonly (keyof GarmentTags)[];
 export type TagField = (typeof TAG_FIELDS)[number];
@@ -252,7 +253,7 @@ export function friendlyAddError(message: string, status?: number): string {
   if (text.includes("already exists") || text.includes("duplicate")) return "That photo was already added. Please try again.";
   if (text.includes("payload too large") || text.includes("too large")) return "That photo is too large (5 MB at most).";
   if (text.includes("network") || text.includes("fetch") || text.includes("could not reach")) return NETWORK_ERROR;
-  return message || NETWORK_ERROR;
+  return message ? unexpectedError("add", message) : NETWORK_ERROR;
 }
 
 // Saves the reviewed garment. The photo stays in storage if saving fails so the person can retry.

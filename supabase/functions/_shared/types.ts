@@ -139,11 +139,8 @@ export type GenerateOutfitResponse = (
   | Exclude<OutfitResult, { status: "ok" }>
 ) & { weather: WeatherSnapshot };
 
-// ---- Accepting a suggestion (marks items worn, D3) --------------------------
-
-export interface AcceptSuggestionRequest {
-  suggestion_id: UUID;
-}
+// Accepting a suggestion is not an edge function: the app calls the `accept_suggestion` database
+// function (see docs/api_endpoints.md), so there is no request type for it here.
 
 // ---- Edge function: update-preferences --------------------------------------
 
