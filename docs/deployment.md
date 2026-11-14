@@ -32,7 +32,7 @@ Set secrets by name. Do **not** use `--env-file .env`, which would also upload t
 
 ## 3. Database migrations
 
-Migrations `0001` to `0008` are the source of truth for the schema:
+Migrations `0001` to `0009` are the source of truth for the schema:
 
 | # | What |
 |---|---|
@@ -44,6 +44,7 @@ Migrations `0001` to `0008` are the source of truth for the schema:
 | 0006 | `suggestions.kind` (`today` or `explore`) for Style Swipe |
 | 0007 | wearing an outfit marks it dirty except shoes (D21) |
 | 0008 | signed-out callers can no longer run our functions |
+| 0009 | length and value limits in the database (names, location, photo path, tags, weights, outfit size) |
 
 **Applying a migration:** review and merge the PR, paste the file into Supabase **SQL Editor**, run it, then run
 `notify pgrst, 'reload schema';`. Then run the migration-history repair so Supabase's own bookkeeping matches:

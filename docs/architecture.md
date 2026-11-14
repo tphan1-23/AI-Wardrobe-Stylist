@@ -67,7 +67,7 @@ Each function is a thin Deno wrapper (`index.ts`, shared `_deno/serve.ts`) over 
 
 `0001` base schema, `0002` personal closets (D18), `0003` profile names from Google/Apple (D19), `0004` `ensure_profile()`,
 `0005` favorites, `0006` `suggestions.kind` for Style Swipe, `0007` wearing an outfit marks it dirty except shoes (D21),
-`0008` signed-out callers cannot run our functions. Migrations are the source of truth for the schema; keep this document
+`0008` signed-out callers cannot run our functions, `0009` length and value limits (names cut at 100 on the way in, constraints as the last line of defense). Migrations are the source of truth for the schema; keep this document
 and `_shared/types.ts` in sync with them. Applying them is described in [deployment.md](deployment.md).
 
 ### Security model
