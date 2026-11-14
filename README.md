@@ -81,7 +81,8 @@ cd frontend && npm install  # the app
 2. **Database.** Apply `supabase/migrations/0001` to `0008` to your project, in order (SQL Editor, then
    `notify pgrst, 'reload schema';`). See [docs/deployment.md](docs/deployment.md).
 3. **Run the app.** From `frontend/`: `npx expo start --tunnel -c`, then scan the QR code with the iPhone Camera.
-   Use the tunnel: Google sign-in only works through it (details in [brain/Work Plan.md](brain/Work%20Plan.md)).
+   Use the tunnel if the phone and laptop are on different networks. Google sign-in does not depend on it
+   (details in [docs/deployment.md](docs/deployment.md)).
 4. **Deploy the functions.** `npx supabase functions deploy analyze-garment generate-outfit update-preferences --project-ref <ref>`
    (full runbook in [brain/Work Plan.md](brain/Work%20Plan.md)).
 

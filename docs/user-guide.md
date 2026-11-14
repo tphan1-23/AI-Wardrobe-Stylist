@@ -95,7 +95,7 @@ household. The AI sees a photo only while it tags it. Passwords are handled by S
 |---|---|
 | The confirmation link says it expired or did not work | Sign up again with the same email to get a new link, or log in if you already confirmed. |
 | Sign-up says "That email already has an account" | That address is already registered, possibly through Google. Log in, tap **Continue with Google**, or use **Forgot your password?**. No confirmation email is sent for an existing account. |
-| Google sign-in ends on a web page that says "Sign-in finished" | Go back to the DressWell app and try **Continue with Google** again. If you are running the app yourself, start it with `npx expo start --tunnel -c`; without the tunnel the sign-in cannot return to the app. |
+| Google sign-in ends on a web page that says "Sign-in finished" | Go back to the DressWell app and try **Continue with Google** again. If it keeps happening, tell the team: the app could not be reached from the sign-in page. |
 | No emails arrive | Check spam and choose "Report not spam"; wait a minute before asking for another code. |
 | "Your profile could not be found" | Log out and in again; the app repairs a missing profile once. |
 | "Set your location first" | Open Household and tap **Change** next to Location. |
