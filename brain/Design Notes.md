@@ -45,7 +45,7 @@ Source of truth: `docs/Wardrobe App.html` (design board, 11 phone screens at 390
   - **"Style Swipe":** a "Style Swipe" button under the outfit on the Today screen opens a full screen with the outfit card, LIKE and NOPE stamps that fade in while dragging, a tilt, and the same round ✕ and ✓ buttons as Today. Swipe right to like, left to dislike; the buttons do the same.
 - **Closet / Edit garment differences:**
   - **"Other" instead of "Outerwear"** in the category filter: it holds dresses, jackets, coats and accessories (the AI's four non-outfit types).
-  - **The Owner filter only appears when you are in a household,** and its options are All / Mine / **Others** (the board says "Partner's"). Tiles carry a badge: **M** for your own garments, otherwise the owner's first initial.
+  - **The Owner filter only appears when you are in a household,** and its options are All / Mine / **Others** (the board says "Partner's"). Tiles carry a badge with the first letter of the owner's name, your own included (PR #30; "Y" if your name is not known). This replaces the earlier **M** for your own garments.
   - **A dirty garment says "Dirty" on its tile** (a black label, not color alone); the board's tiles show no status.
   - **Clean or dirty is changed in the Edit screen** (the Status row, then Save changes), as on the board; there is no quick toggle on the tile.
   - **A household member's garment opens read-only** (details and "Belongs to ..."), with no form, Save or Delete. The database also refuses any change to someone else's garment.

@@ -120,3 +120,9 @@ Individual AI audit log for CSCI 4397/6397 (capstone). Thanh keeps her own log i
 - **Verified:** every claim about the database was read from the database; counts (574 tests, 38 of 38 and 34 of 34 end-to-end checks) were taken from the runs; the screens' behavior in the user guide comes from the code and Thanh's design notes, not from running them.
 - **Found while checking:** the README and architecture still said the quiz, Add and Today were "in progress" or "not built", and `CLAUDE.md` still called the data model "not yet migrated" and the MVP unchecked.
 - **Not verified:** the user guide's descriptions of Closet, History, Favorites and Style Swipe are from the design notes and code, not from a device. Manuel to read the guide against the phone and correct it.
+
+### 17. Where the project stands, checked rather than assumed (2026-11-14)
+- **Asked:** pull everything and say where we are.
+- **What Claude did:** pulled `main`, then checked instead of summarizing from memory: the approval record of every PR merged since the last review (#28 to #30, all with a formal approval from the non-author), the CI result on `main` (both checks green, including the Supabase check the migration-history repair fixed), typecheck and 574 tests on the new Expo SDK 58, the live Supabase state through the read-only connection (migrations 0001 to 0008, security advisor unchanged), and both end-to-end scripts against the real project (38 of 38 and 34 of 34), because two edge functions had been redeployed by someone else.
+- **Found:** PR #30 changed the closet badge from "M" to the owner's initial, so the user guide and design notes were wrong; fixed in this PR. No entry in either audit log is marked `[reviewed]` yet.
+- **Not verified:** that the redeployed functions are byte-identical to `main` (the live behavior is what was tested), and the app on a device.

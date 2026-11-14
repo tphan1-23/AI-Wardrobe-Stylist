@@ -46,7 +46,7 @@ Every garment you can see, as a photo grid with the item count, newest first.
 
 - **Filters:** category (All, Tops, Bottoms, Shoes, Other), status (All, Clean, Dirty), favorites, and, if you are in a
   household, owner (All, Mine, Others).
-- A dirty item says **Dirty** on its tile; a badge shows whose it is (M for yours, otherwise the owner's initial).
+- A dirty item says **Dirty** on its tile; a badge shows whose it is: the first letter of the owner's name, including your own ("Y" if your name is not known).
 - Tap one of **your** garments to edit its tags, switch it between **Clean** and **Dirty**, mark it a favorite, or
   **Remove from closet** (asks first and deletes the photo). Hold a tile to remove it quickly.
 - A household member's garment opens **read-only**: you can look, but not change or delete it.
