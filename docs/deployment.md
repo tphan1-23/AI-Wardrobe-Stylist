@@ -89,10 +89,13 @@ cd frontend
 npx expo start --tunnel -c
 ```
 
-Scan the QR code with the iPhone Camera app. **Use the tunnel:** Google sign-in only works through it (a plain LAN
-server asks Supabase for a redirect address it rejects, so the browser lands on `localhost:3000`). The tunnel needs
-`npm install --no-save @expo/ngrok@^4.1.0` inside `frontend/` (do not add it to `package.json`; a later
-`npm install` removes it, so reinstall).
+Scan the QR code with the iPhone Camera app. Use the tunnel if the phone and the laptop are not on the same network
+(it needs `npm install --no-save @expo/ngrok@^4.1.0` inside `frontend/`; do not add it to `package.json`, and a later
+`npm install` removes it, so reinstall). **Google sign-in does not need the tunnel:** since 2026-11-14 it returns to the app's own
+scheme `dresswell://auth-callback` (`OAUTH_REDIRECT_URL` in `socialAuth.ts`), which Supabase's Redirect URLs list accepts. Before
+that it used `Linking.createURL(...)`, which in Expo Go builds `exp://<the address the phone loaded the project from>`; a plain
+network address such as `exp://10.1.10.161:8081/...` is not on the list, so Supabase fell back to the Site URL and the
+sign-in never reached the app. Verified on a phone on 2026-11-14.
 
 **Checks you can run:**
 
@@ -141,10 +144,10 @@ The site root (`https://tphan1-23.github.io/AI-Wardrobe-Stylist/`, the address G
 **What the page says, and when:** "Email confirmed" only for a real sign-up link (the address carries `type=signup`).
 "This link has expired" or "did not work" for a rejected link. **"Sign-in finished ... the DressWell app did not receive it"**
 when the address carries a session but no `type=signup`: that is a **Google sign-in that landed here instead of in the app**.
-It happens when the app was started **without the tunnel**: Supabase only returns to addresses in its Redirect URLs list
-(`exp://**`, `dresswell://**`), and a plain network address such as `exp://192.168.1.50:8081/...` is not on it, so it falls back
-to the Site URL, which is this page. The fix is to start the app with `npx expo start --tunnel -c` (see section 5). The sign-in
-itself worked (the account and its session exist); only the hand-back to the app failed.
+It means Supabase would not return to the address the app asked for (it only returns to addresses on its Redirect URLs list) and
+fell back to the Site URL, which is this page. The sign-in itself worked (the account and its session exist); only the
+hand-back to the app failed. The app now asks for `dresswell://auth-callback`, which is on the list, so this should no longer
+happen; if it does, read the request log for the `redirect_to` the app sent.
 
 **Check it works:** open the page address: it should load and say "Open this page from the confirmation link in your email".
 Then sign up in the app with a real address you can read, open the email, tap the link: the page says "Email confirmed", and
