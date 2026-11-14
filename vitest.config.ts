@@ -33,6 +33,7 @@ export default defineConfig({
         "frontend/src/services/todayGateway.ts",
         "frontend/src/services/householdGateway.ts",
         "frontend/src/layout.ts",
+        "scripts/migration-lock.ts",
       ],
       exclude: ["supabase/functions/_shared/types.ts"],
       thresholds: { lines: 80, functions: 80, branches: 80, statements: 80 },

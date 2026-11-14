@@ -52,6 +52,17 @@ Migrations `0001` to `0009` are the source of truth for the schema:
 the production project; an agent or a script must be told `--yes` by a person.) Migrations 0001 to 0008 were applied by
 hand and recorded this way on 2026-11-06; `list_migrations` shows all eight.
 
+**The migration lock.** `supabase/migrations/checksums.json` records a checksum of every migration. A test fails when an
+applied migration is edited, a migration has no entry, an entry has no file, or the numbering has a gap. To add a
+migration, create `NNNN_name.sql`, run `npm run migrations:lock` and commit the updated `checksums.json` in the same PR.
+To change one that is already applied (almost never right: write a new migration instead) the lock refuses unless you run
+`npm run migrations:lock -- --accept-edit <file>`, which makes the edit visible in the PR diff for the reviewer.
+
+**Who must review what.** `.github/CODEOWNERS` names an owner per area (AI logic and contracts, database, app, docs) and
+lists the teammate too, so the non-author can always approve. For GitHub to *require* it, the repository owner turns on
+branch protection for `main` (Settings, Branches): require a pull request, require 1 approval, require review from Code
+Owners, and require the `test` and `frontend` checks to pass.
+
 Write migrations so they are safe to run twice and change only what they say. Tests in `tests/migration.test.ts` read the
 SQL and fail on forbidden statements.
 
@@ -104,7 +115,7 @@ Record any change here, because the code cannot show it.
   in spam until a domain with SPF, DKIM and DMARC is set up.
 - **Authentication, URL Configuration:** the redirect list contains `exp://**` (Expo Go) and `dresswell://**`. Remove
   `exp://**` before any public release.
-- **Authentication, Providers:** Google is on (OAuth client in Google Cloud). Apple is off: a real Apple sign-in needs
+- **Authentication, Providers:** Google is on (OAuth client in Google Cloud). Apple sign-in was dropped (D23): it needs
   the paid Apple Developer Program.
 - **Password rules:** 8 to 72 characters with upper, lower, number and symbol at sign-up (the app and the dashboard agree).
 - **Leaked-password protection** is off; it needs a paid plan.

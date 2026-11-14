@@ -8,8 +8,7 @@
     "userInterfaceStyle": "light",
     "scheme": "dresswell",
     "ios": {
-      "supportsTablet": true,
-      "usesAppleSignIn": true
+      "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
@@ -25,7 +24,6 @@
     },
     "plugins": [
       "expo-font",
-      "expo-apple-authentication",
       "expo-web-browser",
       [
         "expo-image-picker",
