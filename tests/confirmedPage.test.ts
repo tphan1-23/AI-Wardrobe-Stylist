@@ -120,3 +120,26 @@ describe("the confirmation page files", () => {
     expect(readFileSync(new URL("../docs/deployment.md", import.meta.url), "utf8")).toContain("{{");
   });
 });
+
+describe("the site root page (the address GitHub shows under Pages)", () => {
+  const root = readFileSync(new URL("../docs/index.html", import.meta.url), "utf8");
+
+  it("exists, so the address GitHub shows is not a 404", () => {
+    expect(root).toContain("<title>DressWell</title>");
+    expect(root).toContain('name="viewport"');
+  });
+
+  it("runs no script and loads nothing from outside; its only links go to this project's GitHub pages", () => {
+    expect(root).not.toMatch(/<script/i);
+    expect(root).not.toMatch(/(?:src)=/i);
+    expect(root).not.toMatch(/@import|url\(/i);
+    const links = [...root.matchAll(/href="([^"]+)"/g)].map((m) => m[1]!);
+    expect(links.length).toBeGreaterThan(0);
+    for (const link of links) expect(link).toMatch(/^https:\/\/github\.com\/tphan1-23\/AI-Wardrobe-Stylist(\/|$)/);
+  });
+
+  it("does not pretend to be the confirmation page or handle login tokens", () => {
+    expect(root).not.toMatch(/access_token|refresh_token|confirmed\.js/);
+    expect(root).not.toMatch(/Email confirmed/);
+  });
+});

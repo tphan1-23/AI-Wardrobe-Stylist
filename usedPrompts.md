@@ -140,3 +140,9 @@ Individual AI audit log for CSCI 4397/6397 (capstone). Thanh keeps her own log i
 - **Verified:** 604 tests pass; the page script is at 100% of lines; seven deliberate breaks caught (tokens left in the address, a log of the address, an error no longer beating a token, a check mark for every status, expired links reported as invalid, an external script on the page, an empty page claiming confirmation). I also read the live auth settings (`mailer_autoconfirm` false, sign-ups allowed) before telling Manuel which dashboard switch mattered.
 - **Not done / not verified:** the page is not live until the repository owner enables GitHub Pages and the Supabase Site URL is changed (both outside the repo). Real delivery (spam folder, the link in a real email) has not been tested yet.
 - **Lesson:** when the instruction keeps getting repeated, stop proposing and restate the goal in one sentence for the person to correct.
+
+### 20. The 404 on the Pages root (2026-11-14)
+- **Symptom:** Thanh got "404 file not found" after the confirmation page was merged, and GitHub said "your site is live at .../AI-Wardrobe-Stylist/".
+- **What Claude did:** checked instead of guessing: PR merged, files on `main`, then requested each address. `/confirmed/` and its script returned 200 with the right content and a JavaScript content type; only the site root returned 404, because nothing was published there. The page was fine; the address GitHub advertises was the one that failed.
+- **Fix:** a small landing page at `docs/index.html` (no script, no outside resources, links only to this project's GitHub), with tests, so the address GitHub shows works too.
+- **Not changed:** the Site URL for Supabase stays `.../confirmed/`.

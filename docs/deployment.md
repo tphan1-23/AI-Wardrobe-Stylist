@@ -135,6 +135,9 @@ the person to open the app and log in, and removes the login tokens from the add
 3. **Optional:** Authentication, Emails, "Confirm signup" template: a clearer subject such as "Confirm your DressWell account".
    Keep the link variable (`{{ .ConfirmationURL }}`).
 
+The site root (`https://tphan1-23.github.io/AI-Wardrobe-Stylist/`, the address GitHub shows under Pages) is a small landing page
+(`docs/index.html`) so that link is not a 404; the confirmation page itself is only at `/confirmed/`. Addresses are case-sensitive.
+
 **Check it works:** open the page address: it should load and say "Open this page from the confirmation link in your email".
 Then sign up in the app with a real address you can read, open the email, tap the link: the page says "Email confirmed", and
 logging in works. An expired link tells the person to sign up again with the same email; Supabase then sends a new link.
