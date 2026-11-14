@@ -110,7 +110,7 @@ server asks Supabase for a redirect address it rejects, so the browser lands on 
 Record any change here, because the code cannot show it.
 
 - **Authentication, Email:** sign-up confirmation keeps the default **link** (the Expo Go app cannot open it, and the
-  Site URL is still `http://localhost:3000`; testers tap the link and go back to the app). The password-reset template
+  Site URL points at the confirmation page, see below). The password-reset template
   shows `{{ .Token }}` so the code is typed into the app. Emails go through a dedicated Gmail account over SMTP and land
   in spam until a domain with SPF, DKIM and DMARC is set up.
 - **Authentication, URL Configuration:** the redirect list contains `exp://**` (Expo Go) and `dresswell://**`. Remove
@@ -119,6 +119,25 @@ Record any change here, because the code cannot show it.
   the paid Apple Developer Program.
 - **Password rules:** 8 to 72 characters with upper, lower, number and symbol at sign-up (the app and the dashboard agree).
 - **Leaked-password protection** is off; it needs a paid plan.
+
+### The confirmation page (live-app sign-up flow, D24)
+
+New accounts are confirmed by the link in the sign-up email. The link lands on `docs/confirmed/index.html`, a static page
+with no tracking and no outside resources: it says "Email confirmed" (or "This link has expired" or "did not work"), tells
+the person to open the app and log in, and removes the login tokens from the address bar. It never reads, logs or sends them.
+
+**One-time setup, outside the repo:**
+1. **GitHub Pages** (repository owner): Settings, Pages, "Deploy from a branch", branch `main`, folder `/docs`. The file
+   `docs/.nojekyll` stops Pages from processing our Markdown (it contains `{{ }}` text that would break Jekyll). The page is then at
+   https://tphan1-23.github.io/AI-Wardrobe-Stylist/confirmed/
+2. **Supabase Site URL:** Authentication, URL Configuration, Site URL = that address. (The sign-up call does not pass its own
+   redirect, so the Site URL is where the link goes.) Keep the existing redirect list.
+3. **Optional:** Authentication, Emails, "Confirm signup" template: a clearer subject such as "Confirm your DressWell account".
+   Keep the link variable (`{{ .ConfirmationURL }}`).
+
+**Check it works:** open the page address: it should load and say "Open this page from the confirmation link in your email".
+Then sign up in the app with a real address you can read, open the email, tap the link: the page says "Email confirmed", and
+logging in works. An expired link tells the person to sign up again with the same email; Supabase then sends a new link.
 
 ## 7. Safety rules for the production project
 
@@ -149,7 +168,7 @@ These came from real incidents and findings:
 - **Hosting for non-developers.** Today everyone needs the dev server and Expo Go. Options: a hosted web build (the app
   already builds for web with `react-dom` and `react-native-web`, but is untested in a browser), or a built iOS app
   (needs the paid Apple Developer Program). Undecided (D22).
-- **Email deliverability and the Site URL** (emails in spam, confirmation link goes to `localhost:3000`) are fixed once a
+- **Email deliverability and the Site URL** (emails may land in spam) are fixed once a
   real address and sending domain exist.
 - **Automated deploys.** CI runs checks on every PR; deploying the functions is a manual, confirmed step. A workflow that
   deploys on merge to `main` is possible (needs a Supabase access token as a repository secret) but not built.
