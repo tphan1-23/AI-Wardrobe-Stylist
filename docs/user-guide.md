@@ -9,9 +9,9 @@ This guide is for people using or grading the app. For how it is built, see [arc
 ## 1. First time
 
 **Create an account.** Choose **Sign up**, enter your name, email and a password (8 to 72 characters with upper and
-lower case, a number and a symbol), or tap **Continue with Google**. If you use email, Supabase sends a confirmation
-email: tap the link in it, then come back to the app and **log in**. The page the link opens may not load (the web
-address is not set up yet); the account is confirmed anyway. Emails can land in spam for now.
+lower case, a number and a symbol), or tap **Continue with Google**. If you use email, we send a confirmation
+email: tap the link in it, a page says **Email confirmed**, then come back to the app and **log in**. Emails can land in
+spam for now. If the link has expired, sign up again with the same email and we send a new one.
 
 
 **Forgot your password?** On the log-in screen tap **Forgot your password?**, enter your email, then type the code we
@@ -93,7 +93,7 @@ household. The AI sees a photo only while it tags it. Passwords are handled by S
 
 | What you see | What to do |
 |---|---|
-| The confirmation page does not load | Expected for now. Go back to the app and log in. |
+| The confirmation link says it expired or did not work | Sign up again with the same email to get a new link, or log in if you already confirmed. |
 | No emails arrive | Check spam and choose "Report not spam"; wait a minute before asking for another code. |
 | "Your profile could not be found" | Log out and in again; the app repairs a missing profile once. |
 | "Set your location first" | Open Household and tap **Change** next to Location. |

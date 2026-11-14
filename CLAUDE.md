@@ -44,7 +44,7 @@ Read `brain/Work Plan.md` first: it has the branch map, PR order, who owns what,
   hand on an iPhone only.
 - Next: Milestone 3 (deployed app with CI/CD and AI-assisted docs, Nov 9-13). Hosting stays on Expo Go for now (D22);
   see `docs/deployment.md` section 8 and the Milestone 3 list in `brain/Work Plan.md`.
-- Open: email deliverability and Site URL (needs a real address), Apple sign-in (not usable), a per-user cap on
+- Open: email deliverability (the Gmail sender may land in spam), turning on GitHub Pages and setting the Supabase Site URL for the confirmation page (D24), a per-user cap on
   `analyze-garment`, automated deploy on merge, individual audit logs to review and mark `[reviewed]`.
 
 ## MVP scope (must ship for the capstone)
