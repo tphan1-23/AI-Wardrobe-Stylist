@@ -19,6 +19,7 @@ import {
 import { quizToPreferences } from "../supabase/functions/_shared/preferences.ts";
 import { COLORS } from "../supabase/functions/_shared/tag-schema.ts";
 import { OCCASIONS, STYLE_VIBES } from "../supabase/functions/_shared/types.ts";
+import { GENERIC_ERROR } from "../frontend/src/services/errors.ts";
 
 const ok = (): GatewayResult<unknown> => ({ data: null, error: null });
 const gateway = (saveQuiz = vi.fn(async () => ok())): Pick<HouseholdGateway, "saveQuiz"> => ({ saveQuiz });
@@ -163,7 +164,7 @@ describe("saveQuiz", () => {
 
   it("shows a server error and keeps the quiz open", async () => {
     const g = gateway(vi.fn(async () => ({ data: null, error: { message: "permission denied" } })));
-    expect(await saveQuiz(g, filled())).toEqual({ ok: false, error: "permission denied" });
+    expect(await saveQuiz(g, filled())).toEqual({ ok: false, error: GENERIC_ERROR });
   });
 
   it("explains a lost session in plain words", async () => {

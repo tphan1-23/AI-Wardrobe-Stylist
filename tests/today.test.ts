@@ -20,6 +20,7 @@ import {
 } from "../frontend/src/services/today.ts";
 import { GARMENT_TYPES, WARMTH_MAX, WARMTH_MIN } from "../supabase/functions/_shared/tag-schema.ts";
 import type { GenerateOutfitResponse } from "../supabase/functions/_shared/types.ts";
+import { GENERIC_ERROR } from "../frontend/src/services/errors.ts";
 
 const ok = <T>(data: T): GatewayResult<T> => ({ data, error: null });
 const err = (message: string, status?: number): GatewayResult<never> => ({ data: null, error: { message, status } });
@@ -148,9 +149,9 @@ describe("friendlyTodayError", () => {
     expect(friendlyTodayError({ message: "raw", status })).toMatch(expected);
   });
 
-  it("passes other messages through", () => {
-    expect(friendlyTodayError({ message: "Something odd", status: 500 })).toBe("Something odd");
-    expect(friendlyTodayError({ message: "Something odd" })).toBe("Something odd");
+  it("hides unexpected messages behind a generic one", () => {
+    expect(friendlyTodayError({ message: "Something odd", status: 500 })).toBe(GENERIC_ERROR);
+    expect(friendlyTodayError({ message: "Something odd" })).toBe(GENERIC_ERROR);
   });
 });
 
@@ -214,7 +215,7 @@ describe("loadToday: first open of the day", () => {
 
   it("shows the error when the new outfit's garments cannot be read", async () => {
     const g = gateway({ loadGarments: vi.fn(async () => err("denied")) });
-    expect(await loadToday(g, DATE)).toEqual({ ok: false, error: "denied" });
+    expect(await loadToday(g, DATE)).toEqual({ ok: false, error: GENERIC_ERROR });
   });
 
   it("fails clearly if the new outfit's garments cannot be found", async () => {
@@ -307,7 +308,7 @@ describe("loadToday: opening the screen again the same day", () => {
 describe("loadToday: failures", () => {
   it("shows a server error from loading suggestions", async () => {
     const g = gateway({ loadSuggestions: vi.fn(async () => err("permission denied")) });
-    expect(await loadToday(g, DATE)).toEqual({ ok: false, error: "permission denied" });
+    expect(await loadToday(g, DATE)).toEqual({ ok: false, error: GENERIC_ERROR });
     expect(g.generateOutfit).not.toHaveBeenCalled();
   });
 
@@ -323,7 +324,7 @@ describe("loadToday: failures", () => {
       loadSuggestions: vi.fn(async () => ok([suggestion("s-1")])),
       loadGarments: vi.fn(async () => err("denied")),
     });
-    expect(await loadToday(g, DATE)).toEqual({ ok: false, error: "denied" });
+    expect(await loadToday(g, DATE)).toEqual({ ok: false, error: GENERIC_ERROR });
   });
 
   it("reports network failures and empty answers", async () => {
@@ -367,7 +368,7 @@ describe("newOutfitToday (another outfit after one was approved)", () => {
       generateOutfit: vi.fn(async () => ok<GenerateOutfitResponse>({ status: "exhausted", reasoning: "All used.", weather: MILD })),
     });
     expect(await newOutfitToday(exhausted, DATE)).toEqual({ ok: true, value: { kind: "exhausted", reasoning: "All used.", weather: MILD } });
-    expect(await newOutfitToday(gateway({ loadSuggestions: vi.fn(async () => err("denied")) }), DATE)).toEqual({ ok: false, error: "denied" });
+    expect(await newOutfitToday(gateway({ loadSuggestions: vi.fn(async () => err("denied")) }), DATE)).toEqual({ ok: false, error: GENERIC_ERROR });
     const g = gateway({ generateOutfit: vi.fn(async () => err("weather", 502)) });
     expect(await newOutfitToday(g, DATE)).toMatchObject({ ok: false, error: expect.stringMatching(/weather service/i) });
   });
@@ -498,7 +499,7 @@ describe("wearOutfit (Yes, wear this)", () => {
 
   it("does not send a thumbs-up when marking as worn failed", async () => {
     const g = gateway({ acceptSuggestion: vi.fn(async () => err("suggestion not found")) });
-    expect(await wearOutfit(g, "s-1")).toEqual({ ok: false, error: "suggestion not found" });
+    expect(await wearOutfit(g, "s-1")).toEqual({ ok: false, error: GENERIC_ERROR });
     expect(g.sendFeedback).not.toHaveBeenCalled();
   });
 

@@ -9,6 +9,7 @@ import type { GarmentStatus, UUID } from "../../../supabase/functions/_shared/ty
 import { NETWORK_ERROR } from "./edgeFunctions.ts";
 import { isComplete, type GarmentDraft } from "./garment.ts";
 import type { GatewayResult, MemberRow, Result } from "./household.ts";
+import { unexpectedError } from "./errors.ts";
 
 export interface ClosetRow {
   id: UUID;
@@ -127,7 +128,7 @@ export function friendlyClosetError(message: string): string {
     return "That garment could not be changed. It may belong to someone else or was already deleted.";
   }
   if (text.includes("jwt") || text.includes("not authenticated")) return "Your session expired. Please sign in again.";
-  return message;
+  return unexpectedError("closet", message);
 }
 
 async function call<T>(run: () => Promise<GatewayResult<T>>): Promise<Result<T>> {

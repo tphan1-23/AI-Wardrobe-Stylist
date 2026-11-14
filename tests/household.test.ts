@@ -21,6 +21,7 @@ import {
 } from "../frontend/src/services/household.ts";
 import { supabaseGateway, type SupabaseLike } from "../frontend/src/services/householdGateway.ts";
 import type { QuizAnswers } from "../supabase/functions/_shared/types.ts";
+import { GENERIC_ERROR } from "../frontend/src/services/errors.ts";
 
 const QUIZ: QuizAnswers = {
   style_vibes: ["casual"],
@@ -81,7 +82,7 @@ describe("validation", () => {
     expect(friendlyHouseholdError("not in a household")).toBe("You are not in a household.");
     expect(friendlyHouseholdError("JWT expired")).toContain("sign in again");
     expect(friendlyHouseholdError("not authenticated")).toContain("sign in again");
-    expect(friendlyHouseholdError("something odd")).toBe("something odd");
+    expect(friendlyHouseholdError("something odd")).toBe(GENERIC_ERROR);
   });
 });
 
@@ -144,7 +145,7 @@ describe("saveLocation", () => {
   });
 
   it("surfaces server and network errors", async () => {
-    expect(await saveLocation(gateway({ updateLocation: async () => err("permission denied") }), "Conway")).toEqual({ ok: false, error: "permission denied" });
+    expect(await saveLocation(gateway({ updateLocation: async () => err("permission denied") }), "Conway")).toEqual({ ok: false, error: GENERIC_ERROR });
     expect(await saveLocation(gateway({ updateLocation: async () => { throw new Error("x"); } }), "Conway")).toMatchObject({ ok: false, error: expect.stringContaining("Could not reach") });
   });
 });
@@ -203,9 +204,9 @@ describe("loadOverview", () => {
   });
 
   it("fails cleanly if any lookup fails", async () => {
-    expect(await loadOverview(gateway({ loadProfile: async () => err("boom") }))).toEqual({ ok: false, error: "boom" });
-    expect(await loadOverview(gateway({ loadHousehold: async () => err("denied") }))).toEqual({ ok: false, error: "denied" });
-    expect(await loadOverview(gateway({ loadMembers: async () => err("nope") }))).toEqual({ ok: false, error: "nope" });
+    expect(await loadOverview(gateway({ loadProfile: async () => err("boom") }))).toEqual({ ok: false, error: GENERIC_ERROR });
+    expect(await loadOverview(gateway({ loadHousehold: async () => err("denied") }))).toEqual({ ok: false, error: GENERIC_ERROR });
+    expect(await loadOverview(gateway({ loadMembers: async () => err("nope") }))).toEqual({ ok: false, error: GENERIC_ERROR });
   });
 
   it("recreates a missing profile once and carries on", async () => {
@@ -221,7 +222,7 @@ describe("loadOverview", () => {
     await loadOverview(fine);
     expect(fine.ensureProfile).not.toHaveBeenCalled();
     const broken = gateway({ loadProfile: async () => err("boom") });
-    expect(await loadOverview(broken)).toEqual({ ok: false, error: "boom" });
+    expect(await loadOverview(broken)).toEqual({ ok: false, error: GENERIC_ERROR });
     expect(broken.ensureProfile).not.toHaveBeenCalled();
   });
 
@@ -234,9 +235,9 @@ describe("loadOverview", () => {
 
   it("reports failures of the repair itself, of the second load, and network drops", async () => {
     const missing = { loadProfile: vi.fn(async () => ({ data: null, error: null })) };
-    expect(await loadOverview(gateway({ ...missing, ensureProfile: async () => err("permission denied") }))).toEqual({ ok: false, error: "permission denied" });
+    expect(await loadOverview(gateway({ ...missing, ensureProfile: async () => err("permission denied") }))).toEqual({ ok: false, error: GENERIC_ERROR });
     const secondFails = vi.fn().mockResolvedValueOnce({ data: null, error: null }).mockResolvedValueOnce(err("late failure"));
-    expect(await loadOverview(gateway({ loadProfile: secondFails }))).toEqual({ ok: false, error: "late failure" });
+    expect(await loadOverview(gateway({ loadProfile: secondFails }))).toEqual({ ok: false, error: GENERIC_ERROR });
     const down = gateway({ ...missing, ensureProfile: async () => { throw new Error("offline"); } });
     expect(await loadOverview(down)).toMatchObject({ ok: false, error: expect.stringContaining("Could not reach") });
   });

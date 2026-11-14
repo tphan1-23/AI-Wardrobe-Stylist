@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { type AddGateway, type ReviewState } from "../frontend/src/services/add.ts";
 import { fitImage, regionToFrame, toImageRegion } from "../frontend/src/services/crop.ts";
 import { replaceWithCrop } from "../frontend/src/services/cropSuggestion.ts";
+import { GENERIC_ERROR } from "../frontend/src/services/errors.ts";
 
 const USER = "user-1";
 const review = (extra: Partial<ReviewState> = {}): ReviewState => ({
@@ -54,7 +55,7 @@ describe("replaceWithCrop", () => {
   it("keeps the original untouched when the upload fails", async () => {
     const { g } = gateway({ uploadPhoto: vi.fn(async () => ({ data: null, error: { message: "denied" } })) });
     const result = await replaceWithCrop(g, USER, review(), photo(), () => "new");
-    expect(result).toEqual({ ok: false, error: "denied" });
+    expect(result).toEqual({ ok: false, error: GENERIC_ERROR });
     expect(g.removePhoto).not.toHaveBeenCalled();
   });
 

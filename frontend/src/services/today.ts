@@ -21,6 +21,7 @@ import type {
 } from "../../../supabase/functions/_shared/types.ts";
 import { garmentDetail, garmentName } from "./garment.ts";
 import type { GatewayError, GatewayResult, Result } from "./household.ts";
+import { unexpectedError } from "./errors.ts";
 
 // Kept exported from here for the screens and tests that already import them.
 export { garmentDetail, garmentName };
@@ -154,7 +155,7 @@ export function friendlyTodayError(error: GatewayError): string {
     case 502:
       return "The weather service is unavailable right now. Try again in a minute.";
     default:
-      return error.message;
+      return unexpectedError("today", error.message);
   }
 }
 
