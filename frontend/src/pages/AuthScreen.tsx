@@ -1,4 +1,3 @@
-import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -9,14 +8,11 @@ import { Screen } from "../components/common/Screen";
 import { Segmented } from "../components/common/Segmented";
 import { TextField } from "../components/common/TextField";
 import { fieldForError, signIn, signUp, type AuthField } from "../services/auth";
-import { signInWithGoogle, type SocialResult } from "../services/socialAuth";
+import { OAUTH_REDIRECT_URL, signInWithGoogle, type SocialResult } from "../services/socialAuth";
 import { supabase } from "../services/supabase";
 import { colors, fonts, type } from "../theme";
 
 type Mode = "sign_in" | "sign_up";
-
-// Where Google sends the browser back to: the app itself (exp:// in Expo Go).
-const OAUTH_REDIRECT_PATH = "auth-callback";
 
 export function AuthScreen({ onForgotPassword }: { onForgotPassword: () => void }) {
   const [mode, setMode] = useState<Mode>("sign_in");
@@ -71,7 +67,7 @@ export function AuthScreen({ onForgotPassword }: { onForgotPassword: () => void 
       signInWithGoogle(
         supabase.auth,
         { openAuthSessionAsync: WebBrowser.openAuthSessionAsync },
-        Linking.createURL(OAUTH_REDIRECT_PATH),
+        OAUTH_REDIRECT_URL,
       ),
     );
 

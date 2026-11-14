@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
 import {
+  OAUTH_REDIRECT_URL,
   parseAuthRedirect,
   signInWithGoogle,
   type AuthBrowser,
@@ -120,5 +122,41 @@ describe("signInWithGoogle", () => {
       cancelled: false,
       error: expect.stringMatching(/did not finish/i),
     });
+  });
+});
+
+describe("the sign-in return address", () => {
+  const appJson = JSON.parse(readFileSync(new URL("../frontend/app.json", import.meta.url), "utf8")) as { expo: { scheme: string } };
+  const screen = readFileSync(new URL("../frontend/src/pages/AuthScreen.tsx", import.meta.url), "utf8");
+
+  it("is the app's own scheme, so it does not depend on a network address or the tunnel", () => {
+    expect(OAUTH_REDIRECT_URL).toBe(`${appJson.expo.scheme}://auth-callback`);
+    expect(OAUTH_REDIRECT_URL).not.toMatch(/^exp:/);
+    expect(OAUTH_REDIRECT_URL).not.toMatch(/\d+\.\d+\.\d+\.\d+|localhost|exp\.direct/);
+  });
+
+  it("is what the Google button sends, not an address built from how the phone loaded the project", () => {
+    expect(screen).toContain("OAUTH_REDIRECT_URL");
+    expect(screen).not.toMatch(/createURL/);
+  });
+
+  it("is accepted by the redirect check in signInWithGoogle, and only an address starting with it is trusted", async () => {
+    const client: SocialAuthClient = {
+      signInWithOAuth: vi.fn().mockResolvedValue({ data: { url: "https://accounts.example/auth" }, error: null }),
+      setSession: vi.fn().mockResolvedValue({ error: null }),
+    };
+    const good: AuthBrowser = {
+      openAuthSessionAsync: vi.fn().mockResolvedValue({ type: "success", url: `${OAUTH_REDIRECT_URL}#access_token=a&refresh_token=r` }),
+    };
+    expect(await signInWithGoogle(client, good, OAUTH_REDIRECT_URL)).toEqual({ ok: true });
+    expect(client.signInWithOAuth).toHaveBeenCalledWith({
+      provider: "google",
+      options: { redirectTo: OAUTH_REDIRECT_URL, skipBrowserRedirect: true },
+    });
+    expect(good.openAuthSessionAsync).toHaveBeenCalledWith("https://accounts.example/auth", OAUTH_REDIRECT_URL);
+    const elsewhere: AuthBrowser = {
+      openAuthSessionAsync: vi.fn().mockResolvedValue({ type: "success", url: "https://evil.example/#access_token=a&refresh_token=r" }),
+    };
+    expect((await signInWithGoogle(client, elsewhere, OAUTH_REDIRECT_URL)).ok).toBe(false);
   });
 });
