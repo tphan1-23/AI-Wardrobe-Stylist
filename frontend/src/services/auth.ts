@@ -17,6 +17,9 @@ export interface PasswordValidationResult {
 interface AuthUser {
   id: string;
   email?: string | null;
+  // Supabase answers a sign-up for an address that already has an account with success but sends no
+  // email, and marks it with an EMPTY identities list (a new account has at least one).
+  identities?: unknown[] | null;
 }
 
 export interface AuthSession {
@@ -171,6 +174,7 @@ export function fieldForError(message: string): AuthField {
 }
 
 const NETWORK_ERROR = "Could not reach the server. Check your connection and try again.";
+export const EMAIL_TAKEN = "That email already has an account. Log in, use Continue with Google, or reset your password.";
 
 export async function signUp(client: AuthClient, input: SignUpInput): Promise<AuthResult> {
   const problem =
@@ -185,6 +189,10 @@ export async function signUp(client: AuthClient, input: SignUpInput): Promise<Au
       options: { data: { name: input.name.trim() } },
     });
     if (error) return { ok: false, error: friendlyAuthError(error.message) };
+    if (!data.session && Array.isArray(data.user?.identities) && data.user.identities.length === 0) {
+      // No email is sent in this case, so "check your email" would leave the person waiting for nothing.
+      return { ok: false, error: EMAIL_TAKEN };
+    }
     // No session means the project requires email confirmation first.
     return { ok: true, status: data.session ? "signed_in" : "confirmation_required" };
   } catch {

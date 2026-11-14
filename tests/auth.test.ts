@@ -12,6 +12,7 @@ import {
   signIn,
   signOut,
   signUp,
+  EMAIL_TAKEN,
   validateEmail,
   validateName,
   validateNewPassword,
@@ -155,6 +156,39 @@ describe("signUp", () => {
       signUp: vi.fn().mockResolvedValue({ data: { user, session: null }, error: null }),
     });
     expect(await signUp(client, validSignUp)).toEqual({ ok: true, status: "confirmation_required" });
+  });
+
+  it("says so when the email already has an account, instead of promising an email that is never sent", async () => {
+    const existing = { id: "u-existing", email: "thanh@example.com", identities: [] };
+    const client = fakeClient({
+      signUp: vi.fn().mockResolvedValue({ data: { user: existing, session: null }, error: null }),
+    });
+    expect(await signUp(client, validSignUp)).toEqual({ ok: false, error: EMAIL_TAKEN });
+    expect(EMAIL_TAKEN).toMatch(/already has an account/);
+    expect(EMAIL_TAKEN).toMatch(/Google/);
+    expect(fieldForError(EMAIL_TAKEN)).toBe("email");
+  });
+
+  it("still reports a new account normally: it has an identity, with or without a session", async () => {
+    const fresh = { id: "u-new", email: "thanh@example.com", identities: [{ provider: "email" }] };
+    const waiting = fakeClient({ signUp: vi.fn().mockResolvedValue({ data: { user: fresh, session: null }, error: null }) });
+    expect(await signUp(waiting, validSignUp)).toEqual({ ok: true, status: "confirmation_required" });
+    const instant = fakeClient({ signUp: vi.fn().mockResolvedValue({ data: { user: { ...fresh }, session: { user: fresh } }, error: null }) });
+    expect(await signUp(instant, validSignUp)).toEqual({ ok: true, status: "signed_in" });
+    // A session always wins: never turn a signed-in sign-up into an error.
+    const odd = fakeClient({ signUp: vi.fn().mockResolvedValue({ data: { user: { id: "u", identities: [] }, session: { user: fresh } }, error: null }) });
+    expect(await signUp(odd, validSignUp)).toEqual({ ok: true, status: "signed_in" });
+  });
+
+  it("treats a missing or null identities list as a normal sign-up", async () => {
+    for (const identities of [undefined, null]) {
+      const client = fakeClient({
+        signUp: vi.fn().mockResolvedValue({ data: { user: { id: "u", identities }, session: null }, error: null }),
+      });
+      expect(await signUp(client, validSignUp)).toEqual({ ok: true, status: "confirmation_required" });
+    }
+    const noUser = fakeClient({ signUp: vi.fn().mockResolvedValue({ data: { user: null, session: null }, error: null }) });
+    expect(await signUp(noUser, validSignUp)).toEqual({ ok: true, status: "confirmation_required" });
   });
 
   it("returns a friendly message for server errors", async () => {
