@@ -51,6 +51,17 @@ Migrations `0001` to `0008` are the source of truth for the schema:
 the production project; an agent or a script must be told `--yes` by a person.) Migrations 0001 to 0008 were applied by
 hand and recorded this way on 2026-11-06; `list_migrations` shows all eight.
 
+**The migration lock.** `supabase/migrations/checksums.json` records a checksum of every migration. A test fails when an
+applied migration is edited, a migration has no entry, an entry has no file, or the numbering has a gap. To add a
+migration, create `NNNN_name.sql`, run `npm run migrations:lock` and commit the updated `checksums.json` in the same PR.
+To change one that is already applied (almost never right: write a new migration instead) the lock refuses unless you run
+`npm run migrations:lock -- --accept-edit <file>`, which makes the edit visible in the PR diff for the reviewer.
+
+**Who must review what.** `.github/CODEOWNERS` names an owner per area (AI logic and contracts, database, app, docs) and
+lists the teammate too, so the non-author can always approve. For GitHub to *require* it, the repository owner turns on
+branch protection for `main` (Settings, Branches): require a pull request, require 1 approval, require review from Code
+Owners, and require the `test` and `frontend` checks to pass.
+
 Write migrations so they are safe to run twice and change only what they say. Tests in `tests/migration.test.ts` read the
 SQL and fail on forbidden statements.
 

@@ -1,0 +1,26 @@
+# Who is asked to review what (see CLAUDE.md, "Shared brain & ownership").
+#
+# The first name is the area's owner and is asked first. The teammate is listed too, so that either
+# one's approval satisfies GitHub's code-owner rule when the other person wrote the change (an author
+# cannot approve their own pull request). Later patterns override earlier ones.
+
+# Everything else: product, app and plumbing.
+*                                   @tphan1-23 @Manocro
+
+# Database: migrations, row-level security, the lock that stops applied migrations being edited.
+/supabase/migrations/               @tphan1-23 @Manocro
+
+# AI logic and contracts: vision tagging, outfit scoring, preference learning, the edge functions, their
+# tests and evaluation data. Contracts (types.ts, tag-schema.ts) change only through a reviewed PR.
+/supabase/functions/                @Manocro @tphan1-23
+/eval/                              @Manocro @tphan1-23
+/scripts/                           @Manocro @tphan1-23
+
+# The app and CI.
+/frontend/                          @tphan1-23 @Manocro
+/.github/                           @tphan1-23 @Manocro
+
+# Shared context and documentation.
+/CLAUDE.md                          @Manocro @tphan1-23
+/docs/                              @Manocro @tphan1-23
+/brain/                             @Manocro @tphan1-23
