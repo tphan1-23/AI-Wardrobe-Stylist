@@ -168,6 +168,13 @@ Individual AI audit log for CSCI 4397/6397 (capstone). Manuel keeps his in `used
 - **Not verified:** the new CI job has not run on GitHub yet (it first runs on this PR); a Windows-made lockfile installing on the Linux runner is the likeliest thing to go wrong. Version pinning of `supabase-js` and the Supabase CLI, the vitest upgrade and database length limits are still open.
 - **Went wrong:** my script that edits the tests failed halfway on Windows line endings and left some files edited and some not; I finished the rest by hand with the editor and re-ran everything.
 
+### 25. Length and value limits in the database (2026-11-14, PR pending)
+- **Asked:** a reviewer said the only thing that would make the code perfect is enforcing length and value limits in the database, not just in the app. I asked the AI to do it, with me running the SQL by hand.
+- **AI produced:** it read every table first, then wrote migration `0009_length_limits.sql`: check constraints that repeat the app's limits (household name 60, location 100, preference weights between -1 and 1 as the learning code already clamps them, photo path, tag length, outfit size, size of the quiz answers) plus a read-only query at the top that counts rows that would break each rule (every number must be 0 before running it).
+- **Went wrong, caught before merging:** it noticed that the sign-up trigger copies the typed name (and Google's full name) straight into the profile, so a name over the limit would have made sign-up fail with a database error. The first version of the migration would have caused that. Fix: a small trigger that cuts a long name to 100 on the way in, plus a 100-character check in the app for typed names. A second small slip: the shell turned `$$` into `$` in the SQL, which I found by reading the file back.
+- **Verified:** all migrations 0001 to 0009 run on an in-memory Postgres, with 32 checks (each limit accepted at the edge and refused one past it, null and empty values still allowed, the read-only check runs and returns zeros, long names at sign-up are cut and not refused, a normal name is untouched); 7 new tests that keep the migration's numbers equal to the app's constants; two deliberate breaks (adding a rewrite, changing a limit to 120) each made a test fail; 584 tests.
+- **Not verified:** on the real project. I still have to run the read-only check, then the file, in the Supabase SQL editor. The front-end type check fails on this branch only because the Apple package was uninstalled on another branch and `node_modules` is shared; it clears when that PR merges.
+
 ---
 
 ## Where the AI was wrong (friction summary)

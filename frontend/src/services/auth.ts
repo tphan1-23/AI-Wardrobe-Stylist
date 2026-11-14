@@ -131,8 +131,14 @@ export function validateResetCode(code: string): string | null {
   return null;
 }
 
+// The database cuts names at 100 characters too (migration 0009).
+export const MAX_NAME_LENGTH = 100;
+
 export function validateName(name: string): string | null {
-  return name.trim() === "" ? "Enter your name." : null;
+  const value = name.trim();
+  if (value === "") return "Enter your name.";
+  if (value.length > MAX_NAME_LENGTH) return `Name must be at most ${MAX_NAME_LENGTH} characters.`;
+  return null;
 }
 
 export function friendlyAuthError(message: string): string {
