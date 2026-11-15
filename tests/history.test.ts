@@ -33,6 +33,10 @@ const TOP = garment("g-top");
 const BOTTOM = garment("g-bottom", { type: "jeans", color: "blue" });
 const SHOES = garment("g-shoes", { type: "sneakers", color: "black" });
 const COAT = garment("g-coat", { type: "coat", color: "gray" });
+const DRESS = garment("g-dress", { type: "dress", color: "pink" });
+const HOODIE = garment("g-hoodie", { type: "hoodie", color: "black" });
+const TEE = garment("g-tee", { type: "t_shirt", color: "white" });
+const SCARF = garment("g-scarf", { type: "accessory", color: "red" });
 
 const outfit = (id: string, date: string, overrides: Partial<OutfitRow> = {}): OutfitRow => ({
   id,
@@ -134,10 +138,34 @@ describe("loadHistory", () => {
     expect(await loadHistory(g, NOW)).toMatchObject({ ok: true, value: [{ id: "s-1", pieces: [], removed: 3 }] });
   });
 
-  it("puts garments that are not a top, bottom or shoes last", async () => {
-    const g = gateway({}, [outfit("s-1", "2026-10-18", { garment_ids: ["g-coat", "g-shoes", "g-top"] })]);
+  const order = async (ids: string[]) => {
+    const g = gateway({}, [outfit("s-1", "2026-10-18", { garment_ids: ids })], [TOP, BOTTOM, SHOES, COAT, DRESS, HOODIE, TEE, SCARF]);
     const result = await loadHistory(g, NOW);
-    expect(result.ok && result.value[0]!.pieces.map((p) => p.garmentId)).toEqual(["g-top", "g-shoes", "g-coat"]);
+    if (!result.ok) throw new Error(result.error);
+    return result.value[0]!.pieces.map((p) => [p.garmentId, p.slot]);
+  };
+
+  it("lists an outfit from the outer layer down to the shoes, whatever order it was saved in", async () => {
+    expect(await order(["g-shoes", "g-bottom", "g-coat", "g-top"])).toEqual([
+      ["g-coat", "layer"], ["g-top", "top"], ["g-bottom", "bottom"], ["g-shoes", "shoes"],
+    ]);
+    expect(await order(["g-shoes", "g-dress"])).toEqual([["g-dress", "dress"], ["g-shoes", "shoes"]]);
+    expect(await order(["g-shoes", "g-coat", "g-dress"])).toEqual([["g-coat", "layer"], ["g-dress", "dress"], ["g-shoes", "shoes"]]);
+  });
+
+  it("knows a hoodie over a lighter top is the layer, and a lone hoodie is the top", async () => {
+    expect(await order(["g-shoes", "g-bottom", "g-hoodie", "g-tee"])).toEqual([
+      ["g-hoodie", "layer"], ["g-tee", "top"], ["g-bottom", "bottom"], ["g-shoes", "shoes"],
+    ]);
+    expect(await order(["g-shoes", "g-bottom", "g-hoodie"])).toEqual([["g-hoodie", "top"], ["g-bottom", "bottom"], ["g-shoes", "shoes"]]);
+  });
+
+  it("puts garments that are not part of an outfit (an accessory) last", async () => {
+    expect(await order(["g-scarf", "g-shoes", "g-top"])).toEqual([["g-top", "top"], ["g-shoes", "shoes"], ["g-scarf", "other"]]);
+  });
+
+  it("still orders an incomplete outfit (a piece was deleted) by what each piece is on its own", async () => {
+    expect(await order(["g-coat", "g-shoes", "g-top"])).toEqual([["g-coat", "layer"], ["g-top", "top"], ["g-shoes", "shoes"]]);
   });
 
   it("still lists the outfits when photo links cannot be made", async () => {

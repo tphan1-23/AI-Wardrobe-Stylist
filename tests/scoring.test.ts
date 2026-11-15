@@ -8,6 +8,7 @@ import {
   targetWarmth,
   type OutfitInput,
 } from "../supabase/functions/_shared/scoring.ts";
+import { outfitIds, rolesOf } from "../supabase/functions/_shared/outfit.ts";
 import { COLORS, GARMENT_TYPES, SEASONS, slotForType } from "../supabase/functions/_shared/tag-schema.ts";
 import type { Garment, WeatherSnapshot } from "../supabase/functions/_shared/types.ts";
 
@@ -121,7 +122,8 @@ describe("scoreOutfit", () => {
       garment({ id: "boots", type: "boots", warmth: 5 }),
     ];
     const result = scoreOutfit(input(closet, { weather: COLD }));
-    expect(result).toMatchObject({ status: "ok", outfit: { top: "sweater", bottom: "jeans", shoes: "boots" } });
+    // In the cold the sweater is worn over the t-shirt (a layer), with the warm bottom and shoes.
+    expect(result).toMatchObject({ status: "ok", outfit: { top: "tee", layer: "sweater", bottom: "jeans", shoes: "boots" } });
   });
 
   it("picks light clothes when it is hot", () => {
@@ -223,7 +225,8 @@ describe("scoreOutfit", () => {
     ];
     const prefs = [{ tag: "color:red", weight: 1 }];
     const result = scoreOutfit(input(closet, { weather: COLD, preferences: prefs }));
-    expect(result.status === "ok" && result.outfit.top).toBe("sweater");
+    // The loved red tee can stay as the top, but the sweater must still be worn on a cold day.
+    expect(result.status === "ok" && Object.values(result.outfit)).toContain("sweater");
   });
 
   it("returns a different outfit on re-roll and exhausts when nothing is left", () => {
@@ -296,13 +299,15 @@ describe("scoreOutfit invariants (random closets)", () => {
       const result = scoreOutfit(input(closet, { weather, tempComfort: pick(["runs_cold", "neutral", "runs_hot"] as const) }));
       if (result.status !== "ok") continue;
       const byId = new Map(closet.map((g) => [g.id, g]));
-      const top = byId.get(result.outfit.top)!;
-      const bottom = byId.get(result.outfit.bottom)!;
-      const shoes = byId.get(result.outfit.shoes)!;
-      expect([top.status, bottom.status, shoes.status]).toEqual(["clean", "clean", "clean"]);
-      expect([slotForType(top.type), slotForType(bottom.type), slotForType(shoes.type)]).toEqual(["top", "bottom", "shoes"]);
-      const again = scoreOutfit(input(closet, { weather, excludedOutfits: [Object.values(result.outfit)] }));
-      if (again.status === "ok") expect(again.outfit).not.toEqual(result.outfit);
+      const ids = outfitIds(result.outfit);
+      const pieces = ids.map((id) => byId.get(id)!);
+      expect(new Set(ids).size).toBe(ids.length);
+      expect(pieces.map((p) => p.status)).toEqual(pieces.map(() => "clean"));
+      // A valid outfit: shoes plus a top and bottom or a dress, with at most one layer.
+      expect(rolesOf(pieces)).not.toBeNull();
+      expect(slotForType(byId.get(result.outfit.shoes)!.type)).toBe("shoes");
+      const again = scoreOutfit(input(closet, { weather, excludedOutfits: [ids] }));
+      if (again.status === "ok") expect(outfitIds(again.outfit).slice().sort()).not.toEqual(ids.slice().sort());
     }
   });
 });

@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from "react-native";
 import { CachedImage } from "../common/CachedImage";
-import { OUTFIT_SLOTS, SLOT_LABELS, type OutfitItem, type OutfitSlot } from "../../services/today";
+import { SLOT_LABELS, type OutfitItem, type OutfitSlot } from "../../services/today";
 import { colors, fonts, radius, size, type } from "../../theme";
 import { Icon } from "../common/Icon";
 
@@ -23,7 +23,7 @@ function ItemRow({ item, last }: { item: OutfitItem; last: boolean }) {
     <View style={[styles.row, !last && styles.divider]}>
       <Photo url={item.photoUrl} label={item.name} />
       <View style={styles.text}>
-        <Text style={styles.slot}>{SLOT_LABELS[item.slot].toUpperCase()}</Text>
+        <Text style={styles.slot}>{item.label.toUpperCase()}</Text>
         <Text style={styles.name}>{item.name}</Text>
         <Text style={type.caption}>{item.detail}</Text>
       </View>
@@ -41,17 +41,21 @@ function MissingRow({ slot, last }: { slot: OutfitSlot; last: boolean }) {
       <View style={styles.text}>
         <Text style={styles.slot}>{SLOT_LABELS[slot].toUpperCase()}</Text>
         <Text style={styles.name}>{`No clean ${SLOT_LABELS[slot].toLowerCase()}`}</Text>
-        <Text style={type.caption}>Add one, or mark one clean in your Closet.</Text>
+        <Text style={type.caption}>
+          {slot === "shoes" ? "Add a pair, or mark a pair clean in your Closet." : "Add one (or a dress), or mark one clean in your Closet."}
+        </Text>
       </View>
     </View>
   );
 }
 
-export function OutfitCard({ items }: { items: Record<OutfitSlot, OutfitItem> }) {
+// The pieces of the outfit, from the outer layer down to the shoes: two for a dress, three for a top and
+// bottom, one more when a jacket, coat, hoodie or sweater goes over them.
+export function OutfitCard({ items }: { items: OutfitItem[] }) {
   return (
     <View style={styles.card}>
-      {OUTFIT_SLOTS.map((slot, index) => (
-        <ItemRow key={slot} item={items[slot]} last={index === OUTFIT_SLOTS.length - 1} />
+      {items.map((item, index) => (
+        <ItemRow key={item.id} item={item} last={index === items.length - 1} />
       ))}
     </View>
   );

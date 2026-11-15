@@ -1,6 +1,7 @@
 // Outfit scoring engine: pure, deterministic, no I/O. Imported by the
 // generate-outfit edge function and tested directly with fixtures.
-import { slotForType, type Season } from "./tag-schema.ts";
+import { baseRole, isLightTop, isOverTop } from "./outfit.ts";
+import type { Season } from "./tag-schema.ts";
 import type {
   Garment,
   ISODate,
@@ -18,9 +19,27 @@ export const MAX_CANDIDATES_PER_SLOT = 15;
 const COMFORT_OFFSET_C: Record<TempComfort, number> = { runs_cold: -3, neutral: 0, runs_hot: 3 };
 const WEATHER_SHARE = { warmth: 0.8, season: 0.2 } as const;
 const SANDALS_IN_RAIN_PENALTY = 0.5;
+// A layer (jacket, coat, or a hoodie/sweater over a lighter top) is added when the adjusted feels-like
+// temperature is at or below this, or when it is raining.
+export const LAYER_AT_OR_BELOW_C = 15;
+// With a layer on, the top or dress underneath can be one step lighter.
+const WARMTH_DROP_WITH_LAYER = 1;
+// In the rain a jacket or coat is a better choice than a hoodie.
+const RAIN_OUTERWEAR_BONUS = 0.2;
 
 type OutfitSlot = "top" | "bottom" | "shoes";
 const OUTFIT_SLOTS: OutfitSlot[] = ["top", "bottom", "shoes"];
+
+export type LayerReason = "cool" | "wet" | "cool and wet";
+
+// Whether the weather calls for a layer, and why. (runs_cold lowers the temperature we plan for, runs_hot raises it.)
+export function layerReason(weather: WeatherSnapshot, comfort: TempComfort): LayerReason | null {
+  const cool = weather.feels_like_c + COMFORT_OFFSET_C[comfort] <= LAYER_AT_OR_BELOW_C;
+  if (cool && weather.is_precipitating) return "cool and wet";
+  if (cool) return "cool";
+  if (weather.is_precipitating) return "wet";
+  return null;
+}
 
 export interface OutfitInput {
   garments: Garment[];
@@ -85,7 +104,9 @@ function weatherFit(g: Garment, target: number, season: Exclude<Season, "all">, 
 
 interface ScoredGarment {
   garment: Garment;
+  // The score on its own, and the score when a layer is worn over it (a top or dress can then be lighter).
   score: number;
+  scoreUnderLayer: number;
   preference: number;
   repeat: number;
 }
@@ -95,25 +116,66 @@ const outfitKey = (ids: UUID[]) => [...ids].sort().join("|");
 export function scoreOutfit(input: OutfitInput): OutfitResult {
   const { garments, weather, date } = input;
   const target = targetWarmth(weather, input.tempComfort);
+  const targetUnderLayer = Math.max(1, target - WARMTH_DROP_WITH_LAYER);
   const season = seasonOf(date);
   const weights = new Map(input.preferences.map((p) => [p.tag, p.weight]));
+  const reason = layerReason(weather, input.tempComfort);
 
-  const bySlot: Record<OutfitSlot, ScoredGarment[]> = { top: [], bottom: [], shoes: [] };
-  for (const garment of garments) {
-    if (garment.status !== "clean" && !input.includeDirty) continue;
-    const slot = slotForType(garment.type);
-    if (slot === "other") continue;
+  const tops: ScoredGarment[] = [];
+  const bottoms: ScoredGarment[] = [];
+  const shoes: ScoredGarment[] = [];
+  const dresses: ScoredGarment[] = [];
+  const outerwear: ScoredGarment[] = [];
+  const overTops: ScoredGarment[] = []; // hoodies and sweaters, as a layer over a lighter top
+
+  const score = (garment: Garment, goal: number, bonus = 0): number => {
     const preference = preferenceScore(garment, weights);
     const repeat = repeatPenalty(garment, date);
-    const score =
-      WEIGHTS.weather * weatherFit(garment, target, season, weather) +
+    return (
+      WEIGHTS.weather * (weatherFit(garment, goal, season, weather) + bonus) +
       WEIGHTS.preference * preference -
-      WEIGHTS.repeat * repeat;
-    bySlot[slot].push({ garment, score, preference, repeat });
+      WEIGHTS.repeat * repeat
+    );
+  };
+  const scored = (garment: Garment, base: number, underLayer: number): ScoredGarment => ({
+    garment,
+    score: base,
+    scoreUnderLayer: underLayer,
+    preference: preferenceScore(garment, weights),
+    repeat: repeatPenalty(garment, date),
+  });
+
+  for (const garment of garments) {
+    if (garment.status !== "clean" && !input.includeDirty) continue;
+    const role = baseRole(garment.type);
+    if (role === null) continue; // accessories are not part of an outfit
+    const plain = score(garment, target);
+    const lighter = score(garment, targetUnderLayer);
+    if (role === "top") {
+      tops.push(scored(garment, plain, lighter));
+      // A hoodie or sweater can also be the layer, but only when it is cool (not merely wet).
+      if (isOverTop(garment.type) && (reason === "cool" || reason === "cool and wet")) {
+        overTops.push(scored(garment, plain, plain));
+      }
+    } else if (role === "bottom") bottoms.push(scored(garment, plain, plain));
+    else if (role === "shoes") shoes.push(scored(garment, plain, plain));
+    // A dress stands in for the top AND the bottom, so it has to be as warm as both together: unlike a top it does not
+    // get the lighter target under a layer (otherwise a dress beat a warm top and bottom on a freezing day).
+    else if (role === "dress") dresses.push(scored(garment, plain, plain));
+    else if (role === "layer") {
+      const withBonus = score(garment, target, weather.is_precipitating ? RAIN_OUTERWEAR_BONUS : 0);
+      outerwear.push(scored(garment, withBonus, withBonus));
+    }
   }
 
-  const missing = OUTFIT_SLOTS.filter((s) => bySlot[s].length === 0);
-  if (missing.length > 0) {
+  const hasSet = tops.length > 0 && bottoms.length > 0;
+  const hasDress = dresses.length > 0;
+  if (shoes.length === 0 || !(hasSet || hasDress)) {
+    const missing = OUTFIT_SLOTS.filter((slot) => {
+      if (slot === "shoes") return shoes.length === 0;
+      if (hasDress) return false; // a dress stands in for the top and the bottom
+      return (slot === "top" ? tops : bottoms).length === 0;
+    });
     return {
       status: "incomplete",
       missing_slots: missing,
@@ -122,47 +184,96 @@ export function scoreOutfit(input: OutfitInput): OutfitResult {
   }
 
   const byBest = (a: ScoredGarment, b: ScoredGarment) =>
-    b.score - a.score || a.garment.id.localeCompare(b.garment.id);
-  const [tops, bottoms, shoes] = OUTFIT_SLOTS.map((s) =>
-    bySlot[s].sort(byBest).slice(0, MAX_CANDIDATES_PER_SLOT),
-  ) as [ScoredGarment[], ScoredGarment[], ScoredGarment[]];
+    Math.max(b.score, b.scoreUnderLayer) - Math.max(a.score, a.scoreUnderLayer) || a.garment.id.localeCompare(b.garment.id);
+  const best15 = (list: ScoredGarment[]) => [...list].sort(byBest).slice(0, MAX_CANDIDATES_PER_SLOT);
+  const topList = best15(tops);
+  const bottomList = best15(bottoms);
+  const shoeList = best15(shoes);
+  const dressList = best15(dresses);
+  const outerList = best15(outerwear);
+  const overList = best15(overTops);
 
   const excluded = new Set((input.excludedOutfits ?? []).map(outfitKey));
-  let best: { items: [ScoredGarment, ScoredGarment, ScoredGarment]; score: number; key: string } | null = null;
-  for (const top of tops) {
-    for (const bottom of bottoms) {
-      for (const shoe of shoes) {
-        const key = outfitKey([top.garment.id, bottom.garment.id, shoe.garment.id]);
-        if (excluded.has(key)) continue;
-        const score = (top.score + bottom.score + shoe.score) / 3;
-        if (best === null || score > best.score || (score === best.score && key < best.key)) {
-          best = { items: [top, bottom, shoe], score, key };
+  interface Candidate {
+    outfit: Outfit;
+    items: ScoredGarment[];
+    layer: ScoredGarment | null;
+    score: number;
+    key: string;
+  }
+  let bestPlain: Candidate | null = null;
+  let bestLayered: Candidate | null = null;
+  const offer = (outfit: Outfit, items: ScoredGarment[], layer: ScoredGarment | null, points: number[]) => {
+    const key = outfitKey([...items, ...(layer ? [layer] : [])].map((i) => i.garment.id));
+    if (excluded.has(key)) return;
+    const value = points.reduce((a, b) => a + b, 0) / points.length;
+    const candidate: Candidate = { outfit, items, layer, score: value, key };
+    const better = (current: Candidate | null) =>
+      current === null || value > current.score || (value === current.score && key < current.key);
+    if (layer === null) {
+      if (better(bestPlain)) bestPlain = candidate;
+    } else if (better(bestLayered)) bestLayered = candidate;
+  };
+
+  const layers = reason === null ? [] : [...outerList, ...overList];
+  for (const shoe of shoeList) {
+    // Top + bottom + shoes, with a layer when the weather calls for one.
+    for (const t of topList) {
+      for (const b of bottomList) {
+        offer({ top: t.garment.id, bottom: b.garment.id, shoes: shoe.garment.id }, [t, b, shoe], null, [t.score, b.score, shoe.score]);
+        for (const l of layers) {
+          // A hoodie or sweater goes over a lighter top, never over another hoodie or sweater (so never over itself).
+          // Jackets and coats are not tops, so they cannot be the same garment as the top.
+          if (isOverTop(l.garment.type) && !isLightTop(t.garment.type)) continue;
+          offer(
+            { top: t.garment.id, bottom: b.garment.id, shoes: shoe.garment.id, layer: l.garment.id },
+            [t, b, shoe],
+            l,
+            [t.scoreUnderLayer, b.score, shoe.score, l.score],
+          );
         }
+      }
+    }
+    // Dress + shoes: a dress stands in for the top and the bottom. Only jackets and coats go over a dress.
+    for (const d of dressList) {
+      offer({ dress: d.garment.id, shoes: shoe.garment.id }, [d, shoe], null, [d.score, shoe.score]);
+      if (reason === null) continue;
+      for (const l of outerList) {
+        offer({ dress: d.garment.id, shoes: shoe.garment.id, layer: l.garment.id }, [d, shoe], l, [d.scoreUnderLayer, shoe.score, l.score]);
       }
     }
   }
 
-  if (best === null) {
+  // When the weather calls for a layer and one fits, the outfit has it; otherwise it goes without.
+  const winner = (bestLayered ?? bestPlain) as Candidate | null;
+  if (winner === null) {
     return { status: "exhausted", reasoning: "Every available combination was already rejected." };
   }
 
-  const [top, bottom, shoe] = best.items;
-  const outfit: Outfit = { top: top.garment.id, bottom: bottom.garment.id, shoes: shoe.garment.id };
   return {
     status: "ok",
-    outfit,
-    score: Math.round(best.score * 1000) / 1000,
-    reasoning: explain(best.items, weather, target),
+    outfit: winner.outfit,
+    score: Math.round(winner.score * 1000) / 1000,
+    reasoning: explain(winner.items, weather, winner.layer && reason ? { piece: winner.layer, reason } : null, target),
   };
 }
 
-function explain(items: ScoredGarment[], weather: WeatherSnapshot, target: number): string {
+function explain(
+  items: ScoredGarment[],
+  weather: WeatherSnapshot,
+  layer: { piece: ScoredGarment; reason: LayerReason } | null,
+  target: number,
+): string {
+  const shown = layer ? [...items, layer.piece] : items;
   const parts = [
     `Feels like ${Math.round(weather.feels_like_c)}°C${weather.is_precipitating ? " and wet" : ""}, aiming for warmth ${target}.`,
-    `Picked ${items.map((i) => `${i.garment.color} ${i.garment.type.replace("_", " ")}`).join(", ")}.`,
+    `Picked ${shown.map((i) => `${i.garment.color} ${i.garment.type.replace("_", " ")}`).join(", ")}.`,
   ];
-  if (items.some((i) => i.repeat === 0)) parts.push("Includes items not worn recently.");
-  if (items.reduce((acc, i) => acc + i.preference, 0) / items.length > 0.05) {
+  if (layer) {
+    parts.push(`Added a ${layer.piece.garment.type.replace("_", " ")} because it is ${layer.reason}.`);
+  }
+  if (shown.some((i) => i.repeat === 0)) parts.push("Includes items not worn recently.");
+  if (shown.reduce((acc, i) => acc + i.preference, 0) / shown.length > 0.05) {
     parts.push("Matches your style preferences.");
   }
   return parts.join(" ");

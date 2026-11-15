@@ -45,12 +45,13 @@ Migrations `0001` to `0009` are the source of truth for the schema:
 | 0007 | wearing an outfit marks it dirty except shoes (D21) |
 | 0008 | signed-out callers can no longer run our functions |
 | 0009 | length and value limits in the database (names, location, photo path, tags, weights, outfit size) |
+| 0010 | wearing an outfit no longer sends a jacket or coat to the laundry (D25) |
 
 **Applying a migration:** review and merge the PR, paste the file into Supabase **SQL Editor**, run it, then run
 `notify pgrst, 'reload schema';`. Then run the migration-history repair so Supabase's own bookkeeping matches:
 `npx supabase migration repair --status applied <version>`. (The CLI asks for explicit confirmation before it changes
 the production project; an agent or a script must be told `--yes` by a person.) Migrations 0001 to 0008 were applied by
-hand and recorded this way on 2026-11-06; `list_migrations` shows all eight.
+hand and recorded this way on 2026-11-06 (0009 and 0010 follow the same steps); `list_migrations` shows what is recorded.
 
 **The migration lock.** `supabase/migrations/checksums.json` records a checksum of every migration. A test fails when an
 applied migration is edited, a migration has no entry, an entry has no file, or the numbering has a gap. To add a

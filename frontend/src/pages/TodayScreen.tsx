@@ -162,7 +162,7 @@ export function TodayScreen({ location }: { location: string | null }) {
           <View style={styles.gap}>
             <View style={styles.worn}>
               <Icon name="check" />
-              <Text style={styles.wornText}>{wornMessage()}</Text>
+              <Text style={styles.wornText}>{wornMessage(outfit.items)}</Text>
             </View>
             <Button label="New outfit" variant="secondary" onPress={changeOutfit} busy={acting === "new"} disabled={acting !== null} />
           </View>

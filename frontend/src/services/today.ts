@@ -5,7 +5,6 @@
 // Choosing the outfit is the AI core's job (`generate-outfit`, owned by Manuel +
 // Claude); this file only asks for it, remembers today's pick and reports feedback.
 import {
-  slotForType,
   type Color,
   type GarmentType,
   type Season,
@@ -19,7 +18,8 @@ import type {
   UUID,
   WeatherSnapshot,
 } from "../../../supabase/functions/_shared/types.ts";
-import { garmentDetail, garmentName } from "./garment.ts";
+import { ROLE_LABELS, ROLE_ORDER, goesToLaundry, outfitIds, rolesOf, type OutfitRole } from "../../../supabase/functions/_shared/outfit.ts";
+import { garmentDetail, garmentName, typeLabel } from "./garment.ts";
 import type { GatewayError, GatewayResult, Result } from "./household.ts";
 import { unexpectedError } from "./errors.ts";
 
@@ -71,15 +71,21 @@ export interface TodayGateway {
 
 export interface OutfitItem {
   id: UUID;
-  slot: OutfitSlot;
+  // What the garment is in this outfit: a top, bottom, dress, shoes, or the layer over them.
+  slot: OutfitRole;
+  // The heading on the card: "Top", "Bottom", "Dress", "Shoes", or the layer's own name ("Jacket", "Hoodie").
+  label: string;
   name: string;
   detail: string;
   photoUrl: string | null;
+  // Whether wearing the outfit sends this piece to the laundry (not shoes, not a jacket or coat).
+  goesToLaundry: boolean;
 }
 
 export interface OutfitView {
   suggestionId: UUID;
-  items: Record<OutfitSlot, OutfitItem>;
+  // From the outer layer down to the shoes. Three pieces for a classic outfit, two for a dress, plus a layer when it is cold or wet.
+  items: OutfitItem[];
   // Only a freshly generated outfit has one: the reason is not stored with the suggestion.
   reasoning: string | null;
   accepted: boolean;
@@ -98,17 +104,15 @@ const NETWORK_ERROR = "Could not reach the server. Check your connection and try
 
 export const SLOT_LABELS: Record<OutfitSlot, string> = { top: "Top", bottom: "Bottom", shoes: "Shoes" };
 
-// ---- Laundry after wearing (decision D21) ----
+// ---- Laundry after wearing (decisions D21 and D25) ----
 
-// Wearing an outfit sends everything except the shoes to the laundry (the database function
-// `accept_suggestion`, migration 0007, does it). Shoes are not marked dirty automatically.
-export function laundrySlots(): OutfitSlot[] {
-  return OUTFIT_SLOTS.filter((slot) => slot !== "shoes");
-}
-
-export function wornMessage(): string {
-  const names = laundrySlots().map((slot) => SLOT_LABELS[slot].toLowerCase());
-  return `Wearing this today. The ${names.join(" and ")} are now dirty.`;
+// Wearing an outfit sends its pieces to the laundry, except the shoes and any jacket or coat (the database
+// function `accept_suggestion`, migration 0010, does it). Without an outfit it describes the classic top and bottom.
+export function wornMessage(items?: readonly OutfitItem[]): string {
+  const names = items ? items.filter((item) => item.goesToLaundry).map((item) => item.label.toLowerCase()) : ["top", "bottom"];
+  if (names.length === 0) return "Wearing this today.";
+  const list = names.length === 1 ? names[0]! : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+  return `Wearing this today. The ${list} ${names.length === 1 ? "is" : "are"} now dirty.`;
 }
 
 // ---- Weather line ----
@@ -186,43 +190,39 @@ async function buildOutfit(
   const garments = await call(() => gateway.loadGarments(suggestion.garment_ids));
   if (!garments.ok) return garments;
 
-  const bySlot = new Map<OutfitSlot, GarmentRow>();
-  for (const garment of garments.value) {
-    const slot = slotForType(garment.type);
-    if (slot === "other" || bySlot.has(slot)) return { ok: true, value: null };
+  const found = garments.value;
+  // A deleted garment changes the outfit, so it is made again instead of being shown with a piece missing.
+  if (found.length !== suggestion.garment_ids.length) return { ok: true, value: null };
+  for (const garment of found) {
     if (garment.status !== "clean" && !suggestion.accepted && !showDirty) return { ok: true, value: null };
-    bySlot.set(slot, garment);
   }
-  const top = bySlot.get("top");
-  const bottom = bySlot.get("bottom");
-  const shoes = bySlot.get("shoes");
-  if (!top || !bottom || !shoes) return { ok: true, value: null };
+  const roles = rolesOf(found.map((g) => ({ id: g.id, type: g.type, warmth: g.warmth })));
+  if (roles === null) return { ok: true, value: null };
 
   // A photo that will not load is not worth failing the whole screen for.
   let urls: Record<string, string> = {};
   try {
-    const signed = await gateway.signPhotos([top, bottom, shoes].map((g) => g.image_path));
+    const signed = await gateway.signPhotos(found.map((g) => g.image_path));
     if (!signed.error && signed.data) urls = signed.data;
   } catch {
     urls = {};
   }
 
-  const item = (slot: OutfitSlot, garment: GarmentRow): OutfitItem => ({
-    id: garment.id,
-    slot,
-    name: garmentName(garment),
-    detail: garmentDetail(garment),
-    photoUrl: urls[garment.image_path] ?? null,
-  });
-  return {
-    ok: true,
-    value: {
-      suggestionId: suggestion.id,
-      items: { top: item("top", top), bottom: item("bottom", bottom), shoes: item("shoes", shoes) },
-      reasoning,
-      accepted: suggestion.accepted,
-    },
-  };
+  const items: OutfitItem[] = found
+    .map((garment): OutfitItem => {
+      const slot = roles.get(garment.id)!;
+      return {
+        id: garment.id,
+        slot,
+        label: slot === "layer" ? typeLabel(garment.type) : ROLE_LABELS[slot],
+        name: garmentName(garment),
+        detail: garmentDetail(garment),
+        photoUrl: urls[garment.image_path] ?? null,
+        goesToLaundry: goesToLaundry(garment.type),
+      };
+    })
+    .sort((a, b) => ROLE_ORDER.indexOf(a.slot) - ROLE_ORDER.indexOf(b.slot));
+  return { ok: true, value: { suggestionId: suggestion.id, items, reasoning, accepted: suggestion.accepted } };
 }
 
 async function generate(
@@ -245,7 +245,7 @@ async function generate(
 
   const outfit = await buildOutfit(
     gateway,
-    { id: body.suggestion_id, garment_ids: [body.outfit.top, body.outfit.bottom, body.outfit.shoes], accepted: false },
+    { id: body.suggestion_id, garment_ids: outfitIds(body.outfit), accepted: false },
     body.reasoning,
     purpose === "explore",
   );

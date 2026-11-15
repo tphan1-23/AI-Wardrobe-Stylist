@@ -17,18 +17,18 @@ export const DOWN_RESISTANCE = 0.5;
 // Garments carry no style/occasion tags, so quiz answers are expressed as
 // affinity for the garment types that fit them (the tags scoring can match).
 export const STYLE_TYPES: Record<StyleVibe, GarmentType[]> = {
-  casual: ["t_shirt", "jeans", "sneakers", "hoodie"],
+  casual: ["t_shirt", "jeans", "sneakers", "hoodie", "jacket"],
   smart_casual: ["shirt", "sweater", "trousers", "dress_shoes"],
-  streetwear: ["hoodie", "t_shirt", "sweatpants", "sneakers"],
+  streetwear: ["hoodie", "t_shirt", "sweatpants", "sneakers", "jacket"],
   sporty: ["tank_top", "shorts", "leggings", "sweatpants", "sneakers"],
-  formal: ["shirt", "blouse", "trousers", "skirt", "dress_shoes"],
+  formal: ["shirt", "blouse", "trousers", "skirt", "dress_shoes", "dress", "coat"],
 };
 
 export const OCCASION_TYPES: Record<Occasion, GarmentType[]> = {
   school: ["t_shirt", "hoodie", "jeans", "sneakers"],
   work: ["shirt", "blouse", "sweater", "trousers", "skirt", "dress_shoes"],
   gym: ["tank_top", "shorts", "leggings", "sweatpants", "sneakers"],
-  going_out: ["shirt", "blouse", "jeans", "skirt", "boots", "dress_shoes"],
+  going_out: ["shirt", "blouse", "jeans", "skirt", "boots", "dress_shoes", "dress", "jacket"],
   home: ["t_shirt", "hoodie", "sweatpants", "leggings"],
 };
 

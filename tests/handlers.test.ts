@@ -90,7 +90,8 @@ describe("handleGenerateOutfit", () => {
     const res = await handleGenerateOutfit(USER, { date: "2026-10-05" }, b.generate);
     expect(getWeather).toHaveBeenCalledWith(" Little Rock ");
     // 16 C feels-like + runs_cold (-3) = 13 -> warmth target 3 -> picks the sweater over the t-shirt
-    expect(res.ok && res.body.status === "ok" && res.body.outfit.top).toBe("warm");
+    // The sweater is worn (over the t-shirt, as the layer) because it is cool enough for one.
+    expect(res.ok && res.body.status === "ok" && res.body.outfit.layer).toBe("warm");
   });
 
   it("returns incomplete/exhausted results without saving anything", async () => {
@@ -197,6 +198,64 @@ describe("handleGenerateOutfit", () => {
     const res = await handleGenerateOutfit(USER, { date: "2026-10-05" }, b.generate);
     expect(res).toMatchObject({ ok: false, status: 502 });
     expect(b.state.suggestions.size).toBe(0);
+  });
+});
+
+describe("handleGenerateOutfit with dresses and layers", () => {
+  const COOL_WEATHER = async (): Promise<WeatherSnapshot> => ({ temp_c: 8, feels_like_c: 8, is_precipitating: false });
+  const saved = (b: ReturnType<typeof fakeBackend>) => [...b.state.suggestions.values()].map((s) => s.garment_ids);
+
+  it("recommends a dress with shoes and stores exactly those two garments", async () => {
+    const b = fakeBackend({ garments: [g("dress", "dress", "pink"), g("shoes", "sandals", "brown")] });
+    const res = await handleGenerateOutfit(USER, { date: "2026-10-05" }, b.generate);
+    if (!res.ok || res.body.status !== "ok") throw new Error("expected ok");
+    expect(res.body.outfit).toEqual({ dress: "dress", shoes: "shoes" });
+    expect(saved(b)).toEqual([["dress", "shoes"]]);
+  });
+
+  it("adds a jacket when it is cool and stores it last, after the top, bottom and shoes", async () => {
+    const b = fakeBackend({ weather: COOL_WEATHER, garments: [...closet(), g("jacket", "jacket", "gray", { warmth: 3 })] });
+    const res = await handleGenerateOutfit(USER, { date: "2026-10-05" }, b.generate);
+    if (!res.ok || res.body.status !== "ok") throw new Error("expected ok");
+    expect(res.body.outfit.layer).toBe("jacket");
+    const ids = saved(b)[0]!;
+    expect(ids).toHaveLength(4);
+    expect(ids[3]).toBe("jacket");
+    expect(ids.slice(0, 3)).toEqual([res.body.outfit.top, res.body.outfit.bottom, res.body.outfit.shoes]);
+    expect(res.body.weather).toEqual({ temp_c: 8, feels_like_c: 8, is_precipitating: false });
+  });
+
+  it("uses no jacket on a mild dry day", async () => {
+    const b = fakeBackend({ garments: [...closet(), g("jacket", "jacket", "gray")] });
+    const res = await handleGenerateOutfit(USER, { date: "2026-10-05" }, b.generate);
+    if (!res.ok || res.body.status !== "ok") throw new Error("expected ok");
+    expect(res.body.outfit.layer).toBeUndefined();
+    expect(saved(b)[0]).toHaveLength(3);
+  });
+
+  it("only a Style Swipe idea may use a dirty jacket", async () => {
+    const dirtyJacket = g("jacket", "jacket", "gray", { status: "dirty" });
+    const today = fakeBackend({ weather: COOL_WEATHER, garments: [...closet(), dirtyJacket] });
+    const a = await handleGenerateOutfit(USER, { date: "2026-10-05" }, today.generate);
+    expect(a.ok && a.body.status === "ok" && a.body.outfit.layer).toBeUndefined();
+    const explore = fakeBackend({ weather: COOL_WEATHER, garments: [...closet(), dirtyJacket] });
+    const e = await handleGenerateOutfit(USER, { date: "2026-10-05", purpose: "explore" }, explore.generate);
+    expect(e.ok && e.body.status === "ok" && e.body.outfit.layer).toBe("jacket");
+  });
+
+  it("is incomplete when there is a dress but no shoes, and saves nothing", async () => {
+    const b = fakeBackend({ garments: [g("dress", "dress", "pink")] });
+    const res = await handleGenerateOutfit(USER, { date: "2026-10-05" }, b.generate);
+    expect(res).toMatchObject({ ok: true, body: { status: "incomplete", missing_slots: ["shoes"] } });
+    expect(b.state.suggestions.size).toBe(0);
+  });
+
+  it("learns from feedback on a dress outfit: the dress and its color are the tags that move", async () => {
+    const b = fakeBackend({ garments: [g("dress", "dress", "pink"), g("shoes", "sandals", "brown")] });
+    const made = await handleGenerateOutfit(USER, { date: "2026-10-05" }, b.generate);
+    if (!made.ok || made.body.status !== "ok") throw new Error("expected ok");
+    const fb = await handleUpdatePreferences(USER, { suggestion_id: made.body.suggestion_id, feedback: "up" }, b.update);
+    expect(fb.ok && fb.body.updated_tags.slice().sort()).toEqual(["color:brown", "color:pink", "type:dress", "type:sandals"]);
   });
 });
 

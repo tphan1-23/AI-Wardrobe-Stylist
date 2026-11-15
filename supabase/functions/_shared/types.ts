@@ -45,7 +45,15 @@ export interface PreferenceEntry {
 
 export type FeedbackValue = "up" | "down";
 
-export type Outfit = Record<Exclude<Slot, "other">, UUID>; // top, bottom, shoes
+// Shoes plus either a top and a bottom or a dress, plus an optional layer (jacket, coat, or a hoodie or
+// sweater over a lighter top) when it is cold or wet. See _shared/outfit.ts.
+export interface Outfit {
+  shoes: UUID;
+  top?: UUID;
+  bottom?: UUID;
+  dress?: UUID;
+  layer?: UUID;
+}
 
 export interface Suggestion {
   id: UUID;

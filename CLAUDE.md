@@ -20,7 +20,7 @@ Shared agent context file for this repo (course deliverable: "repo setup w/ shar
 - **Tech lead:** Manuel (owns this file, contracts/schema, review standards, integration).
 - **AI logic is owned by Manuel + Claude:** vision-tagging prompt/schema/accuracy, outfit scoring, preference learning, quiz mapping, tuning, evaluation and their tests. Keep it in pure, well-tested modules behind agreed contracts; log every prompt/weight change with before/after metrics in `brain/AI Logic Ownership.md`. Manuel reviews all of it and Thanh reviews PRs — never self-merge.
 - **Thanh owns product/plumbing:** migrations + RLS, auth, households, UI, weather client, deletion flows, CI/CD + deploy.
-- Decisions D1–D22 are in the decisions note and override anything older in `docs/` (e.g. personal closets with optional households for sharing (D18, replaces D1's household-scoped garments), per-user location, top+bottom+shoes outfit, review-and-edit tagging). `docs/` still needs updating to match.
+- Decisions D1–D25 are in the decisions note and override anything older in `docs/` (e.g. personal closets with optional households for sharing (D18, replaces D1's household-scoped garments), per-user location, outfits of top+bottom+shoes or dress+shoes plus an optional layer (D25), review-and-edit tagging). `docs/` still needs updating to match.
 
 ## What this project is
 
@@ -37,7 +37,7 @@ Read `brain/Work Plan.md` first: it has the branch map, PR order, who owns what,
 - Done (PRs #1 to #27 merged on `main`; each was reviewed by the other teammate, and #1's approval was only recorded after the merge): all seven MVP features are built. Auth
   (email, password reset by code, Google via tunnel), personal closets with optional households, quiz, Add (with AI tags
   and an AI crop suggestion), Closet, Today (with New outfit), thumbs up/down, Style Swipe, History and Favorites.
-  Supabase schema, row-level security and migrations 0001 to 0008 are applied (history repaired). The three edge
+  Supabase schema, row-level security and migrations 0001 to 0009 are applied (history repaired); 0010 (jackets and coats stay clean) is written and waits to be applied by hand. The three edge
   functions are deployed from `main` and verified live.
 - Verified: `scripts/e2e.ts` 38 of 38 and `scripts/e2e-household.ts` 34 of 34 on the real project (2026-11-06); 574 unit
   tests, 100% of lines and functions on tested code; Supabase security advisor reviewed. The screens are checked by
