@@ -8,9 +8,9 @@ import { ErrorLine } from "../components/common/ErrorLine";
 import { Icon, type IconName } from "../components/common/Icon";
 import { Screen } from "../components/common/Screen";
 import { GarmentForm } from "../components/closet/GarmentForm";
-import { addPhoto, confirmTag, cropRectFor, discardPhoto, saveGarment, setTag, unconfirmedFields, type ReviewState } from "../services/add";
+import { addPhoto, confirmTag, discardPhoto, saveGarment, setTag, unconfirmedFields, type ReviewState } from "../services/add";
 import type { CropRegion, Size } from "../services/crop";
-import { replaceWithCrop } from "../services/cropSuggestion";
+import { initialCropRegion, replaceWithCrop } from "../services/cropSuggestion";
 import { draftFromTags } from "../services/garment";
 import { resizeWidth } from "../services/photoCache";
 import { newPhotoId } from "../services/photoId";
@@ -28,7 +28,6 @@ interface PickedPhoto {
 
 type Step =
   | { kind: "choose" }
-  | { kind: "crop"; photo: PickedPhoto }
   | { kind: "working" }
   | { kind: "suggest"; uri: string; review: ReviewState; size: Size; region: CropRegion }
   | { kind: "review"; uri: string; review: ReviewState };
@@ -79,11 +78,13 @@ export function AddScreen({ userId }: { userId: string }) {
     }
     setError(null);
     setSaved(false);
-    setStep({ kind: "crop", photo: { uri: asset.uri, width: asset.width, height: asset.height, base64: asset.base64 } });
+    // The AI reads the whole photo first, so what the person sees first is its suggested crop (just the
+    // garment, without the background), not an empty frame it could not have known about yet.
+    await useCrop({ uri: asset.uri, width: asset.width, height: asset.height, base64: asset.base64 }, null);
   }
 
-  // Uploads the photo and asks the AI about it, then shows the review. If the AI suggested a crop,
-  // the person first sees it on the crop screen (and can ignore it).
+  // Uploads the photo and asks the AI about it, then shows the crop screen once: the frame starts around the
+  // garment if the AI found it, otherwise around the whole photo. The person can use it, drag it, or keep the photo.
   async function analyze(uri: string, base64: string, expected: Size) {
     setStep({ kind: "working" });
     const added = await addPhoto(addGateway, userId, { data: decode(base64), extension: "jpg" }, newPhotoId);
@@ -92,15 +93,8 @@ export function AddScreen({ userId }: { userId: string }) {
       setError(added.error);
       return;
     }
-    if (added.value.box) {
-      const size = await imageSize(uri, expected);
-      const region = cropRectFor(added.value.box, size.width, size.height);
-      if (region) {
-        setStep({ kind: "suggest", uri, review: added.value, size, region });
-        return;
-      }
-    }
-    setStep({ kind: "review", uri, review: added.value });
+    const size = await imageSize(uri, expected);
+    setStep({ kind: "suggest", uri, review: added.value, size, region: initialCropRegion(added.value.box, size) });
   }
 
   // The person answered the suggested crop. No region (or the whole photo): keep the photo as it is.
@@ -206,23 +200,6 @@ export function AddScreen({ userId }: { userId: string }) {
     } else {
       setError(result.error);
     }
-  }
-
-  if (step.kind === "crop") {
-    const { photo } = step;
-    return (
-      <CropScreen
-        key="crop"
-        uri={photo.uri}
-        image={{ width: photo.width, height: photo.height }}
-        busy={busy}
-        onUse={(region) => useCrop(photo, region)}
-        onCancel={() => {
-          setError(null);
-          setStep({ kind: "choose" });
-        }}
-      />
-    );
   }
 
   if (step.kind === "suggest") {

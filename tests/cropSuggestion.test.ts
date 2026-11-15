@@ -1,7 +1,8 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import { type AddGateway, type ReviewState } from "../frontend/src/services/add.ts";
 import { fitImage, regionToFrame, toImageRegion } from "../frontend/src/services/crop.ts";
-import { replaceWithCrop } from "../frontend/src/services/cropSuggestion.ts";
+import { initialCropRegion, replaceWithCrop } from "../frontend/src/services/cropSuggestion.ts";
 import { GENERIC_ERROR } from "../frontend/src/services/errors.ts";
 
 const USER = "user-1";
@@ -129,5 +130,50 @@ describe("regionToFrame", () => {
       height: 50,
     });
     expect(regionToFrame({ originX: 0, originY: 0, width: 10, height: 10 }, shown, { width: 0, height: 0 })).toEqual(shown);
+  });
+});
+
+describe("initialCropRegion (where the crop frame starts)", () => {
+  // The dress photo that prompted this: 637 x 898, the garment in the middle with white all around.
+  const size = { width: 637, height: 898 };
+  const box = { x: 0.156, y: 0.157, width: 0.722, height: 0.843 };
+
+  it("starts around the garment when the AI found it", () => {
+    expect(initialCropRegion(box, size)).toEqual({ originX: 99, originY: 140, width: 460, height: 757 });
+  });
+
+  it("starts around the whole photo when there is no suggestion, so the person can still crop by hand", () => {
+    expect(initialCropRegion(undefined, size)).toEqual({ originX: 0, originY: 0, width: 637, height: 898 });
+  });
+
+  it("never reaches past the photo", () => {
+    const region = initialCropRegion({ x: 0.5, y: 0.5, width: 0.5001, height: 0.5001 }, { width: 10_000, height: 20_000 });
+    expect(region.originX + region.width).toBeLessThanOrEqual(10_000);
+    expect(region.originY + region.height).toBeLessThanOrEqual(20_000);
+  });
+
+  it("falls back to the whole photo when the suggestion cannot be used", () => {
+    expect(initialCropRegion(box, { width: 0, height: 0 })).toEqual({ originX: 0, originY: 0, width: 0, height: 0 });
+    expect(initialCropRegion({ x: 0.999, y: 0, width: 0.0001, height: 0.5 }, { width: 100, height: 100 })).toEqual({
+      originX: 0,
+      originY: 0,
+      width: 100,
+      height: 100,
+    });
+  });
+});
+
+describe("the Add screen shows the AI's crop first", () => {
+  const screen = readFileSync(new URL("../frontend/src/pages/AddScreen.tsx", import.meta.url), "utf8");
+
+  it("analyzes the whole photo as soon as it is picked, with no manual crop screen before the AI has looked", () => {
+    expect(screen).not.toMatch(/kind:\s*"crop"/);
+    expect(screen).toMatch(/await useCrop\(\{ uri: asset\.uri, width: asset\.width, height: asset\.height, base64: asset\.base64 \}, null\)/);
+  });
+
+  it("then shows one crop screen whose frame starts where initialCropRegion says (the garment, or the whole photo)", () => {
+    expect(screen).toContain("initialCropRegion(added.value.box, size)");
+    expect(screen).toMatch(/setStep\(\{ kind: "suggest", uri, review: added\.value, size, region: initialCropRegion/);
+    expect(screen).not.toMatch(/if \(added\.value\.box\)/);
   });
 });
