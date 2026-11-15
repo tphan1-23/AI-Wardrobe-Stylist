@@ -54,8 +54,9 @@ Every garment you can see, as a photo grid with the item count, newest first.
 Adds one garment per photo.
 
 1. **Take a photo** or **Choose from library**. Lay the item flat on a plain surface in good light, one item per photo.
-2. **Crop** the photo. If the AI could tell where the garment is, the crop frame starts around it; drag it to adjust,
-   or tap **Use full photo** to keep the whole picture.
+2. **Wait a few seconds** while the AI reads the photo, then **crop**. If the AI found the garment, the crop frame
+   already sits around it (just the item, without the background): tap **Use cropped photo**, drag the frame to adjust it,
+   or tap **Use full photo** to keep everything. If it did not find the garment, the frame starts around the whole picture.
 3. **Review the tags.** The AI proposes type, color, season and warmth. Anything it was unsure about is boxed with
    "Check this"; fix it or tap **Looks right**. You must check every boxed field before saving.
 4. **Confirm and save.** The garment appears in your Closet.

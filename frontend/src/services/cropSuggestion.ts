@@ -4,6 +4,7 @@
 // services/add.ts, unit-tested in tests/cropSuggestion.test.ts.
 import {
   contentTypeFor,
+  cropRectFor,
   friendlyAddError,
   photoPath,
   validatePhoto,
@@ -11,10 +12,17 @@ import {
   type PickedPhoto,
   type ReviewState,
 } from "./add.ts";
+import type { CropRegion, Size } from "./crop.ts";
 import type { Result } from "./household.ts";
-import type { UUID } from "../../../supabase/functions/_shared/types.ts";
+import type { CropBox, UUID } from "../../../supabase/functions/_shared/types.ts";
 
 const NETWORK_ERROR = "Could not reach the server. Check your connection and try again.";
+
+// Where the crop frame starts when the person sees the crop screen: around the garment when the AI
+// found it (see CropBox), otherwise around the whole photo (they can still drag it, or keep the photo).
+export function initialCropRegion(box: CropBox | undefined, size: Size): CropRegion {
+  return cropRectFor(box, size.width, size.height) ?? { originX: 0, originY: 0, width: size.width, height: size.height };
+}
 
 // Uploads the cropped photo, then removes the original. The tags the person is reviewing stay as
 // they are (the AI already read the photo). If the upload fails nothing changes and the original
