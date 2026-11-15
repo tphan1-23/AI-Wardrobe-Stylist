@@ -18,7 +18,7 @@ lately is hard, so mornings are slow and clothes sit unused.
 | Sign up / log in (email + password, password reset by code, Google) | Done |
 | Personal closets, with optional households to share closets (read-only for members) | Done, verified with two accounts |
 | Photo upload with AI auto-tagging (type, color, season, warmth), an AI crop suggestion, and a review-and-edit step | Done |
-| Daily outfit suggestion (top + bottom + shoes) from weather, clean status and repeat avoidance, with "New outfit" | Done |
+| Daily outfit suggestion from weather, clean status and repeat avoidance, with "New outfit": top + bottom + shoes, or a dress + shoes, plus a jacket or hoodie when it is cool or rainy | Done |
 | Cold-start style quiz that seeds personal preferences | Done |
 | Thumbs up / down that teaches the engine, and **Style Swipe** (swipe outfit ideas to train it) | Done |
 | Closet inventory, clean / dirty status; wearing an outfit sends it to the laundry (shoes excepted) | Done |
@@ -78,7 +78,7 @@ cd frontend && npm install  # the app
 1. **Configure.** Use `.env.example` as the list of variables (never commit real keys). The app reads
    `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` from `frontend/.env.local`. The edge functions need
    `GEMINI_API_KEY` and `OPENWEATHER_API_KEY` as Supabase secrets (`supabase secrets set ...`), never in the app.
-2. **Database.** Apply `supabase/migrations/0001` to `0008` to your project, in order (SQL Editor, then
+2. **Database.** Apply `supabase/migrations/0001` to `0010` to your project, in order (SQL Editor, then
    `notify pgrst, 'reload schema';`). See [docs/deployment.md](docs/deployment.md).
 3. **Run the app.** From `frontend/`: `npx expo start --tunnel -c`, then scan the QR code with the iPhone Camera.
    Use the tunnel if the phone and laptop are on different networks. Google sign-in does not depend on it

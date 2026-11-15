@@ -55,7 +55,7 @@ model does not fail the request. The Gemini key is a function secret and never r
 
 ### `generate-outfit`
 
-Builds today's outfit (top + bottom + shoes) from **the caller's own closet** (D18). A household is not needed.
+Builds today's outfit from **the caller's own closet** (D18): shoes plus a top and a bottom **or a dress**, plus a layer when the weather calls for one (D25). A household is not needed.
 It uses the caller's saved location for the weather, their temperature comfort from the quiz, their preference
 weights, and avoids recently worn items.
 
@@ -68,12 +68,28 @@ Optional `"purpose"`: `"today"` (default) or `"explore"`. An **explore** idea is
 ```json
 { "status": "ok", "suggestion_id": "uuid", "outfit": { "top": "uuid", "bottom": "uuid", "shoes": "uuid" },
   "score": 0.62, "reasoning": "Feels like 33°C, aiming for warmth 1. Picked white t shirt, black trousers, white sneakers." }
+{ "status": "ok", "suggestion_id": "uuid", "outfit": { "dress": "uuid", "shoes": "uuid", "layer": "uuid" },
+  "score": 0.58, "reasoning": "Feels like 9°C and wet, aiming for warmth 4. Picked black dress, black boots, blue jacket. Added a jacket because it is cool and wet." }
 { "status": "incomplete", "missing_slots": ["shoes"], "reasoning": "No clean shoes available." }
 { "status": "exhausted", "reasoning": "Every available combination was already rejected." }
 ```
 Every response (`ok`, `incomplete`, `exhausted`) also has `"weather": { "temp_c": 18, "feels_like_c": 18, "is_precipitating": false }`, the weather the decision was based on, so the app can show it without calling the weather service itself.
 
-Only `ok` creates a `suggestions` row. Dirty items and items in the `other` slot (jackets, coats, dresses) are never used.
+Only `ok` creates a `suggestions` row. Dirty items and accessories are never used (a Style Swipe idea may use dirty clothes).
+
+**The `outfit` object.** `shoes` is always present. Then either `top` and `bottom`, or `dress`. `layer` is present only when
+the weather calls for one. Clients must read whichever keys exist; the stored `garment_ids` are `[dress or top, bottom, shoes, layer]`
+(older suggestions are `[top, bottom, shoes]`). `_shared/outfit.ts` (`rolesOf`, `outfitIds`) is the one place that knows which
+garment plays which role, because a hoodie or sweater can be a top on its own or the layer over a lighter top.
+
+**When there is a layer.** When the feels-like temperature, adjusted for the quiz (`runs_cold` -3, `runs_hot` +3), is 15°C or
+below, or it is raining. In the rain a jacket or coat gets a small bonus. A hoodie or sweater is only a layer when it is cool
+(not merely wet) and it goes over a lighter top (t-shirt, tank top, shirt, blouse). Over a dress only a jacket or coat is used.
+With a layer, the top or dress underneath may be one warmth step lighter. If no clean layer fits, or every outfit with one was
+rejected, the answer is an outfit without a layer.
+
+**`incomplete`.** `missing_slots` lists what is missing from `top`, `bottom`, `shoes`. A dress stands in for `top` and `bottom`, so
+with a clean dress and clean shoes the outfit is never `incomplete`.
 
 | Status | Meaning |
 |---|---|
@@ -107,7 +123,7 @@ All of them need a signed-in user: since migration 0008, signed-out callers get 
 | `join_household(p_code)` | joins by the 8-character invite code; returns the household id | `invalid invite code`, `already in a household` |
 | `leave_household()` | leaves; the last member leaving deletes the household; the caller's garments stay theirs | `not in a household` |
 | `ensure_profile()` | creates the caller's own missing `users` row (name from sign-up or Google metadata); never touches an existing row. The app calls it once when it cannot find the profile after signing in (migration `0004`) | none |
-| `accept_suggestion(p_suggestion_id)` | marks the suggestion accepted, sets `last_worn_date` to today on the caller's garments in it, and marks all of them `dirty` except shoes (D21, migration 0007) | `suggestion not found` |
+| `accept_suggestion(p_suggestion_id)` | marks the suggestion accepted, sets `last_worn_date` to today on the caller's garments in it, and marks all of them `dirty` except shoes, jackets and coats (D21, D25, migration 0007) | `suggestion not found` |
 
 ## Direct table and storage access (RLS, D18)
 

@@ -1,6 +1,7 @@
 // Request handlers for the generate-outfit and update-preferences edge functions.
 // All I/O is injected, so the logic is unit-tested without Deno or a database;
 // the Deno entry files only wire real Supabase/OpenWeatherMap calls into Deps.
+import { outfitIds } from "./outfit.ts";
 import { applyFeedback } from "./preferences.ts";
 import { scoreOutfit } from "./scoring.ts";
 import type {
@@ -91,7 +92,7 @@ export async function handleGenerateOutfit(
   const suggestionId = await deps.saveSuggestion({
     user_id: userId,
     date: request.date,
-    garment_ids: [result.outfit.top, result.outfit.bottom, result.outfit.shoes],
+    garment_ids: outfitIds(result.outfit),
     ...(purpose === "explore" ? { kind: "explore" as const } : {}),
   });
   return { ok: true, body: { ...result, suggestion_id: suggestionId, weather } };

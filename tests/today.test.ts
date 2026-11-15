@@ -14,6 +14,7 @@ import {
   todayString,
   wearOutfit,
   weatherLine,
+  wornMessage,
   type GarmentRow,
   type SuggestionRow,
   type TodayGateway,
@@ -169,11 +170,11 @@ describe("loadToday: first open of the day", () => {
           suggestionId: "s-new",
           accepted: false,
           reasoning: "Cool today, so a warmer top.",
-          items: {
-            top: { id: "g-top", slot: "top", name: "White t-shirt", detail: "All seasons · Medium", photoUrl: "https://photos/user-1/g-top.jpg" },
-            bottom: { id: "g-bottom", slot: "bottom", name: "Blue jeans", detail: "Fall · Warm", photoUrl: "https://photos/user-1/g-bottom.jpg" },
-            shoes: { id: "g-shoes", slot: "shoes", name: "Black sneakers", detail: "All seasons · Light", photoUrl: "https://photos/user-1/g-shoes.jpg" },
-          },
+          items: [
+            { id: "g-top", slot: "top", label: "Top", name: "White t-shirt", detail: "All seasons · Medium", photoUrl: "https://photos/user-1/g-top.jpg", goesToLaundry: true },
+            { id: "g-bottom", slot: "bottom", label: "Bottom", name: "Blue jeans", detail: "Fall · Warm", photoUrl: "https://photos/user-1/g-bottom.jpg", goesToLaundry: true },
+            { id: "g-shoes", slot: "shoes", label: "Shoes", name: "Black sneakers", detail: "All seasons · Light", photoUrl: "https://photos/user-1/g-shoes.jpg", goesToLaundry: false },
+          ],
         },
         weather: MILD,
       },
@@ -208,7 +209,7 @@ describe("loadToday: first open of the day", () => {
       const result = await loadToday(gateway({ signPhotos }), DATE);
       expect(result).toMatchObject({ ok: true, value: { kind: "outfit" } });
       if (result.ok && result.value.kind === "outfit") {
-        expect(result.value.outfit.items.top.photoUrl).toBeNull();
+        expect(result.value.outfit.items.map((item) => item.photoUrl)).toEqual([null, null, null]);
       }
     }
   });
@@ -515,5 +516,101 @@ describe("wearOutfit (Yes, wear this)", () => {
   it("reports a network failure while marking as worn", async () => {
     const g = gateway({ acceptSuggestion: vi.fn(async () => { throw new Error("offline"); }) });
     expect(await wearOutfit(g, "s-1")).toMatchObject({ ok: false, error: expect.stringContaining("Could not reach") });
+  });
+});
+
+describe("outfits with a dress or a layer", () => {
+  const DRESS = garment("g-dress", { type: "dress", color: "pink", season: "summer", warmth: 2 });
+  const JACKET = garment("g-jacket", { type: "jacket", color: "gray", warmth: 4 });
+  const HOODIE = garment("g-hoodie", { type: "hoodie", color: "black", warmth: 3 });
+  const TEE = garment("g-tee", { type: "t_shirt", color: "white", warmth: 1 });
+  const closet = [TOP, BOTTOM, SHOES, DRESS, JACKET, HOODIE, TEE];
+  const answer = (outfit: GenerateOutfitResponse extends infer R ? (R extends { outfit: infer O } ? O : never) : never) =>
+    ok<GenerateOutfitResponse>({ status: "ok", suggestion_id: "s-x", outfit, score: 0.5, reasoning: "Because.", weather: MILD });
+  const shown = async (outfit: Parameters<typeof answer>[0]) => {
+    const g = gateway({ generateOutfit: vi.fn(async () => answer(outfit)) }, closet);
+    const result = await loadToday(g, DATE);
+    if (!result.ok || result.value.kind !== "outfit") throw new Error(JSON.stringify(result));
+    return { items: result.value.outfit.items, g };
+  };
+
+  it("shows a dress with shoes as two pieces, and asks the database for exactly those garments", async () => {
+    const { items, g } = await shown({ dress: "g-dress", shoes: "g-shoes" });
+    expect(items.map((i) => [i.slot, i.label, i.id])).toEqual([["dress", "Dress", "g-dress"], ["shoes", "Shoes", "g-shoes"]]);
+    expect(g.loadGarments).toHaveBeenCalledWith(["g-dress", "g-shoes"]);
+  });
+
+  it("shows a jacket first, labeled by what it is, above the top, bottom and shoes", async () => {
+    const { items } = await shown({ top: "g-top", bottom: "g-bottom", shoes: "g-shoes", layer: "g-jacket" });
+    expect(items.map((i) => [i.slot, i.label])).toEqual([["layer", "Jacket"], ["top", "Top"], ["bottom", "Bottom"], ["shoes", "Shoes"]]);
+  });
+
+  it("shows a hoodie over a t-shirt as the layer, and a jacket over a dress", async () => {
+    const hoodie = await shown({ top: "g-tee", bottom: "g-bottom", shoes: "g-shoes", layer: "g-hoodie" });
+    expect(hoodie.items.map((i) => [i.slot, i.label, i.id])).toEqual([
+      ["layer", "Hoodie", "g-hoodie"], ["top", "Top", "g-tee"], ["bottom", "Bottom", "g-bottom"], ["shoes", "Shoes", "g-shoes"],
+    ]);
+    const dress = await shown({ dress: "g-dress", shoes: "g-shoes", layer: "g-jacket" });
+    expect(dress.items.map((i) => i.slot)).toEqual(["layer", "dress", "shoes"]);
+  });
+
+  it("marks which pieces go to the laundry: not the shoes, not the jacket", async () => {
+    const { items } = await shown({ top: "g-top", bottom: "g-bottom", shoes: "g-shoes", layer: "g-jacket" });
+    expect(Object.fromEntries(items.map((i) => [i.slot, i.goesToLaundry]))).toEqual({ layer: false, top: true, bottom: true, shoes: false });
+    const hoodie = await shown({ top: "g-tee", bottom: "g-bottom", shoes: "g-shoes", layer: "g-hoodie" });
+    expect(hoodie.items.find((i) => i.slot === "layer")!.goesToLaundry).toBe(true);
+  });
+
+  it("reopens a saved outfit with a layer or a dress the same way, without generating a new one", async () => {
+    for (const ids of [["g-top", "g-bottom", "g-shoes", "g-jacket"], ["g-dress", "g-shoes"], ["g-dress", "g-shoes", "g-jacket"]]) {
+      const g = gateway({ loadSuggestions: vi.fn(async () => ok([suggestion("s-1", { garment_ids: ids })])) }, closet);
+      const result = await loadToday(g, DATE);
+      expect(g.generateOutfit).not.toHaveBeenCalled();
+      expect(result).toMatchObject({ ok: true, value: { kind: "outfit" } });
+      if (result.ok && result.value.kind === "outfit") expect(result.value.outfit.items.map((i) => i.id).sort()).toEqual([...ids].sort());
+    }
+  });
+
+  it("makes a new outfit when a piece of the saved one was deleted, instead of showing it with a hole", async () => {
+    const withoutJacket = closet.filter((c) => c.id !== "g-jacket");
+    const g = gateway(
+      { loadSuggestions: vi.fn(async () => ok([suggestion("s-1", { garment_ids: ["g-top", "g-bottom", "g-shoes", "g-jacket"] })])) },
+      withoutJacket,
+    );
+    await loadToday(g, DATE);
+    expect(g.generateOutfit).toHaveBeenCalled();
+  });
+
+  it("makes a new outfit when the saved garments do not form an outfit, or a piece went to the laundry", async () => {
+    const odd = gateway({ loadSuggestions: vi.fn(async () => ok([suggestion("s-1", { garment_ids: ["g-dress", "g-top", "g-shoes"] })])) }, closet);
+    await loadToday(odd, DATE);
+    expect(odd.generateOutfit).toHaveBeenCalled();
+    const dirtyJacket = closet.map((c) => (c.id === "g-jacket" ? { ...c, status: "dirty" as const } : c));
+    const g = gateway({ loadSuggestions: vi.fn(async () => ok([suggestion("s-1", { garment_ids: ["g-top", "g-bottom", "g-shoes", "g-jacket"] })])) }, dirtyJacket);
+    await loadToday(g, DATE);
+    expect(g.generateOutfit).toHaveBeenCalled();
+  });
+});
+
+describe("the message after wearing an outfit", () => {
+  const item = (slot: "layer" | "dress" | "top" | "bottom" | "shoes", label: string, goesToLaundry: boolean) => ({
+    id: label, slot, label, name: label, detail: "", photoUrl: null, goesToLaundry,
+  });
+
+  it("names exactly the pieces that go to the laundry", () => {
+    expect(wornMessage()).toBe("Wearing this today. The top and bottom are now dirty.");
+    expect(wornMessage([item("top", "Top", true), item("bottom", "Bottom", true), item("shoes", "Shoes", false)])).toBe(
+      "Wearing this today. The top and bottom are now dirty.",
+    );
+    expect(wornMessage([item("layer", "Jacket", false), item("dress", "Dress", true), item("shoes", "Shoes", false)])).toBe(
+      "Wearing this today. The dress is now dirty.",
+    );
+    expect(wornMessage([item("layer", "Hoodie", true), item("top", "Top", true), item("bottom", "Bottom", true), item("shoes", "Shoes", false)])).toBe(
+      "Wearing this today. The hoodie, top and bottom are now dirty.",
+    );
+  });
+
+  it("says nothing about the laundry when nothing goes there", () => {
+    expect(wornMessage([item("shoes", "Shoes", false), item("layer", "Coat", false)])).toBe("Wearing this today.");
   });
 });

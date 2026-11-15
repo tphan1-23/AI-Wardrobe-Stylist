@@ -1,7 +1,7 @@
 # DressWell user guide
 
 DressWell turns the clothes you own into a daily outfit. You photograph each item once, an AI suggests its tags, you
-confirm them, and every morning the app suggests a top, a bottom and shoes that suit the weather, are clean, and match
+confirm them, and every morning the app suggests an outfit (a top and a bottom, or a dress, plus shoes, and a jacket or hoodie when it is cool or rainy) that suits the weather, is clean, and matches
 your taste. It learns from your thumbs up and thumbs down.
 
 This guide is for people using or grading the app. For how it is built, see [architecture.md](architecture.md).
@@ -27,15 +27,20 @@ it once. After that, your thumbs up and down teach the app.
 ## 2. The five tabs
 
 ### Today
-Shows today's outfit: a top, a bottom and shoes, with their photos, the weather line (for example "Conway · 58° ·
-Rain") and, on a fresh outfit, a one-line reason.
+Shows today's outfit: **a top and a bottom, or a dress, plus shoes**, with their photos, the weather line (for example
+"Conway · 58° · Rain") and, on a fresh outfit, a one-line reason.
+
+**Layers.** When it is cool (about 15°C / 59°F or below, a little sooner if you told the quiz you run cold) or raining, the
+app adds a **layer** on top: a jacket or coat, or a hoodie or sweater worn over a lighter top. In the rain it prefers a
+jacket or coat. Over a dress it only uses a jacket or coat. On a warm dry day there is no layer. If you have no clean
+jacket or coat, the outfit simply goes without one. The pieces are listed from the outer layer down to the shoes.
 
 - **✓ Wear this** marks the outfit as worn today and counts as a thumbs up. The clothes go to the laundry (shown as
-  dirty in the Closet), except the shoes.
+  dirty in the Closet), except the shoes and any jacket or coat, which are not washed after every wear.
 - **✕** is a thumbs down: the app learns what you did not like and shows another outfit.
 - **New outfit** (after you wore one) gives a different outfit for the same day, built only from clean clothes.
 - Reopening the tab the same day shows the same outfit instead of making a new one.
-- If something is missing ("No clean top, bottom or shoes"), add more clothes or mark items clean in the Closet.
+- If something is missing ("No clean top, bottom or shoes"), add more clothes or mark items clean in the Closet. A dress counts as both the top and the bottom, so a dress and shoes is a complete outfit.
 - **Style Swipe** (button under the outfit) opens a deck of outfit ideas beyond today's. Swipe right (or tap ✓) to like
   one, left (or tap ✕) to dislike it. Each answer trains the app. The heart adds an idea to your favorites. Ideas here
   may include clothes that are in the laundry, because they are for training only and are never saved as today's outfit.
@@ -102,4 +107,4 @@ household. The AI sees a photo only while it tags it. Passwords are handled by S
 | "Set your location first" | Open Household and tap **Change** next to Location. |
 | "The weather service is unavailable" | Try again in a minute. |
 | The AI says it is busy | Fill in the four tags yourself; the garment is saved the same way. |
-| Today says there is no clean top, bottom or shoes | Add clothes, or open the Closet and mark items **Clean**. |
+| Today says there is no clean top, bottom or shoes | Add clothes (a dress with shoes also works), or open the Closet and mark items **Clean**. |

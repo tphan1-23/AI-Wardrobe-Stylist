@@ -56,7 +56,7 @@ Each function is a thin Deno wrapper (`index.ts`, shared `_deno/serve.ts`) over 
   padded **crop box** for where the garment is. It saves nothing: the app saves the garment after the user confirms on
   the review screen. The model key stays server-side.
 - **`generate-outfit`** — for the signed-in user, loads **their own** clean garments, today's weather for their
-  location (OpenWeatherMap) and their preference weights, scores top + bottom + shoes combinations, and saves the
+  location (OpenWeatherMap) and their preference weights, scores outfits (top + bottom + shoes, or a dress + shoes, plus a layer when it is cool or wet), and saves the
   winner to `suggestions`, and returns the weather it used. A household is not needed. Supports re-roll by excluding
   rejected suggestions. With `purpose: "explore"` it produces Style Swipe ideas: stored with `kind = 'explore'` so they
   never replace today's outfit, and allowed to use clothes in the laundry because they only train the AI.
@@ -67,7 +67,7 @@ Each function is a thin Deno wrapper (`index.ts`, shared `_deno/serve.ts`) over 
 
 `0001` base schema, `0002` personal closets (D18), `0003` profile names from Google/Apple (D19), `0004` `ensure_profile()`,
 `0005` favorites, `0006` `suggestions.kind` for Style Swipe, `0007` wearing an outfit marks it dirty except shoes (D21),
-`0008` signed-out callers cannot run our functions, `0009` length and value limits (names cut at 100 on the way in, constraints as the last line of defense). Migrations are the source of truth for the schema; keep this document
+`0008` signed-out callers cannot run our functions, `0009` length and value limits (names cut at 100 on the way in, constraints as the last line of defense), `0010` jackets and coats stay clean after one wear (D25). Migrations are the source of truth for the schema; keep this document
 and `_shared/types.ts` in sync with them. Applying them is described in [deployment.md](deployment.md).
 
 ### Security model
@@ -107,8 +107,11 @@ clothes. Daily suggestions use the user's own closet only. Preferences, location
    (502), the user types the tags; a photo the server rejects is removed from storage.
 3. **Daily suggestion:** the app calls `generate-outfit`, which reads the user's clean garments, weather and
    preference weights, returns an outfit (or `incomplete` / `exhausted`) with the weather, and saves it to
-   `suggestions`. **Wear this** calls the `accept_suggestion` RPC, which marks the items worn today and sends everything
-   except the shoes to the laundry, so **New outfit** for the same day cannot reuse them.
+   `suggestions`. An outfit is shoes plus a top and a bottom **or a dress**, plus an optional **layer** (a jacket or coat,
+   or a hoodie or sweater over a lighter top) when the adjusted feels-like temperature is 15°C or below or it is raining
+   (D25; the rules are in `_shared/outfit.ts` and `_shared/scoring.ts`). **Wear this** calls the `accept_suggestion` RPC,
+   which marks the items worn today and sends everything to the laundry except shoes, jackets and coats, so **New outfit**
+   for the same day cannot reuse them.
 4. **Feedback loop:** thumbs up/down goes to `update-preferences`, which adjusts the weights once per suggestion; a
    thumbs down immediately re-rolls with the rejected suggestion excluded.
 5. **Style Swipe:** the deck asks `generate-outfit` with `purpose: "explore"`, skipping ideas already judged; each swipe

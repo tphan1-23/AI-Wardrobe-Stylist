@@ -2,12 +2,12 @@
 // "Yes, wear this" on the Today screen, decision D3), and their favorite outfits. A worn outfit
 // can be marked as a favorite and removed from the favorites again. Pure TypeScript with an
 // injected gateway so it is unit-tested without React Native or a network (see tests/history.test.ts).
-import { slotForType } from "../../../supabase/functions/_shared/tag-schema.ts";
+import { ROLE_ORDER, baseRole, rolesOf, type OutfitRole } from "../../../supabase/functions/_shared/outfit.ts";
 import type { ISODate, UUID } from "../../../supabase/functions/_shared/types.ts";
 import { NETWORK_ERROR } from "./edgeFunctions.ts";
 import { garmentName } from "./garment.ts";
 import type { GatewayResult, Result } from "./household.ts";
-import { OUTFIT_SLOTS, formatToday, todayString, type GarmentRow, type OutfitSlot } from "./today.ts";
+import { formatToday, todayString, type GarmentRow } from "./today.ts";
 
 // Today and the six days before it.
 export const HISTORY_DAYS = 7;
@@ -33,7 +33,8 @@ export interface HistoryGateway {
 
 export interface OutfitPiece {
   garmentId: UUID;
-  slot: OutfitSlot;
+  // "other" for anything that is not part of an outfit (an accessory), shown last.
+  slot: OutfitRole | "other";
   name: string;
   photoUrl: string | null;
 }
@@ -106,9 +107,9 @@ async function call<T>(run: () => Promise<GatewayResult<T>>): Promise<Result<T>>
   }
 }
 
-const slotOrder = (slot: ReturnType<typeof slotForType>) => {
-  const index = OUTFIT_SLOTS.indexOf(slot as OutfitSlot);
-  return index === -1 ? OUTFIT_SLOTS.length : index;
+const roleOrder = (role: OutfitRole | "other") => {
+  const index = ROLE_ORDER.indexOf(role as OutfitRole);
+  return index === -1 ? ROLE_ORDER.length : index;
 };
 
 // Loads the garments and photos of all the outfits once, then builds one entry per outfit.
@@ -134,15 +135,17 @@ async function entriesFor(gateway: HistoryGateway, rows: OutfitRow[]): Promise<R
       const garment = byId.get(id);
       return garment ? [garment] : [];
     });
+    // Roles come from the whole outfit (a hoodie can be the top or the layer). If the set is not a valid outfit,
+    // for example an old one with a piece deleted, each piece falls back to what its type is on its own.
+    const roles = rolesOf(found.map((g) => ({ id: g.id, type: g.type, warmth: g.warmth })));
     const pieces = found
       .map((garment) => ({
         garmentId: garment.id,
-        slot: slotForType(garment.type),
+        slot: roles?.get(garment.id) ?? baseRole(garment.type) ?? ("other" as const),
         name: garmentName(garment),
         photoUrl: urls[garment.image_path] ?? null,
       }))
-      .sort((a, b) => slotOrder(a.slot) - slotOrder(b.slot))
-      .map((piece) => ({ ...piece, slot: piece.slot as OutfitSlot }));
+      .sort((a, b) => roleOrder(a.slot) - roleOrder(b.slot));
     return { id: row.id, date: row.date, favorite: row.favorite, pieces, removed: row.garment_ids.length - found.length };
   });
   return { ok: true, value: entries };
