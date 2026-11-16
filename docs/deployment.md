@@ -72,9 +72,13 @@ SQL and fail on forbidden statements.
 From `main` only, after the PR is approved and merged:
 
 ```bash
-npx supabase functions deploy analyze-garment generate-outfit update-preferences \
+npx supabase functions deploy analyze-garment generate-outfit update-preferences delete-account \
   --project-ref <project ref> --use-api
 ```
+
+**Merging does not deploy.** CI never deploys the functions, so a merged change under `supabase/functions/` is NOT live until someone runs the command above. On 2026-11-14 PR #43 was merged and its migration applied, but the old `generate-outfit` kept running, and a closet with a dress and sandals got no outfit until it was redeployed on 2026-11-15. `_shared/` is bundled into each function separately, so after a change there, deploy every function that imports the changed files.
+
+**Migration 0011 (several colors and seasons D26, and the tights type D28) needs one sitting:** apply the migration, then at once deploy `generate-outfit`, `update-preferences` and `analyze-garment`, and use the new app build. The old functions read the dropped `color` and `season` columns and fail the moment the migration runs. `delete-account` is new and needs no secret of its own (Supabase gives every function `SUPABASE_SERVICE_ROLE_KEY`).
 
 The project ref is the subdomain of `EXPO_PUBLIC_SUPABASE_URL`. You need `npx supabase login` once. Deploy only the
 functions that changed. Type-check first: `npx deno check --config supabase/functions/deno.json supabase/functions/*/index.ts`.

@@ -30,8 +30,8 @@ const row = (id: string, overrides: Partial<ClosetRow> = {}): ClosetRow => ({
   id,
   owner_id: ME,
   type: "t_shirt",
-  color: "white",
-  season: "all",
+  colors: ["white"],
+  seasons: ["all"],
   warmth: 2,
   status: "clean",
   favorite: false,
@@ -197,12 +197,12 @@ describe("loadCloset", () => {
 });
 
 describe("saveEdits", () => {
-  const draft = draftFromTags({ type: "jeans", color: "blue", season: "fall", warmth: 4 });
+  const draft = draftFromTags({ type: "jeans", colors: ["blue"], seasons: ["fall"], warmth: 4 });
 
   it("saves the edited tags together with the clean or dirty status", async () => {
     const g = gateway();
     const result = await saveEdits(g, "g-1", draft, "dirty");
-    const changes = { type: "jeans", color: "blue", season: "fall", warmth: 4, status: "dirty" };
+    const changes = { type: "jeans", colors: ["blue"], seasons: ["fall"], warmth: 4, status: "dirty" };
     expect(result).toEqual({ ok: true, value: changes });
     expect(g.updateGarment).toHaveBeenCalledWith("g-1", changes);
   });
@@ -210,7 +210,7 @@ describe("saveEdits", () => {
   it("will not save with a tag missing", async () => {
     const g = gateway();
     expect(await saveEdits(g, "g-1", emptyDraft(), "clean")).toEqual({ ok: false, error: "Choose every tag before saving." });
-    expect(await saveEdits(g, "g-1", { ...draft, color: null }, "clean")).toMatchObject({ ok: false });
+    expect(await saveEdits(g, "g-1", { ...draft, colors: null }, "clean")).toMatchObject({ ok: false });
     expect(g.updateGarment).not.toHaveBeenCalled();
   });
 

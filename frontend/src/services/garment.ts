@@ -6,9 +6,11 @@
 import {
   COLORS,
   GARMENT_TYPES,
+  MAX_COLORS,
   SEASONS,
   WARMTH_MAX,
   WARMTH_MIN,
+  normalizeSeasons,
   slotForType,
   type Color,
   type GarmentType,
@@ -35,6 +37,7 @@ export const TYPE_LABELS: Record<GarmentType, string> = {
   sandals: "sandals",
   dress_shoes: "dress shoes",
   dress: "dress",
+  tights: "tights",
   jacket: "jacket",
   coat: "coat",
   accessory: "accessory",
@@ -61,12 +64,42 @@ const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1
 export const colorLabel = (color: Color): string => capitalize(color);
 export const typeLabel = (type: GarmentType): string => capitalize(TYPE_LABELS[type]);
 
-export function garmentName(garment: { color: Color; type: GarmentType }): string {
-  return `${colorLabel(garment.color)} ${TYPE_LABELS[garment.type]}`;
+// "Black", "Black and white", "Black, white and pink": the main color first.
+export function colorsLabel(colors: readonly Color[]): string {
+  const names = colors.map((c) => c.toLowerCase());
+  const text = names.length <= 1 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+  return capitalize(text);
 }
 
-export function garmentDetail(garment: { season: Season; warmth: Warmth }): string {
-  return `${SEASON_LABELS[garment.season]} · ${WARMTH_LABELS[garment.warmth]}`;
+export function seasonsLabel(seasons: readonly Season[]): string {
+  return seasons.map((s) => SEASON_LABELS[s]).join(", ");
+}
+
+export function garmentName(garment: { colors: readonly Color[]; type: GarmentType }): string {
+  return `${colorsLabel(garment.colors)} ${TYPE_LABELS[garment.type]}`;
+}
+
+export function garmentDetail(garment: { seasons: readonly Season[]; warmth: Warmth }): string {
+  return `${seasonsLabel(garment.seasons)} · ${WARMTH_LABELS[garment.warmth]}`;
+}
+
+// ---- Picking several colors and seasons --------------------------------------
+
+// Taps a color: adds it (up to MAX_COLORS, the first one picked is the main color) or removes it.
+export function toggleColor(current: readonly Color[] | null, color: Color): Color[] {
+  const colors = current ?? [];
+  if (colors.includes(color)) return colors.filter((c) => c !== color);
+  if (colors.length >= MAX_COLORS) return [...colors];
+  return [...colors, color];
+}
+
+// Taps a season: "All seasons" stands alone, so picking it clears the others and picking a single season clears it.
+// Choosing all four single seasons is the same thing as "All seasons".
+export function toggleSeason(current: readonly Season[] | null, season: Season): Season[] {
+  const seasons = current ?? [];
+  if (season === "all") return seasons.includes("all") ? [] : ["all"];
+  const without = seasons.filter((s) => s !== "all");
+  return normalizeSeasons(without.includes(season) ? without.filter((s) => s !== season) : [...without, season]);
 }
 
 export const COLOR_OPTIONS: Color[] = [...COLORS];
@@ -87,36 +120,37 @@ export const TYPE_GROUPS: { label: string; types: GarmentType[] }[] = [
 // ---- The draft a person edits ------------------------------------------------
 
 export type TagField = keyof GarmentTags;
-export const TAG_FIELDS: TagField[] = ["type", "color", "season", "warmth"];
+export const TAG_FIELDS: TagField[] = ["type", "colors", "seasons", "warmth"];
 
 export const FIELD_LABELS: Record<TagField, string> = {
   type: "Type",
-  color: "Color",
-  season: "Season",
+  colors: "Colors",
+  seasons: "Seasons",
   warmth: "Warmth",
 };
 
 // null means "not chosen yet" (the AI left it out, or the person has not picked one).
 export interface GarmentDraft {
   type: GarmentType | null;
-  color: Color | null;
-  season: Season | null;
+  colors: Color[] | null;
+  seasons: Season[] | null;
   warmth: Warmth | null;
 }
 
-export const emptyDraft = (): GarmentDraft => ({ type: null, color: null, season: null, warmth: null });
+export const emptyDraft = (): GarmentDraft => ({ type: null, colors: null, seasons: null, warmth: null });
 
 export function draftFromTags(tags: Partial<GarmentTags>): GarmentDraft {
   return {
     type: tags.type ?? null,
-    color: tags.color ?? null,
-    season: tags.season ?? null,
+    colors: tags.colors ?? null,
+    seasons: tags.seasons ?? null,
     warmth: tags.warmth ?? null,
   };
 }
 
 export function setField<F extends TagField>(draft: GarmentDraft, field: F, value: GarmentTags[F]): GarmentDraft {
-  return { ...draft, [field]: value };
+  // Taking away the last color or season leaves the field "not chosen", so it is asked for again.
+  return { ...draft, [field]: Array.isArray(value) && value.length === 0 ? null : value };
 }
 
 export function missingFields(draft: GarmentDraft): TagField[] {

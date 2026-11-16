@@ -8,5 +8,6 @@
   "0007_wear_marks_dirty.sql": "96d64638df24d9fec7cde6943fd214ed49535c5b578e9bfaf37b6e25a595df8e",
   "0008_revoke_anon_functions.sql": "94b45549856af32cf78495cdf026122e4d15f6f52bf26cea4551745d4d430b24",
   "0009_length_limits.sql": "2b78031f9cc53f4eca8b00f4a8ebb0506b6fbecbd1e70a9c7e907728ca85ddc6",
-  "0010_outerwear_not_dirty.sql": "46eaedaed8572835fefc29a158af25834c206d2b7c723ab8c018e5ef61acbfa6"
+  "0010_outerwear_not_dirty.sql": "46eaedaed8572835fefc29a158af25834c206d2b7c723ab8c018e5ef61acbfa6",
+  "0011_multi_color_season.sql": "f133e9e43410076c52e0ae32c1d6d3be2d62ab156cad5bd2333a69e74a37ba6a"
 }

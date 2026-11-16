@@ -8,7 +8,7 @@ import { GENERIC_ERROR } from "../frontend/src/services/errors.ts";
 const USER = "user-1";
 const review = (extra: Partial<ReviewState> = {}): ReviewState => ({
   photoPath: `${USER}/original.jpg`,
-  tags: { type: "t_shirt", color: "blue", season: "all", warmth: 2 },
+  tags: { type: "t_shirt", colors: ["blue"], seasons: ["all"], warmth: 2 },
   needsReview: [],
   confirmed: [],
   manual: false,
@@ -39,7 +39,7 @@ describe("replaceWithCrop", () => {
       ok: true,
       value: {
         photoPath: `${USER}/new.jpg`,
-        tags: { type: "t_shirt", color: "blue", season: "all", warmth: 2 },
+        tags: { type: "t_shirt", colors: ["blue"], seasons: ["all"], warmth: 2 },
         needsReview: [],
         confirmed: ["type"],
         manual: false,

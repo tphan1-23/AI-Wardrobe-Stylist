@@ -35,8 +35,8 @@ export const MAX_EXCLUDED = 50;
 export interface GarmentRow {
   id: UUID;
   type: GarmentType;
-  color: Color;
-  season: Season;
+  colors: Color[];
+  seasons: Season[];
   warmth: Warmth;
   status: "clean" | "dirty";
   image_path: string;

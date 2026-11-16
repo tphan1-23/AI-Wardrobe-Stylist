@@ -35,7 +35,9 @@ interface Props {
   cancelLabel?: string;
 }
 
+// The visible dot is 28 wide; the part that reacts to a finger is 48, so a corner is easy to grab.
 const HANDLE = 28;
+const HANDLE_TOUCH = 48;
 const SHADE = "rgba(0,0,0,0.55)";
 const CORNERS: Corner[] = ["topLeft", "topRight", "bottomLeft", "bottomRight"];
 
@@ -61,6 +63,8 @@ export function CropScreen({ uri, image, busy, onUse, onCancel, suggestion, canc
   const shownRef = useRef(shown);
   shownRef.current = shown;
   const startRef = useRef(frame);
+  // While a finger is on the frame or a corner the page behind must not scroll with it.
+  const [dragging, setDragging] = useState(false);
 
   // One responder for dragging the whole frame and one per corner. Each remembers where the frame
   // was when the finger went down and applies the total drag so far to that.
@@ -70,12 +74,18 @@ export function CropScreen({ uri, image, busy, onUse, onCancel, suggestion, canc
       PanResponder.create({
         onStartShouldSetPanResponder: () => true,
         onMoveShouldSetPanResponder: () => true,
-        // Keep the drag even though the screen behind scrolls.
+        // Take the touch before the scroll view can, and keep it.
+        onStartShouldSetPanResponderCapture: () => true,
+        onMoveShouldSetPanResponderCapture: () => true,
         onPanResponderTerminationRequest: () => false,
+        onShouldBlockNativeResponder: () => true,
         onPanResponderGrant: () => {
           startRef.current = frameRef.current;
+          setDragging(true);
         },
         onPanResponderMove: (_, g) => setFrame(apply(startRef.current, g.dx, g.dy)),
+        onPanResponderRelease: () => setDragging(false),
+        onPanResponderTerminate: () => setDragging(false),
       });
     responders.current = {
       body: make((start, dx, dy) => moveFrame(start, dx, dy, shownRef.current)),
@@ -94,12 +104,12 @@ export function CropScreen({ uri, image, busy, onUse, onCancel, suggestion, canc
   const right = frame.x + frame.width;
   const bottom = frame.y + frame.height;
   const handlePosition = (corner: Corner) => ({
-    left: (corner === "topLeft" || corner === "bottomLeft" ? frame.x : right) - HANDLE / 2,
-    top: (corner === "topLeft" || corner === "topRight" ? frame.y : bottom) - HANDLE / 2,
+    left: (corner === "topLeft" || corner === "bottomLeft" ? frame.x : right) - HANDLE_TOUCH / 2,
+    top: (corner === "topLeft" || corner === "topRight" ? frame.y : bottom) - HANDLE_TOUCH / 2,
   });
 
   return (
-    <Screen top={20}>
+    <Screen top={20} scrollEnabled={!dragging}>
       <View style={styles.header}>
         <Pressable accessibilityRole="button" onPress={onCancel} disabled={busy} hitSlop={8} style={styles.back}>
           <Icon name="back" size={24} />
@@ -130,7 +140,9 @@ export function CropScreen({ uri, image, busy, onUse, onCancel, suggestion, canc
           <View pointerEvents="none" style={styles.frameInner} />
         </View>
         {CORNERS.map((corner) => (
-          <View key={corner} {...pan[corner].panHandlers} accessibilityLabel={`Resize ${corner}`} style={[styles.handle, handlePosition(corner)]} />
+          <View key={corner} {...pan[corner].panHandlers} accessibilityLabel={`Resize ${corner}`} style={[styles.handleTouch, handlePosition(corner)]}>
+            <View pointerEvents="none" style={styles.handle} />
+          </View>
         ))}
       </View>
 
@@ -165,8 +177,8 @@ const styles = StyleSheet.create({
   shade: { position: "absolute", backgroundColor: SHADE },
   frame: { position: "absolute", borderWidth: 2, borderColor: "#ffffff" },
   frameInner: { flex: 1, borderWidth: 1, borderColor: "#000000" },
+  handleTouch: { position: "absolute", width: HANDLE_TOUCH, height: HANDLE_TOUCH, alignItems: "center", justifyContent: "center" },
   handle: {
-    position: "absolute",
     width: HANDLE,
     height: HANDLE,
     borderRadius: HANDLE / 2,

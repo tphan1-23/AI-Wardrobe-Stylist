@@ -17,7 +17,7 @@ lately is hard, so mornings are slow and clothes sit unused.
 |---|---|
 | Sign up / log in (email + password, password reset by code, Google) | Done |
 | Personal closets, with optional households to share closets (read-only for members) | Done, verified with two accounts |
-| Photo upload with AI auto-tagging (type, color, season, warmth), an AI crop suggestion, and a review-and-edit step | Done |
+| Photo upload with AI auto-tagging (type, colors, seasons, warmth), an AI crop suggestion, and a review-and-edit step | Done |
 | Daily outfit suggestion from weather, clean status and repeat avoidance, with "New outfit": top + bottom + shoes, or a dress + shoes, plus a jacket or hoodie when it is cool or rainy | Done |
 | Cold-start style quiz that seeds personal preferences | Done |
 | Thumbs up / down that teaches the engine, and **Style Swipe** (swipe outfit ideas to train it) | Done |

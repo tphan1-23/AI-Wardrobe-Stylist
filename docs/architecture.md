@@ -52,7 +52,7 @@ Each function is a thin Deno wrapper (`index.ts`, shared `_deno/serve.ts`) over 
 
 - **`analyze-garment`** — takes the storage path of an uploaded photo (must be in the caller's own folder), calls the
   vision model through a fallback chain of Gemini models, validates and normalizes the answer against the fixed tag
-  vocabulary, and **returns proposed tags** (`type`, `color`, `season`, `warmth`) with `needs_review`, plus an optional
+  vocabulary, and **returns proposed tags** (`type`, `colors`, `seasons`, `warmth`) with `needs_review`, plus an optional
   padded **crop box** for where the garment is. It saves nothing: the app saves the garment after the user confirms on
   the review screen. The model key stays server-side.
 - **`generate-outfit`** — for the signed-in user, loads **their own** clean garments, today's weather for their
@@ -86,7 +86,7 @@ and `_shared/types.ts` in sync with them. Applying them is described in [deploym
 ```
 households        (id, name, invite_code)                         -- optional, only shares closets
 users             (id = auth user, household_id?, name, location, quiz_preferences)
-garments          (owner_id, image_path, type, color, season, warmth, status: clean/dirty, last_worn_date, favorite)
+garments          (owner_id, image_path, type, colors[1-3], seasons[], warmth, status: clean/dirty, last_worn_date, favorite)
 preference_vector (user_id, tag, weight)   -- seeded by the quiz, updated by feedback
 suggestions       (user_id, date, garment_ids, feedback: up/down/null, accepted, kind: today/explore, favorite)
 ```

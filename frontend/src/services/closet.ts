@@ -15,8 +15,8 @@ export interface ClosetRow {
   id: UUID;
   owner_id: UUID;
   type: GarmentType;
-  color: Color;
-  season: Season;
+  colors: Color[];
+  seasons: Season[];
   warmth: Warmth;
   status: GarmentStatus;
   favorite: boolean;
@@ -30,8 +30,8 @@ export interface ClosetItem extends ClosetRow {
 
 export interface GarmentChanges {
   type: GarmentType;
-  color: Color;
-  season: Season;
+  colors: Color[];
+  seasons: Season[];
   warmth: Warmth;
   status: GarmentStatus;
 }
@@ -179,7 +179,7 @@ export async function saveEdits(
   status: GarmentStatus,
 ): Promise<Result<GarmentChanges>> {
   if (!isComplete(draft)) return { ok: false, error: "Choose every tag before saving." };
-  const changes: GarmentChanges = { type: draft.type, color: draft.color, season: draft.season, warmth: draft.warmth, status };
+  const changes: GarmentChanges = { type: draft.type, colors: draft.colors, seasons: draft.seasons, warmth: draft.warmth, status };
   const saved = await succeeded(() => gateway.updateGarment(id, changes));
   return saved.ok ? { ok: true, value: changes } : saved;
 }

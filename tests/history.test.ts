@@ -21,8 +21,8 @@ const err = (message: string): GatewayResult<never> => ({ data: null, error: { m
 const garment = (id: string, overrides: Partial<GarmentRow> = {}): GarmentRow => ({
   id,
   type: "t_shirt",
-  color: "white",
-  season: "all",
+  colors: ["white"],
+  seasons: ["all"],
   warmth: 2,
   status: "clean",
   image_path: `u/${id}.jpg`,
@@ -30,13 +30,13 @@ const garment = (id: string, overrides: Partial<GarmentRow> = {}): GarmentRow =>
 });
 
 const TOP = garment("g-top");
-const BOTTOM = garment("g-bottom", { type: "jeans", color: "blue" });
-const SHOES = garment("g-shoes", { type: "sneakers", color: "black" });
-const COAT = garment("g-coat", { type: "coat", color: "gray" });
-const DRESS = garment("g-dress", { type: "dress", color: "pink" });
-const HOODIE = garment("g-hoodie", { type: "hoodie", color: "black" });
-const TEE = garment("g-tee", { type: "t_shirt", color: "white" });
-const SCARF = garment("g-scarf", { type: "accessory", color: "red" });
+const BOTTOM = garment("g-bottom", { type: "jeans", colors: ["blue"] });
+const SHOES = garment("g-shoes", { type: "sneakers", colors: ["black"] });
+const COAT = garment("g-coat", { type: "coat", colors: ["gray"] });
+const DRESS = garment("g-dress", { type: "dress", colors: ["pink"] });
+const HOODIE = garment("g-hoodie", { type: "hoodie", colors: ["black"] });
+const TEE = garment("g-tee", { type: "t_shirt", colors: ["white"] });
+const SCARF = garment("g-scarf", { type: "accessory", colors: ["red"] });
 
 const outfit = (id: string, date: string, overrides: Partial<OutfitRow> = {}): OutfitRow => ({
   id,

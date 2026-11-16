@@ -10,18 +10,18 @@ import {
   validateBox,
   validateTags,
 } from "../supabase/functions/_shared/tag-validation.ts";
-import { COLORS, GARMENT_TYPES, SEASONS, isWarmth } from "../supabase/functions/_shared/tag-schema.ts";
+import { COLORS, GARMENT_TYPES, SEASONS, isColorList, isSeasonList, isWarmth } from "../supabase/functions/_shared/tag-schema.ts";
 import { PROMPT_VERSION, buildVisionPrompt } from "../supabase/functions/_shared/vision-prompt.ts";
 
 const good = {
-  type: "jeans", color: "navy", season: "all", warmth: 3,
-  confidence: { type: 0.95, color: 0.9, season: 0.8, warmth: 0.7 },
+  type: "jeans", colors: ["navy"], seasons: ["all"], warmth: 3,
+  confidence: { type: 0.95, colors: 0.9, seasons: 0.8, warmth: 0.7 },
 };
 
 describe("validateTags", () => {
   it("passes a clean answer through with its confidence and no review flags", () => {
     expect(validateTags(good)).toEqual({
-      tags: { type: "jeans", color: "navy", season: "all", warmth: 3 },
+      tags: { type: "jeans", colors: ["navy"], seasons: ["all"], warmth: 3 },
       confidence: good.confidence,
       needs_review: [],
       warnings: [],
@@ -29,8 +29,8 @@ describe("validateTags", () => {
   });
 
   it("normalizes case, spacing, hyphens and plurals", () => {
-    const r = validateTags({ ...good, type: " T-Shirts ", color: "Navy", season: "ALL" });
-    expect(r.tags).toMatchObject({ type: "t_shirt", color: "navy", season: "all" });
+    const r = validateTags({ ...good, type: " T-Shirts ", colors: ["Navy"], seasons: ["ALL"] });
+    expect(r.tags).toMatchObject({ type: "t_shirt", colors: ["navy"], seasons: ["all"] });
   });
 
   it.each([
@@ -43,17 +43,39 @@ describe("validateTags", () => {
   it.each([
     ["grey", "gray"], ["Navy Blue", "navy"], ["cream", "beige"], ["burgundy", "red"], ["multi-color", "multicolor"],
   ])("maps color synonym %s -> %s", (given, expected) => {
-    expect(validateTags({ ...good, color: given }).tags.color).toBe(expected);
+    expect(validateTags({ ...good, colors: [given] }).tags.colors).toEqual([expected]);
   });
 
-  it("maps season synonyms and collapses season lists", () => {
-    expect(validateTags({ ...good, season: "autumn" }).tags.season).toBe("fall");
-    expect(validateTags({ ...good, season: "year round" }).tags.season).toBe("all");
-    expect(validateTags({ ...good, season: ["spring", "summer", "fall"] }).tags.season).toBe("all");
-    const two = validateTags({ ...good, season: ["spring", "summer"] });
-    expect(two.tags.season).toBe("spring");
-    expect(two.warnings.join()).toContain("multiple seasons");
-    expect(validateTags({ ...good, season: ["monsoon"] }).tags.season).toBeUndefined();
+  it("maps season synonyms and keeps several seasons in calendar order", () => {
+    expect(validateTags({ ...good, seasons: ["autumn"] }).tags.seasons).toEqual(["fall"]);
+    expect(validateTags({ ...good, seasons: ["year round"] }).tags.seasons).toEqual(["all"]);
+    expect(validateTags({ ...good, seasons: ["fall", "spring"] }).tags.seasons).toEqual(["spring", "fall"]);
+    expect(validateTags({ ...good, seasons: ["spring", "summer", "fall"] }).tags.seasons).toEqual(["spring", "summer", "fall"]);
+    expect(validateTags({ ...good, seasons: ["monsoon"] }).tags.seasons).toBeUndefined();
+  });
+
+  it("writes \"all\" alone: with other seasons, or with all four seasons", () => {
+    expect(validateTags({ ...good, seasons: ["all", "winter"] }).tags.seasons).toEqual(["all"]);
+    expect(validateTags({ ...good, seasons: ["winter", "spring", "summer", "fall"] }).tags.seasons).toEqual(["all"]);
+    expect(validateTags({ ...good, seasons: ["summer", "summer"] }).tags.seasons).toEqual(["summer"]);
+  });
+
+  it("keeps several colors, main color first, without repeats, and at most three", () => {
+    expect(validateTags({ ...good, colors: ["black", "white"] }).tags.colors).toEqual(["black", "white"]);
+    expect(validateTags({ ...good, colors: ["grey", "gray", "red"] }).tags.colors).toEqual(["gray", "red"]);
+    const many = validateTags({ ...good, colors: ["red", "blue", "green", "pink"] });
+    expect(many.tags.colors).toEqual(["red", "blue", "green"]);
+    expect(many.warnings.join()).toContain("more than 3 colors");
+    expect(validateTags({ ...good, colors: ["red", "chartreuse"] }).tags.colors).toEqual(["red"]);
+  });
+
+  it("still understands an answer in the older single-value keys", () => {
+    const r = validateTags({ type: "jeans", color: "Grey", season: "autumn", warmth: 3 });
+    expect(r.tags).toEqual({ type: "jeans", colors: ["gray"], seasons: ["fall"], warmth: 3 });
+  });
+
+  it("accepts a single string where a list is expected", () => {
+    expect(validateTags({ ...good, colors: "red", seasons: "winter" }).tags).toMatchObject({ colors: ["red"], seasons: ["winter"] });
   });
 
   it("accepts warmth as a number, a numeric string or a decimal, and rejects the rest", () => {
@@ -67,31 +89,31 @@ describe("validateTags", () => {
   });
 
   it("leaves unrecognized values out, flags them and says what the model returned", () => {
-    const r = validateTags({ ...good, type: "spaceship", color: "chartreuse" });
+    const r = validateTags({ ...good, type: "spaceship", colors: ["chartreuse"] });
     expect(r.tags.type).toBeUndefined();
-    expect(r.tags.color).toBeUndefined();
-    expect(r.needs_review).toEqual(["type", "color"]);
+    expect(r.tags.colors).toBeUndefined();
+    expect(r.needs_review).toEqual(["type", "colors"]);
     expect(r.warnings.join()).toContain("spaceship");
     expect(r.confidence.type).toBeUndefined();
   });
 
   it("flags low-confidence fields but keeps their values", () => {
-    const r = validateTags({ ...good, confidence: { ...good.confidence, color: LOW_CONFIDENCE - 0.01 } });
-    expect(r.tags.color).toBe("navy");
-    expect(r.needs_review).toEqual(["color"]);
+    const r = validateTags({ ...good, confidence: { ...good.confidence, colors: LOW_CONFIDENCE - 0.01 } });
+    expect(r.tags.colors).toEqual(["navy"]);
+    expect(r.needs_review).toEqual(["colors"]);
   });
 
   it("does not flag a field at exactly the confidence threshold", () => {
-    const r = validateTags({ ...good, confidence: { type: LOW_CONFIDENCE, color: 1, season: 1, warmth: 1 } });
+    const r = validateTags({ ...good, confidence: { type: LOW_CONFIDENCE, colors: 1, seasons: 1, warmth: 1 } });
     expect(r.needs_review).toEqual([]);
   });
 
   it("uses a review-triggering default and clamps when confidence is missing or silly", () => {
-    const missing = validateTags({ type: "jeans", color: "navy", season: "all", warmth: 3 });
+    const missing = validateTags({ type: "jeans", colors: ["navy"], seasons: ["all"], warmth: 3 });
     expect(missing.confidence.type).toBe(DEFAULT_CONFIDENCE);
-    expect(missing.needs_review).toEqual(["type", "color", "season", "warmth"]);
-    const odd = validateTags({ ...good, confidence: { type: 7, color: -2, season: "high", warmth: NaN } });
-    expect(odd.confidence).toEqual({ type: 1, color: 0, season: DEFAULT_CONFIDENCE, warmth: DEFAULT_CONFIDENCE });
+    expect(missing.needs_review).toEqual(["type", "colors", "seasons", "warmth"]);
+    const odd = validateTags({ ...good, confidence: { type: 7, colors: -2, seasons: ["high"], warmth: NaN } });
+    expect(odd.confidence).toEqual({ type: 1, colors: 0, seasons: DEFAULT_CONFIDENCE, warmth: DEFAULT_CONFIDENCE });
   });
 
   it("uses the first garment when the model returns several", () => {
@@ -104,15 +126,15 @@ describe("validateTags", () => {
   it.each([null, undefined, "jeans", 42, true, [], ""])("survives non-object output %j", (junk) => {
     const r = validateTags(junk);
     expect(r.tags).toEqual({});
-    expect(r.needs_review).toEqual(["type", "color", "season", "warmth"]);
+    expect(r.needs_review).toEqual(["type", "colors", "seasons", "warmth"]);
     expect(r.warnings.length).toBeGreaterThan(0);
   });
 
   it("is not fooled by prototype keys", () => {
-    const r = validateTags({ type: "constructor", color: "__proto__", season: "toString", warmth: 3 });
+    const r = validateTags({ type: "constructor", colors: ["__proto__"], seasons: ["toString"], warmth: 3 });
     expect(r.tags.type).toBeUndefined();
-    expect(r.tags.color).toBeUndefined();
-    expect(r.tags.season).toBeUndefined();
+    expect(r.tags.colors).toBeUndefined();
+    expect(r.tags.seasons).toBeUndefined();
   });
 });
 
@@ -160,15 +182,21 @@ describe("validateTags fuzzing", () => {
     ];
     const pick = () => junk[Math.floor(rand() * junk.length)];
     for (let i = 0; i < 2000; i++) {
-      const input = { type: pick(), color: pick(), season: pick(), warmth: pick(), confidence: { type: pick(), color: pick(), season: pick(), warmth: pick() } };
+      const input = { type: pick(), colors: [pick(), pick()], seasons: [pick(), pick()], warmth: pick(), confidence: { type: pick(), colors: pick(), seasons: pick(), warmth: pick() } };
       const r = validateTags(rand() < 0.1 ? [input, input] : input);
       if (r.tags.type !== undefined) expect(GARMENT_TYPES).toContain(r.tags.type);
-      if (r.tags.color !== undefined) expect(COLORS).toContain(r.tags.color);
-      if (r.tags.season !== undefined) expect(SEASONS).toContain(r.tags.season);
+      if (r.tags.colors !== undefined) {
+        expect(isColorList(r.tags.colors)).toBe(true);
+        for (const c of r.tags.colors) expect(COLORS).toContain(c);
+      }
+      if (r.tags.seasons !== undefined) {
+        expect(isSeasonList(r.tags.seasons)).toBe(true);
+        for (const s of r.tags.seasons) expect(SEASONS).toContain(s);
+      }
       if (r.tags.warmth !== undefined) expect(isWarmth(r.tags.warmth)).toBe(true);
       for (const c of Object.values(r.confidence)) expect(c).toBeGreaterThanOrEqual(0), expect(c).toBeLessThanOrEqual(1);
       // every field is either present or flagged for review
-      for (const f of ["type", "color", "season", "warmth"] as const) {
+      for (const f of ["type", "colors", "seasons", "warmth"] as const) {
         expect(r.tags[f] !== undefined || r.needs_review.includes(f)).toBe(true);
       }
     }
@@ -233,11 +261,11 @@ describe("validateBox (the crop suggestion)", () => {
   it("is added to the result only when it is usable, and never costs the tags", () => {
     const withBox = validateTags({ ...good, box: [200, 300, 700, 600] });
     expect(withBox.box).toBeDefined();
-    expect(withBox.tags).toEqual({ type: "jeans", color: "navy", season: "all", warmth: 3 });
+    expect(withBox.tags).toEqual({ type: "jeans", colors: ["navy"], seasons: ["all"], warmth: 3 });
     for (const box of [undefined, [1, 2], "x", [900, 900, 100, 100]]) {
       const result = validateTags({ ...good, box });
       expect(result).not.toHaveProperty("box");
-      expect(result.tags).toEqual({ type: "jeans", color: "navy", season: "all", warmth: 3 });
+      expect(result.tags).toEqual({ type: "jeans", colors: ["navy"], seasons: ["all"], warmth: 3 });
       expect(result.warnings).toEqual([]);
     }
   });

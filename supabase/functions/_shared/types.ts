@@ -11,8 +11,10 @@ export type GarmentStatus = "clean" | "dirty";
 
 export interface GarmentTags {
   type: GarmentType;
-  color: Color;
-  season: Season;
+  // 1 to 3 colors, the first is the main one (see isColorList).
+  colors: Color[];
+  // ["all"], or one to three single seasons (see isSeasonList).
+  seasons: Season[];
   warmth: Warmth;
 }
 
@@ -46,13 +48,15 @@ export interface PreferenceEntry {
 export type FeedbackValue = "up" | "down";
 
 // Shoes plus either a top and a bottom or a dress, plus an optional layer (jacket, coat, or a hoodie or
-// sweater over a lighter top) when it is cold or wet. See _shared/outfit.ts.
+// sweater over a lighter top) when it is cold or wet, and tights under a skirt, shorts or a dress when it is cold. See _shared/outfit.ts.
 export interface Outfit {
   shoes: UUID;
   top?: UUID;
   bottom?: UUID;
   dress?: UUID;
   layer?: UUID;
+  // Worn under a skirt, shorts or a dress when it is cold.
+  tights?: UUID;
 }
 
 export interface Suggestion {

@@ -12,7 +12,7 @@ import { COLORS, GARMENT_TYPES, SEASONS } from "../supabase/functions/_shared/ta
 
 const KEY = "secret-test-key-123";
 const image = { base64: "aGVsbG8=", mimeType: "image/jpeg" };
-const tags = { type: "jeans", color: "navy", season: "all", warmth: 3, confidence: { type: 0.9, color: 0.9, season: 0.8, warmth: 0.7 } };
+const tags = { type: "jeans", colors: ["navy"], seasons: ["all"], warmth: 3, confidence: { type: 0.9, colors: 0.9, seasons: 0.8, warmth: 0.7 } };
 const geminiBody = (text: string) => ({ candidates: [{ content: { parts: [{ text }] } }] });
 const reply = (status: number, body: unknown) => new Response(JSON.stringify(body), { status });
 
@@ -30,8 +30,10 @@ describe("buildGeminiRequest", () => {
   it("constrains the answer to the tag vocabulary", () => {
     const p = req.generationConfig.responseSchema.properties;
     expect(p.type.enum).toEqual(GARMENT_TYPES);
-    expect(p.color.enum).toEqual(COLORS);
-    expect(p.season.enum).toEqual(SEASONS);
+    expect(p.colors).toMatchObject({ type: "ARRAY", minItems: 1, maxItems: 3 });
+    expect(p.colors.items.enum).toEqual(COLORS);
+    expect(p.seasons).toMatchObject({ type: "ARRAY", minItems: 1 });
+    expect(p.seasons.items.enum).toEqual(SEASONS);
     expect(p.warmth).toMatchObject({ minimum: 1, maximum: 5 });
     expect(req.generationConfig.responseSchema.required).toContain("confidence");
   });
@@ -57,7 +59,7 @@ describe("analyzeImage", () => {
   it("returns validated tags for a normal answer, calling the right URL with the key only in a header", async () => {
     const fetchMock = vi.fn(async () => reply(200, geminiBody(JSON.stringify(tags))));
     const result = await analyzeImage({ fetch: fetchMock as never, apiKey: KEY }, image);
-    expect(result.tags).toEqual({ type: "jeans", color: "navy", season: "all", warmth: 3 });
+    expect(result.tags).toEqual({ type: "jeans", colors: ["navy"], seasons: ["all"], warmth: 3 });
     expect(result.needs_review).toEqual([]);
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe(`https://generativelanguage.googleapis.com/v1beta/models/${DEFAULT_MODEL}:generateContent`);
@@ -73,14 +75,14 @@ describe("analyzeImage", () => {
     const broken = vi.fn(async () => reply(200, geminiBody(JSON.stringify({ ...tags, box: [5, 5, 5, 5] }))));
     const none = await analyzeImage({ fetch: broken as never, apiKey: KEY }, image);
     expect(none).not.toHaveProperty("box");
-    expect(none.tags).toEqual({ type: "jeans", color: "navy", season: "all", warmth: 3 });
+    expect(none.tags).toEqual({ type: "jeans", colors: ["navy"], seasons: ["all"], warmth: 3 });
   });
 
   it("uses a custom model and cleans up fenced or sloppy output", async () => {
-    const fetchMock = vi.fn(async () => reply(200, geminiBody("```json\n" + JSON.stringify({ ...tags, color: "Grey" }) + "\n```")));
+    const fetchMock = vi.fn(async () => reply(200, geminiBody("```json\n" + JSON.stringify({ ...tags, colors: ["Grey"] }) + "\n```")));
     const result = await analyzeImage({ fetch: fetchMock as never, apiKey: KEY, model: "gemini-test" }, image);
     expect((fetchMock.mock.calls[0] as unknown as [string])[0]).toContain("/gemini-test:generateContent");
-    expect(result.tags.color).toBe("gray");
+    expect(result.tags.colors).toEqual(["gray"]);
   });
 
   it("flags every field when the model returns nothing usable", async () => {

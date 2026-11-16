@@ -1,6 +1,6 @@
 // Gemini client for garment tagging. fetch is injected so it is unit-tested
 // without a network; the API key only ever goes in a header, never in a URL or error.
-import { COLORS, GARMENT_TYPES, SEASONS, WARMTH_MAX, WARMTH_MIN } from "./tag-schema.ts";
+import { COLORS, GARMENT_TYPES, MAX_COLORS, SEASONS, WARMTH_MAX, WARMTH_MIN } from "./tag-schema.ts";
 import { parseModelOutput } from "./tag-validation.ts";
 import { buildVisionPrompt } from "./vision-prompt.ts";
 import type { AnalyzeGarmentResponse } from "./types.ts";
@@ -66,18 +66,18 @@ export function buildGeminiRequest(image: ImageInput) {
         type: "OBJECT",
         properties: {
           type: str(GARMENT_TYPES),
-          color: str(COLORS),
-          season: str(SEASONS),
+          colors: { type: "ARRAY", items: str(COLORS), minItems: 1, maxItems: MAX_COLORS },
+          seasons: { type: "ARRAY", items: str(SEASONS), minItems: 1, maxItems: SEASONS.length },
           warmth: { type: "INTEGER", minimum: WARMTH_MIN, maximum: WARMTH_MAX },
           // Optional on purpose: a missing box must never cost the tags.
           box: { type: "ARRAY", items: { type: "INTEGER" }, minItems: 4, maxItems: 4 },
           confidence: {
             type: "OBJECT",
-            properties: { type: confidence, color: confidence, season: confidence, warmth: confidence },
-            required: ["type", "color", "season", "warmth"],
+            properties: { type: confidence, colors: confidence, seasons: confidence, warmth: confidence },
+            required: ["type", "colors", "seasons", "warmth"],
           },
         },
-        required: ["type", "color", "season", "warmth", "confidence"],
+        required: ["type", "colors", "seasons", "warmth", "confidence"],
       },
     },
   };

@@ -12,7 +12,6 @@ function checkList(column: string): string[] {
 
 describe("migration 0001_init stays in sync with the tag schema", () => {
   it.each([
-    ["type", GARMENT_TYPES],
     ["color", COLORS],
     ["season", SEASONS],
   ] as const)("%s check constraint matches tag-schema.ts", (column, expected) => {
@@ -170,5 +169,50 @@ describe("migration 0008_revoke_anon_functions", () => {
 
   it("only changes permissions: no data, table or policy changes", () => {
     expect(sqlOnly).not.toMatch(/\b(insert|update|delete|truncate|drop|create table|create policy|alter policy|alter table)\b/i);
+  });
+});
+
+describe("migration 0011_multi_color_season (D26)", () => {
+  const multi = readFileSync(new URL("../supabase/migrations/0011_multi_color_season.sql", import.meta.url), "utf8");
+  const code = multi.replace(/--.*$/gm, "");
+
+  it("keeps every existing row: the new lists are filled from the old columns before those are dropped", () => {
+    expect(code).toContain("update garments set colors = array[color], seasons = array[season]");
+    expect(code.indexOf("update garments")).toBeLessThan(code.indexOf("drop column color, drop column season"));
+  });
+
+  it("runs as one transaction, so a failure leaves the table as it was", () => {
+    expect(code).toMatch(/^\s*begin;/m);
+    expect(code).toMatch(/^\s*commit;/m);
+  });
+
+  it("allows exactly the schema's colors and seasons", () => {
+    for (const color of COLORS) expect(code).toContain(`'${color}'`);
+    for (const season of SEASONS.filter((s) => s !== "all")) expect(code).toContain(`'${season}'`);
+    expect(code).toContain("cardinality(colors) between 1 and 3");
+    expect(code).toContain("seasons = array['all']");
+  });
+
+  it("gives the helper function the same access rules as migration 0008", () => {
+    expect(code).toMatch(/revoke all on function array_has_no_repeats\(text\[\]\) from public, anon;/);
+    expect(code).toMatch(/grant execute on function array_has_no_repeats\(text\[\]\) to authenticated, service_role;/);
+  });
+
+  it("replaces the type check with exactly the schema's garment types, adding tights (D28)", () => {
+    const list = /add constraint garments_type_check check \(type in \(([^)]*)\)/.exec(code)?.[1] ?? "";
+    const types = [...list.matchAll(/'([^']+)'/g)].map((m) => m[1]!);
+    expect(types.sort()).toEqual([...GARMENT_TYPES].sort());
+    expect(types).toContain("tights");
+    expect(types).toContain("leggings");
+    // 0001's list is out of date by design: the only difference is tights.
+    const original = checkList("type");
+    expect(GARMENT_TYPES.filter((t) => !original.includes(t))).toEqual(["tights"]);
+    expect(code.indexOf("drop constraint garments_type_check")).toBeLessThan(code.indexOf("add constraint garments_type_check"));
+  });
+
+  it("does not put a subquery directly in a CHECK constraint (Postgres refuses it)", () => {
+    const checks = [...code.matchAll(/check \(([\s\S]*?)\n  \)/g)].map((m) => m[1]!);
+    expect(checks.length).toBe(2);
+    for (const check of checks) expect(check).not.toMatch(/\bselect\b/i);
   });
 });

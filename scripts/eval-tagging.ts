@@ -2,6 +2,9 @@
 // Usage: node scripts/eval-tagging.ts <results.json> [eval/tagging-labels.json] [--strict]
 // --strict accepts only the FIRST listed answer per field (my first choice) and, for warmth, a value
 // within 0.5 of the midpoint of the accepted range. Without it, every listed answer counts (lenient).
+// Colors and seasons are lists now (D26). The hand labels still list accepted answers for ONE color and ONE season, so:
+//   color  is right when the model's MAIN color (the first) is accepted;
+//   season is right when EVERY season the model gave is accepted (strict: exactly the first choice).
 // results.json comes from: OUT=results.json node scripts/tag-image.ts <photos...>
 import { readFileSync } from "node:fs";
 
@@ -33,12 +36,14 @@ for (const r of results) {
   if (r.error || !r.tags) { failures++; misses.push(`${r.file}: NO RESULT (${r.error})`); continue; }
   scored++;
   const t = r.tags;
+  const mainColor = Array.isArray(t.colors) ? t.colors[0] : t.color;
+  const seasonList = (Array.isArray(t.seasons) ? t.seasons : t.season === undefined ? [] : [t.season]).map(String);
   const accepted = (list: string[]) => (strict ? list.slice(0, 1) : list);
   const midpoint = (label.warmth[0] + label.warmth[1]) / 2;
   const ok = {
     type: accepted(label.type).includes(String(t.type)),
-    color: accepted(label.color).includes(String(t.color)),
-    season: accepted(label.season).includes(String(t.season)),
+    color: accepted(label.color).includes(String(mainColor)),
+    season: seasonList.length > 0 && (strict ? seasonList.length === 1 && seasonList[0] === label.season[0] : seasonList.every((s) => label.season.includes(s))),
     warmth:
       typeof t.warmth === "number" &&
       (strict ? Math.abs(t.warmth - midpoint) <= 0.5 : t.warmth >= label.warmth[0] && t.warmth <= label.warmth[1]),
@@ -50,7 +55,7 @@ for (const r of results) {
   for (const f of wrong) { wrongTotal++; if (review.has(f)) flaggedWrong++; }
   flagged += review.size;
   if (wrong.length > 0) {
-    misses.push(`${r.file.replace(/Screenshot 2026-10-08 /, "#")} [${label.note}]\n      got ${t.type}/${t.color}/${t.season}/w${t.warmth}; wrong: ${wrong.join(", ")}`);
+    misses.push(`${r.file.replace(/Screenshot 2026-10-08 /, "#")} [${label.note}]\n      got ${t.type}/${[t.colors ?? t.color].flat().join()}/${seasonList.join()}/w${t.warmth}; wrong: ${wrong.join(", ")}`);
   }
 }
 

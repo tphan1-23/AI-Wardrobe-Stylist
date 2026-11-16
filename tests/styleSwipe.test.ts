@@ -18,8 +18,8 @@ const MILD = { temp_c: 18, feels_like_c: 18, is_precipitating: false };
 const garment = (id: string, overrides: Partial<GarmentRow> = {}): GarmentRow => ({
   id,
   type: "t_shirt",
-  color: "white",
-  season: "all",
+  colors: ["white"],
+  seasons: ["all"],
   warmth: 2,
   status: "clean",
   image_path: `u/${id}.jpg`,

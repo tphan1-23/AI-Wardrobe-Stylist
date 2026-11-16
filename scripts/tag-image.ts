@@ -54,7 +54,7 @@ for (const [i, file] of files.entries()) {
     const result = await tag(file, mimeType);
     const t = result.tags;
     console.log(
-      `${String(i + 1).padStart(2)}. ${name}\n    ${t.type ?? "?"} | ${t.color ?? "?"} | ${t.season ?? "?"} | warmth ${t.warmth ?? "?"}` +
+      `${String(i + 1).padStart(2)}. ${name}\n    ${t.type ?? "?"} | ${t.colors?.join("+") ?? "?"} | ${t.seasons?.join("+") ?? "?"} | warmth ${t.warmth ?? "?"}` +
         `  review:[${result.needs_review.join(",")}]  ${((Date.now() - started) / 1000).toFixed(1)}s` +
         (result.warnings.length ? `  warnings: ${result.warnings.join("; ")}` : ""),
     );

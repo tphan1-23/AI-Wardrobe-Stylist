@@ -28,7 +28,7 @@ function garment(overrides: Partial<Garment> = {}): Garment {
   n += 1;
   return {
     id: `p-${String(n).padStart(3, "0")}`, owner_id: "u", image_path: "u/x.jpg",
-    type: "t_shirt", color: "black", season: "all", warmth: 2, status: "clean", last_worn_date: null,
+    type: "t_shirt", colors: ["black"], seasons: ["all"], warmth: 2, status: "clean", last_worn_date: null,
     ...overrides,
   };
 }
@@ -86,9 +86,9 @@ describe("quizToPreferences", () => {
 
 describe("applyFeedback", () => {
   const outfit = [
-    garment({ type: "t_shirt", color: "blue" }),
-    garment({ type: "jeans", color: "blue" }),
-    garment({ type: "sneakers", color: "white" }),
+    garment({ type: "t_shirt", colors: ["blue"] }),
+    garment({ type: "jeans", colors: ["blue"] }),
+    garment({ type: "sneakers", colors: ["white"] }),
   ];
 
   it("raises type and color weights on thumbs up and lowers them on thumbs down", () => {
@@ -115,13 +115,13 @@ describe("applyFeedback", () => {
   });
 
   it("teaches faster from a thumbs-down than a thumbs-up", () => {
-    const [up] = applyFeedback([], [garment({ type: "jeans", color: "navy" })], "up");
-    const [down] = applyFeedback([], [garment({ type: "jeans", color: "navy" })], "down");
+    const [up] = applyFeedback([], [garment({ type: "jeans", colors: ["navy"] })], "up");
+    const [down] = applyFeedback([], [garment({ type: "jeans", colors: ["navy"] })], "down");
     expect(Math.abs(down!.weight)).toBeGreaterThan(Math.abs(up!.weight));
   });
 
   it("lets a well-liked tag resist one thumbs-down, but not a disliked one", () => {
-    const jeans = [garment({ type: "jeans", color: "navy" })];
+    const jeans = [garment({ type: "jeans", colors: ["navy"] })];
     const dropOf = (w: number) => w - applyFeedback([{ tag: "type:jeans", weight: w }], jeans, "down").find((e) => e.tag === "type:jeans")!.weight;
     const unresisted = (w: number) => LEARNING_RATE_DOWN * (1 + w);
     // liked tag loses less than the plain rule would take away
@@ -161,21 +161,21 @@ describe("end to end: a simulated user teaches the engine", () => {
   // Hidden taste: hates red, otherwise happy. Uses the real scoring engine.
   it("suggests fewer disliked outfits as feedback accumulates", () => {
     const closet: Garment[] = [
-      garment({ id: "t-red", type: "t_shirt", color: "red" }),
-      garment({ id: "t-blue", type: "t_shirt", color: "blue" }),
-      garment({ id: "t-white", type: "t_shirt", color: "white" }),
-      garment({ id: "t-gray", type: "t_shirt", color: "gray" }),
-      garment({ id: "b-red", type: "jeans", color: "red" }),
-      garment({ id: "b-navy", type: "jeans", color: "navy" }),
-      garment({ id: "b-black", type: "jeans", color: "black" }),
-      garment({ id: "s-white", type: "sneakers", color: "white" }),
-      garment({ id: "s-black", type: "sneakers", color: "black" }),
+      garment({ id: "t-red", type: "t_shirt", colors: ["red"] }),
+      garment({ id: "t-blue", type: "t_shirt", colors: ["blue"] }),
+      garment({ id: "t-white", type: "t_shirt", colors: ["white"] }),
+      garment({ id: "t-gray", type: "t_shirt", colors: ["gray"] }),
+      garment({ id: "b-red", type: "jeans", colors: ["red"] }),
+      garment({ id: "b-navy", type: "jeans", colors: ["navy"] }),
+      garment({ id: "b-black", type: "jeans", colors: ["black"] }),
+      garment({ id: "s-white", type: "sneakers", colors: ["white"] }),
+      garment({ id: "s-black", type: "sneakers", colors: ["black"] }),
     ];
     // Start with a mild *positive* lean towards red so it must be unlearned.
     let prefs: PreferenceEntry[] = [{ tag: "color:red", weight: 0.3 }];
     const byId = new Map(closet.map((g) => [g.id, g]));
     const mild = { temp_c: 18, feels_like_c: 18, is_precipitating: false };
-    const dislikes = (g: Garment[]) => g.some((x) => x.color === "red");
+    const dislikes = (g: Garment[]) => g.some((x) => x.colors.includes("red"));
 
     let dislikedFirstHalf = 0;
     let dislikedSecondHalf = 0;

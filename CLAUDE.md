@@ -20,7 +20,7 @@ Shared agent context file for this repo (course deliverable: "repo setup w/ shar
 - **Tech lead:** Manuel (owns this file, contracts/schema, review standards, integration).
 - **AI logic is owned by Manuel + Claude:** vision-tagging prompt/schema/accuracy, outfit scoring, preference learning, quiz mapping, tuning, evaluation and their tests. Keep it in pure, well-tested modules behind agreed contracts; log every prompt/weight change with before/after metrics in `brain/AI Logic Ownership.md`. Manuel reviews all of it and Thanh reviews PRs — never self-merge.
 - **Thanh owns product/plumbing:** migrations + RLS, auth, households, UI, weather client, deletion flows, CI/CD + deploy.
-- Decisions D1–D25 are in the decisions note and override anything older in `docs/` (e.g. personal closets with optional households for sharing (D18, replaces D1's household-scoped garments), per-user location, outfits of top+bottom+shoes or dress+shoes plus an optional layer (D25), review-and-edit tagging). `docs/` still needs updating to match.
+- Decisions D1–D28 are in the decisions note and override anything older in `docs/` (e.g. personal closets with optional households for sharing (D18, replaces D1's household-scoped garments), per-user location, outfits of top+bottom+shoes or dress+shoes plus an optional layer (D25), several colors and seasons per garment (D26), account deletion (D27), tights under bare legs and soft style rules (D28), review-and-edit tagging). `docs/` still needs updating to match.
 
 ## What this project is
 
@@ -106,7 +106,7 @@ The tree above is the original sketch. Real layout: screens in `frontend/src/pag
 ```
 households        (id, name, invite_code)                         -- optional, only shares closets
 users             (id, household_id?, name, location, quiz_preferences)
-garments          (owner_id, image_path, type, color, season, warmth, status: clean/dirty, last_worn_date, favorite)
+garments          (owner_id, image_path, type, colors[1-3], seasons[], warmth, status: clean/dirty, last_worn_date, favorite)
 preference_vector (user_id, tag, weight)   -- seeded by quiz, updated by feedback
 suggestions       (user_id, date, garment_ids, feedback: up/down/null, accepted, kind: today/explore, favorite)
 ```

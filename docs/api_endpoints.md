@@ -30,13 +30,14 @@ allowed extensions: jpg, jpeg, png, webp, heic, heif).
 **Response 200**
 ```json
 {
-  "tags": { "type": "jeans", "color": "blue", "season": "all", "warmth": 3 },
-  "confidence": { "type": 0.95, "color": 0.9, "season": 0.8, "warmth": 0.8 },
-  "needs_review": ["season"],
+  "tags": { "type": "jeans", "colors": ["blue"], "seasons": ["all"], "warmth": 3 },
+  "confidence": { "type": 0.95, "colors": 0.9, "seasons": 0.8, "warmth": 0.8 },
+  "needs_review": ["seasons"],
   "warnings": [],
   "box": { "x": 0.12, "y": 0.2, "width": 0.55, "height": 0.6 }
 }
 ```
+`colors` is 1 to 3 different colors, the main one first. `seasons` is `["all"]` or 1 to 3 different single seasons (D26; the older `color` and `season` fields no longer exist).
 `box` is the suggested crop for the photo: where the item is, as fractions of the image (top-left corner plus size, already padded by 5% so the edges are not clipped). It is **optional**: it is left out when the model gave no usable box, or when the item already fills the frame (the padded box would cover more than 90% of the photo). Never rely on it; offer the normal full-photo crop when it is missing. In the app, `cropRectFor(review.box, width, height)` in `services/add.ts` turns it into the pixel rectangle for the image manipulator.
 `tags` may be missing fields; any field that is missing or low-confidence (< 0.6) is listed in `needs_review`,
 and the review screen must make the user fill or confirm it. Even with no flags the user confirms the tags: the
@@ -55,7 +56,7 @@ model does not fail the request. The Gemini key is a function secret and never r
 
 ### `generate-outfit`
 
-Builds today's outfit from **the caller's own closet** (D18): shoes plus a top and a bottom **or a dress**, plus a layer when the weather calls for one (D25). A household is not needed.
+Builds today's outfit from **the caller's own closet** (D18): shoes plus a top and a bottom **or a dress**, plus a layer when the weather calls for one (D25), and **tights** under a skirt, shorts or a dress when it is cold (D28). A household is not needed.
 It uses the caller's saved location for the weather, their temperature comfort from the quiz, their preference
 weights, and avoids recently worn items.
 
@@ -78,7 +79,7 @@ Every response (`ok`, `incomplete`, `exhausted`) also has `"weather": { "temp_c"
 Only `ok` creates a `suggestions` row. Dirty items and accessories are never used (a Style Swipe idea may use dirty clothes).
 
 **The `outfit` object.** `shoes` is always present. Then either `top` and `bottom`, or `dress`. `layer` is present only when
-the weather calls for one. Clients must read whichever keys exist; the stored `garment_ids` are `[dress or top, bottom, shoes, layer]`
+the weather calls for one. `tights` is present only under a skirt, shorts or a dress when it is 12°C or below (adjusted for the quiz). Clients must read whichever keys exist; the stored `garment_ids` are `[dress or top, bottom, shoes, layer, tights]`
 (older suggestions are `[top, bottom, shoes]`). `_shared/outfit.ts` (`rolesOf`, `outfitIds`) is the one place that knows which
 garment plays which role, because a hoodie or sweater can be a top on its own or the layer over a lighter top.
 
@@ -87,6 +88,8 @@ below, or it is raining. In the rain a jacket or coat gets a small bonus. A hood
 (not merely wet) and it goes over a lighter top (t-shirt, tank top, shirt, blouse). Over a dress only a jacket or coat is used.
 With a layer, the top or dress underneath may be one warmth step lighter. If no clean layer fits, or every outfit with one was
 rejected, the answer is an outfit without a layer.
+
+**Style rules (D28).** After the weather, preference and repeat scores, three soft rules take a little off an outfit: a thick top (warmth 4 or more) under a jacket or coat (-0.20, not when it is freezing), more than two accent colors (-0.08 each), and a casual piece with a dressy one (-0.12). They only break ties between comparable outfits and never stop one when nothing else is available. See `_shared/style.ts`.
 
 **`incomplete`.** `missing_slots` lists what is missing from `top`, `bottom`, `shoes`. A dress stands in for `top` and `bottom`, so
 with a clean dress and clean shoes the outfit is never `incomplete`.
@@ -111,7 +114,22 @@ Learns from a thumbs up or down on a suggestion. Feedback is accepted **once per
 | 404 | the suggestion does not exist or belongs to someone else |
 | 409 | feedback was already recorded for this suggestion |
 
-Only `type:` and `color:` tags of garments the caller owns are updated. A thumbs down teaches faster than a thumbs up.
+Only `type:` and `color:` tags (one per color) of garments the caller owns are updated. A thumbs down teaches faster than a thumbs up.
+
+### `delete-account`
+
+Deletes the signed-in user's photos, account and data (D10, D27). The user is always the verified caller, never one named in the body.
+
+**Request** `{ "confirm": true }`
+**Response 200** `{ "deleted": true, "photos_removed": 12 }`
+
+| Status | Meaning |
+|---|---|
+| 400 | `confirm` is not exactly `true` (nothing was touched) |
+| 401 | missing or expired session |
+| 500 | a step failed; nothing after it ran, so it is safe to try again |
+
+Order: every file in the user's storage folder, then the sign-in account (the database cascade removes the profile, garments, preferences and suggestions), then the household if nobody is left in it. Uses the service role key that Supabase gives every function.
 
 ## RPCs (SQL functions, called with `supabase.rpc`)
 
