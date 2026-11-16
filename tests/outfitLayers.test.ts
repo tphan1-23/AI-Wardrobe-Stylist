@@ -20,7 +20,7 @@ let n = 0;
 function g(id: string, type: GarmentType, extra: Partial<Garment> = {}): Garment {
   n += 1;
   return {
-    id, owner_id: "u", image_path: `u/${n}.jpg`, type, color: "gray", season: "all", warmth: 2,
+    id, owner_id: "u", image_path: `u/${n}.jpg`, type, colors: ["gray"], seasons: ["all"], warmth: 2,
     status: "clean", last_worn_date: null, ...extra,
   };
 }
@@ -44,7 +44,7 @@ describe("outfit roles", () => {
     for (const type of GARMENT_TYPES) {
       const role = baseRole(type);
       if (type === "accessory") expect(role).toBeNull();
-      else expect(["top", "bottom", "shoes", "dress", "layer"]).toContain(role);
+      else expect(["top", "bottom", "shoes", "dress", "layer", "tights"]).toContain(role);
     }
     expect(baseRole("dress")).toBe("dress");
     expect(baseRole("jacket")).toBe("layer");
@@ -54,6 +54,8 @@ describe("outfit roles", () => {
     expect(baseRole("jeans")).toBe("bottom");
     expect(baseRole("skirt")).toBe("bottom");
     expect(baseRole("boots")).toBe("shoes");
+    expect(baseRole("tights")).toBe("tights");
+    expect(baseRole("leggings")).toBe("bottom"); // leggings are worn as trousers; tights are the under-layer
   });
 
   it("only uses garment types that exist", () => {
@@ -64,7 +66,7 @@ describe("outfit roles", () => {
   });
 
   it("labels and orders every role, outer layer first and shoes last", () => {
-    expect([...ROLE_ORDER]).toEqual(["layer", "dress", "top", "bottom", "shoes"]);
+    expect([...ROLE_ORDER]).toEqual(["layer", "dress", "top", "bottom", "tights", "shoes"]);
     for (const role of ROLE_ORDER) expect(ROLE_LABELS[role].length).toBeGreaterThan(0);
   });
 
@@ -160,7 +162,7 @@ describe("dress outfits", () => {
   });
 
   it("can pick a dress over a top and bottom, or the other way, depending on taste", () => {
-    const closet = [g("dress", "dress", { color: "pink" }), g("tee", "t_shirt", { color: "blue" }), g("jeans", "jeans", { color: "blue" }), g("shoes", "sneakers")];
+    const closet = [g("dress", "dress", { colors: ["pink"] }), g("tee", "t_shirt", { colors: ["blue"] }), g("jeans", "jeans", { colors: ["blue"] }), g("shoes", "sneakers")];
     const likesDress = ok(scoreOutfit(input(closet, { preferences: [{ tag: "type:dress", weight: 1 }, { tag: "color:pink", weight: 1 }] })));
     expect(likesDress.outfit).toEqual({ dress: "dress", shoes: "shoes" });
     const dislikesDress = ok(scoreOutfit(input(closet, { preferences: [{ tag: "type:dress", weight: -1 }, { tag: "color:pink", weight: -1 }] })));

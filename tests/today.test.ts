@@ -29,8 +29,8 @@ const err = (message: string, status?: number): GatewayResult<never> => ({ data:
 const garment = (id: string, overrides: Partial<GarmentRow> = {}): GarmentRow => ({
   id,
   type: "t_shirt",
-  color: "white",
-  season: "all",
+  colors: ["white"],
+  seasons: ["all"],
   warmth: 3,
   status: "clean",
   image_path: `user-1/${id}.jpg`,
@@ -38,8 +38,8 @@ const garment = (id: string, overrides: Partial<GarmentRow> = {}): GarmentRow =>
 });
 
 const TOP = garment("g-top");
-const BOTTOM = garment("g-bottom", { type: "jeans", color: "blue", season: "fall", warmth: 4 });
-const SHOES = garment("g-shoes", { type: "sneakers", color: "black", warmth: 2 });
+const BOTTOM = garment("g-bottom", { type: "jeans", colors: ["blue"], seasons: ["fall"], warmth: 4 });
+const SHOES = garment("g-shoes", { type: "sneakers", colors: ["black"], warmth: 2 });
 const CLOSET = [TOP, BOTTOM, SHOES];
 
 const suggestion = (id: string, overrides: Partial<SuggestionRow> = {}): SuggestionRow => ({
@@ -79,24 +79,24 @@ const DATE = "2026-10-04";
 
 describe("labels", () => {
   it("names a garment from its color and type", () => {
-    expect(garmentName({ color: "black", type: "jeans" })).toBe("Black jeans");
-    expect(garmentName({ color: "multicolor", type: "t_shirt" })).toBe("Multicolor t-shirt");
-    expect(garmentName({ color: "navy", type: "dress_shoes" })).toBe("Navy dress shoes");
+    expect(garmentName({ colors: ["black"], type: "jeans" })).toBe("Black jeans");
+    expect(garmentName({ colors: ["multicolor"], type: "t_shirt" })).toBe("Multicolor t-shirt");
+    expect(garmentName({ colors: ["navy"], type: "dress_shoes" })).toBe("Navy dress shoes");
   });
 
   it("has a readable name for every garment type", () => {
     for (const type of GARMENT_TYPES) {
-      const name = garmentName({ color: "red", type });
+      const name = garmentName({ colors: ["red"], type });
       expect(name).toMatch(/^Red [a-z -]+$/);
       expect(name).not.toContain("_");
     }
   });
 
   it("describes season and warmth", () => {
-    expect(garmentDetail({ season: "all", warmth: 3 })).toBe("All seasons · Medium");
-    expect(garmentDetail({ season: "fall", warmth: 5 })).toBe("Fall · Very warm");
+    expect(garmentDetail({ seasons: ["all"], warmth: 3 })).toBe("All seasons · Medium");
+    expect(garmentDetail({ seasons: ["fall"], warmth: 5 })).toBe("Fall · Very warm");
     for (let warmth = WARMTH_MIN; warmth <= WARMTH_MAX; warmth++) {
-      expect(garmentDetail({ season: "winter", warmth: warmth as 1 | 2 | 3 | 4 | 5 })).toMatch(/^Winter · [A-Z]/);
+      expect(garmentDetail({ seasons: ["winter"], warmth: warmth as 1 | 2 | 3 | 4 | 5 })).toMatch(/^Winter · [A-Z]/);
     }
   });
 });
@@ -520,10 +520,10 @@ describe("wearOutfit (Yes, wear this)", () => {
 });
 
 describe("outfits with a dress or a layer", () => {
-  const DRESS = garment("g-dress", { type: "dress", color: "pink", season: "summer", warmth: 2 });
-  const JACKET = garment("g-jacket", { type: "jacket", color: "gray", warmth: 4 });
-  const HOODIE = garment("g-hoodie", { type: "hoodie", color: "black", warmth: 3 });
-  const TEE = garment("g-tee", { type: "t_shirt", color: "white", warmth: 1 });
+  const DRESS = garment("g-dress", { type: "dress", colors: ["pink"], seasons: ["summer"], warmth: 2 });
+  const JACKET = garment("g-jacket", { type: "jacket", colors: ["gray"], warmth: 4 });
+  const HOODIE = garment("g-hoodie", { type: "hoodie", colors: ["black"], warmth: 3 });
+  const TEE = garment("g-tee", { type: "t_shirt", colors: ["white"], warmth: 1 });
   const closet = [TOP, BOTTOM, SHOES, DRESS, JACKET, HOODIE, TEE];
   const answer = (outfit: GenerateOutfitResponse extends infer R ? (R extends { outfit: infer O } ? O : never) : never) =>
     ok<GenerateOutfitResponse>({ status: "ok", suggestion_id: "s-x", outfit, score: 0.5, reasoning: "Because.", weather: MILD });

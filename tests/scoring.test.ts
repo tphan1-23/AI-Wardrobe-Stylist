@@ -20,8 +20,8 @@ function garment(overrides: Partial<Garment> = {}): Garment {
     owner_id: "u1",
     image_path: "h1/x.jpg",
     type: "t_shirt",
-    color: "black",
-    season: "all",
+    colors: ["black"],
+    seasons: ["all"],
     warmth: 2,
     status: "clean",
     last_worn_date: null,
@@ -71,7 +71,7 @@ describe("helpers", () => {
   });
 
   it("lists namespaced preference tags for a garment", () => {
-    expect(garmentTags({ type: "jeans", color: "navy", season: "all" })).toEqual([
+    expect(garmentTags({ type: "jeans", colors: ["navy"], seasons: ["all"] })).toEqual([
       "type:jeans",
       "color:navy",
       "season:all",
@@ -153,8 +153,8 @@ describe("scoreOutfit", () => {
 
   it("prefers items that suit the current season", () => {
     const closet = [
-      garment({ id: "summer-tee", type: "t_shirt", season: "summer" }),
-      garment({ id: "fall-tee", type: "t_shirt", season: "fall" }),
+      garment({ id: "summer-tee", type: "t_shirt", seasons: ["summer"] }),
+      garment({ id: "fall-tee", type: "t_shirt", seasons: ["fall"] }),
       garment({ id: "bottom", type: "jeans" }),
       garment({ id: "shoes", type: "sneakers" }),
     ];
@@ -193,8 +193,8 @@ describe("scoreOutfit", () => {
 
   it("favors liked tags and avoids disliked ones", () => {
     const closet = [
-      garment({ id: "red-tee", type: "t_shirt", color: "red" }),
-      garment({ id: "blue-tee", type: "t_shirt", color: "blue" }),
+      garment({ id: "red-tee", type: "t_shirt", colors: ["red"] }),
+      garment({ id: "blue-tee", type: "t_shirt", colors: ["blue"] }),
       garment({ id: "bottom", type: "jeans" }),
       garment({ id: "shoes", type: "sneakers" }),
     ];
@@ -207,8 +207,8 @@ describe("scoreOutfit", () => {
 
   it("keeps avoiding a strongly disliked item even when it is the freshest option", () => {
     const closet = [
-      garment({ id: "red-fresh", type: "t_shirt", color: "red", last_worn_date: null }),
-      garment({ id: "blue-worn", type: "t_shirt", color: "blue", last_worn_date: "2026-10-04" }),
+      garment({ id: "red-fresh", type: "t_shirt", colors: ["red"], last_worn_date: null }),
+      garment({ id: "blue-worn", type: "t_shirt", colors: ["blue"], last_worn_date: "2026-10-04" }),
       garment({ id: "bottom", type: "jeans" }),
       garment({ id: "shoes", type: "sneakers" }),
     ];
@@ -218,8 +218,8 @@ describe("scoreOutfit", () => {
 
   it("does not let preferences override clear weather mismatches", () => {
     const closet = [
-      garment({ id: "loved-tee", type: "t_shirt", color: "red", warmth: 1 }),
-      garment({ id: "sweater", type: "sweater", color: "gray", warmth: 4 }),
+      garment({ id: "loved-tee", type: "t_shirt", colors: ["red"], warmth: 1 }),
+      garment({ id: "sweater", type: "sweater", colors: ["gray"], warmth: 4 }),
       garment({ id: "jeans", type: "jeans", warmth: 4 }),
       garment({ id: "boots", type: "boots", warmth: 5 }),
     ];
@@ -288,8 +288,8 @@ describe("scoreOutfit invariants (random closets)", () => {
       const closet = Array.from({ length: Math.floor(rand() * 25) }, () =>
         garment({
           type: pick(GARMENT_TYPES),
-          color: pick(COLORS),
-          season: pick(SEASONS),
+          colors: [pick(COLORS)],
+          seasons: [pick(SEASONS)],
           warmth: pick([1, 2, 3, 4, 5] as const),
           status: rand() < 0.3 ? "dirty" : "clean",
           last_worn_date: rand() < 0.5 ? null : `2026-09-${String(1 + Math.floor(rand() * 28)).padStart(2, "0")}`,

@@ -1,14 +1,14 @@
 import { decode } from "base64-arraybuffer";
 import * as ImageManipulator from "expo-image-manipulator";
 import * as ImagePicker from "expo-image-picker";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { Button } from "../components/common/Button";
 import { ErrorLine } from "../components/common/ErrorLine";
 import { Icon, type IconName } from "../components/common/Icon";
 import { Screen } from "../components/common/Screen";
 import { GarmentForm } from "../components/closet/GarmentForm";
-import { addPhoto, confirmTag, discardPhoto, saveGarment, setTag, unconfirmedFields, type ReviewState } from "../services/add";
+import { SLOW_ANALYSIS_MS, addPhoto, confirmTag, discardPhoto, saveGarment, setTag, unconfirmedFields, type ReviewState } from "../services/add";
 import type { CropRegion, Size } from "../services/crop";
 import { initialCropRegion, replaceWithCrop } from "../services/cropSuggestion";
 import { draftFromTags } from "../services/garment";
@@ -68,6 +68,18 @@ export function AddScreen({ userId }: { userId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
+  // True once reading the photo has taken longer than SLOW_ANALYSIS_MS: then the person is offered to type the tags.
+  const [slow, setSlow] = useState(false);
+  const typeYourself = useRef<(() => void) | null>(null);
+
+  // Starts the clock while a photo is being uploaded and read, and clears it when that is over.
+  const working = step.kind === "working";
+  useEffect(() => {
+    if (!working) return;
+    setSlow(false);
+    const timer = setTimeout(() => setSlow(true), SLOW_ANALYSIS_MS);
+    return () => clearTimeout(timer);
+  }, [working]);
 
   async function handlePicked(result: ImagePicker.ImagePickerResult) {
     if (result.canceled) return;
@@ -87,7 +99,11 @@ export function AddScreen({ userId }: { userId: string }) {
   // garment if the AI found it, otherwise around the whole photo. The person can use it, drag it, or keep the photo.
   async function analyze(uri: string, base64: string, expected: Size) {
     setStep({ kind: "working" });
-    const added = await addPhoto(addGateway, userId, { data: decode(base64), extension: "jpg" }, newPhotoId);
+    const gaveUp = new Promise<void>((resolve) => {
+      typeYourself.current = resolve;
+    });
+    const added = await addPhoto(addGateway, userId, { data: decode(base64), extension: "jpg" }, newPhotoId, gaveUp);
+    typeYourself.current = null;
     if (!added.ok) {
       setStep({ kind: "choose" });
       setError(added.error);
@@ -223,6 +239,13 @@ export function AddScreen({ userId }: { userId: string }) {
         <View style={styles.working}>
           <ActivityIndicator color={colors.ink} />
           <Text style={type.body}>Uploading and reading your photo…</Text>
+          {slow && (
+            <View style={styles.slow}>
+              <Text style={styles.slowText}>This is taking longer than usual.</Text>
+              <Button label="Enter the tags myself" onPress={() => typeYourself.current?.()} />
+              <Text style={type.caption}>Or keep waiting: the AI may still answer.</Text>
+            </View>
+          )}
         </View>
       </Screen>
     );
@@ -296,6 +319,8 @@ const styles = StyleSheet.create({
   tipText: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, color: colors.ink },
   tipLabel: { fontFamily: fonts.bold },
   working: { alignItems: "center", gap: 16, paddingVertical: 64 },
+  slow: { alignSelf: "stretch", alignItems: "center", gap: 12, marginTop: 16 },
+  slowText: { fontFamily: fonts.semibold, fontSize: 15, color: colors.ink },
   reviewHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   retake: { flexDirection: "row", alignItems: "center", minWidth: 84, minHeight: 44 },
   retakeText: { fontFamily: fonts.semibold, fontSize: 15, color: colors.ink },

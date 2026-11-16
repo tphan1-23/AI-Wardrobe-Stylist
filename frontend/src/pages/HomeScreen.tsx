@@ -9,6 +9,7 @@ import { signOut } from "../services/auth";
 import { leaveHousehold, type Overview } from "../services/household";
 import { gateway, supabase } from "../services/supabase";
 import { colors, fonts, radius, size, type } from "../theme";
+import { DeleteAccountScreen } from "./DeleteAccountScreen";
 import { HouseholdScreen } from "./HouseholdScreen";
 import { LocationScreen } from "./LocationScreen";
 
@@ -19,7 +20,7 @@ interface Props {
 
 export function HomeScreen({ overview, onChanged }: Props) {
   const { profile, household, members } = overview;
-  const [subscreen, setSubscreen] = useState<"location" | "share" | null>(null);
+  const [subscreen, setSubscreen] = useState<"location" | "share" | "delete" | null>(null);
   const [copied, setCopied] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const [leaveError, setLeaveError] = useState<string | null>(null);
@@ -42,6 +43,9 @@ export function HomeScreen({ overview, onChanged }: Props) {
   }
   if (subscreen === "share") {
     return <HouseholdScreen onBack={() => setSubscreen(null)} onDone={finish} />;
+  }
+  if (subscreen === "delete") {
+    return <DeleteAccountScreen onBack={() => setSubscreen(null)} />;
   }
 
   const inviteCode = household?.invite_code.toUpperCase() ?? "";
@@ -137,12 +141,18 @@ export function HomeScreen({ overview, onChanged }: Props) {
           </View>
         )}
         <Button label="Log out" variant="secondary" onPress={() => signOut(supabase.auth)} disabled={leaving} />
+        <Pressable accessibilityRole="button" onPress={() => setSubscreen("delete")} disabled={leaving} hitSlop={8} style={styles.deleteLink}>
+          <Text style={styles.deleteText}>Delete account and data</Text>
+        </Pressable>
       </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  // Deliberately plain text, not a button: it is rare, serious, and must not be tapped by accident.
+  deleteLink: { alignSelf: "center", minHeight: 44, justifyContent: "center", paddingHorizontal: 12 },
+  deleteText: { fontFamily: fonts.semibold, fontSize: 15, color: colors.ink, textDecorationLine: "underline" },
   card: { borderWidth: size.border, borderColor: colors.ink, borderRadius: radius.card, padding: 18, gap: 4 },
   householdName: { fontFamily: fonts.bold, fontSize: 20, color: colors.ink },
   gap: { marginTop: 12 },

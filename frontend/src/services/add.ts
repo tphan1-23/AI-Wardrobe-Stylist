@@ -12,9 +12,9 @@ import {
   SEASONS,
   WARMTH_MAX,
   WARMTH_MIN,
-  isColor,
+  isColorList,
   isGarmentType,
-  isSeason,
+  isSeasonList,
   isWarmth,
   type Warmth,
 } from "../../../supabase/functions/_shared/tag-schema.ts";
@@ -22,7 +22,7 @@ import type { AnalyzeGarmentResponse, CropBox, GarmentTags, UUID } from "../../.
 import type { GatewayResult, Result } from "./household.ts";
 import { unexpectedError } from "./errors.ts";
 
-export const TAG_FIELDS = ["type", "color", "season", "warmth"] as const satisfies readonly (keyof GarmentTags)[];
+export const TAG_FIELDS = ["type", "colors", "seasons", "warmth"] as const satisfies readonly (keyof GarmentTags)[];
 export type TagField = (typeof TAG_FIELDS)[number];
 
 // analyze-garment accepts these (about 5 MB at most).
@@ -132,8 +132,8 @@ export interface ReviewState {
 function validTags(tags: Partial<GarmentTags>): Partial<GarmentTags> {
   const out: Partial<GarmentTags> = {};
   if (isGarmentType(tags.type)) out.type = tags.type;
-  if (isColor(tags.color)) out.color = tags.color;
-  if (isSeason(tags.season)) out.season = tags.season;
+  if (isColorList(tags.colors)) out.colors = tags.colors;
+  if (isSeasonList(tags.seasons)) out.seasons = tags.seasons;
   if (isWarmth(tags.warmth)) out.warmth = tags.warmth;
   return out;
 }
@@ -183,7 +183,7 @@ export function unconfirmedFields(state: ReviewState): TagField[] {
   return state.needsReview.filter((f) => !state.confirmed.includes(f));
 }
 
-const FIELD_NAMES: Record<TagField, string> = { type: "type", color: "color", season: "season", warmth: "warmth" };
+const FIELD_NAMES: Record<TagField, string> = { type: "type", colors: "colors", seasons: "seasons", warmth: "warmth" };
 
 export function validateReview(state: ReviewState): string | null {
   const missing = TAG_FIELDS.filter((f) => state.tags[f] === undefined);
@@ -216,20 +216,42 @@ async function guard<T>(run: () => Promise<GatewayResult<T>>): Promise<GatewayRe
 // Uploads the photo, asks the AI for tags and returns the review state.
 // If the AI is busy or down (429, 502) the person still gets a review state, filled in by hand.
 // If the photo itself is the problem it is removed again so no orphan is left in storage.
+//
+// `typeYourself` lets the person stop waiting: when it resolves (they tapped "Enter tags myself" because the AI was
+// slow) the answer is no longer waited for and they get the same hand-filled review as when the AI is down. The photo
+// is still uploaded and kept. Whatever the AI says afterwards is ignored.
+export const SLOW_ANALYSIS_MS = 6000;
+
 export async function addPhoto(
   gateway: AddGateway,
   userId: UUID,
   photo: PickedPhoto,
   newId: () => string,
+  typeYourself?: Promise<void>,
 ): Promise<Result<ReviewState>> {
   const problem = validatePhoto(photo);
   if (problem) return { ok: false, error: problem };
+
+  // Listen for "I will type them" from the start, so a choice made during the upload is not missed.
+  const GAVE_UP = { gaveUp: true } as const;
+  let alreadyGaveUp = false;
+  const gaveUp = typeYourself?.then(
+    () => ((alreadyGaveUp = true), GAVE_UP),
+    () => ((alreadyGaveUp = true), GAVE_UP),
+  );
 
   const path = photoPath(userId, newId(), photo.extension);
   const uploaded = await guard(() => gateway.uploadPhoto(path, photo.data, contentTypeFor(photo.extension)));
   if (uploaded.error) return { ok: false, error: friendlyAddError(uploaded.error.message) };
 
-  const analyzed = await guard(() => gateway.analyze(path));
+  // They gave up while the photo was still uploading: do not even ask the AI (it costs money and nobody will read it).
+  if (alreadyGaveUp) return { ok: true, value: manualReview(path, "You chose to enter the tags yourself.") };
+  const analysis = guard(() => gateway.analyze(path));
+  analysis.catch(() => undefined); // an answer that arrives after the person gave up is not needed
+  const analyzed = gaveUp ? await Promise.race([analysis, gaveUp]) : await analysis;
+  if ("gaveUp" in analyzed) {
+    return { ok: true, value: manualReview(path, "You chose to enter the tags yourself.") };
+  }
   if (!analyzed.error && analyzed.data) return { ok: true, value: reviewFromAnalysis(path, analyzed.data) };
 
   const status = analyzed.error?.status;
@@ -260,8 +282,8 @@ export function friendlyAddError(message: string, status?: number): string {
 export async function saveGarment(gateway: AddGateway, userId: UUID, state: ReviewState): Promise<Result<true>> {
   const problem = validateReview(state);
   if (problem) return { ok: false, error: problem };
-  const { type, color, season, warmth } = state.tags as GarmentTags;
-  const saved = await guard(() => gateway.insertGarment({ owner_id: userId, image_path: state.photoPath, type, color, season, warmth }));
+  const { type, colors, seasons, warmth } = state.tags as GarmentTags;
+  const saved = await guard(() => gateway.insertGarment({ owner_id: userId, image_path: state.photoPath, type, colors, seasons, warmth }));
   if (saved.error) return { ok: false, error: friendlyAddError(saved.error.message, saved.error.status) };
   return { ok: true, value: true };
 }

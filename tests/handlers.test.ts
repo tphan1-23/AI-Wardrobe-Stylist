@@ -20,9 +20,9 @@ const HOUSEHOLD = "house-1";
 const HOUSEMATE = "user-2";
 const MILD: WeatherSnapshot = { temp_c: 18, feels_like_c: 18, is_precipitating: false };
 
-const g = (id: string, type: Garment["type"], color: Garment["color"], extra: Partial<Garment> = {}): Garment => ({
-  id, owner_id: USER, image_path: `${USER}/${id}.jpg`, type, color,
-  season: "all", warmth: 2, status: "clean", last_worn_date: null, ...extra,
+const g = (id: string, type: Garment["type"], color: Garment["colors"][number], extra: Partial<Garment> = {}): Garment => ({
+  id, owner_id: USER, image_path: `${USER}/${id}.jpg`, type, colors: [color],
+  seasons: ["all"], warmth: 2, status: "clean", last_worn_date: null, ...extra,
 });
 const closet = (): Garment[] => [
   g("t-red", "t_shirt", "red"), g("t-blue", "t_shirt", "blue"),

@@ -15,7 +15,7 @@ import type { AnalyzeGarmentResponse } from "../supabase/functions/_shared/types
 
 const USER = "11111111-1111-1111-1111-111111111111";
 const OTHER = "22222222-2222-2222-2222-222222222222";
-const tagged: AnalyzeGarmentResponse = { tags: { type: "jeans", color: "blue", season: "all", warmth: 3 }, confidence: {}, needs_review: [], warnings: [] };
+const tagged: AnalyzeGarmentResponse = { tags: { type: "jeans", colors: ["blue"], seasons: ["all"], warmth: 3 }, confidence: {}, needs_review: [], warnings: [] };
 
 describe("isOwnPhotoPath", () => {
   it("accepts a photo in the user's own folder", () => {

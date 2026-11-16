@@ -91,7 +91,7 @@ describe("loadGarments", () => {
     expect((await supabaseTodayGateway(client).loadGarments(["g-1", "g-2"])).data).toEqual([{ id: "g-1" }]);
     expect(ops).toEqual([
       ["from", "garments"],
-      ["select", "id, type, color, season, warmth, status, image_path"],
+      ["select", "id, type, colors, seasons, warmth, status, image_path"],
       ["in", "id", ["g-1", "g-2"]],
     ]);
   });

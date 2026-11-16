@@ -9,10 +9,13 @@ import {
   WARMTH_LABELS,
   WARMTH_OPTIONS,
   colorLabel,
+  toggleColor,
+  toggleSeason,
   typeLabel,
   type GarmentDraft,
   type TagField,
 } from "../../services/garment";
+import { MAX_COLORS } from "../../../../supabase/functions/_shared/tag-schema";
 import type { GarmentTags } from "../../../../supabase/functions/_shared/types";
 import { colors, fonts, size, type } from "../../theme";
 import { Chip } from "../common/Chip";
@@ -64,7 +67,7 @@ function Field({
   );
 }
 
-// The four tags of a garment (type, color, season, warmth). Used to review what the AI
+// The four tags of a garment (type, colors, seasons, warmth). Used to review what the AI
 // suggested (Add) and to edit a saved garment (Closet).
 export function GarmentForm({ draft, attention = [], onChoose, onConfirm }: Props) {
   const flag = (field: TagField) => attention.includes(field);
@@ -83,18 +86,22 @@ export function GarmentForm({ draft, attention = [], onChoose, onConfirm }: Prop
         ))}
       </Field>
 
-      <Field field="color" needsCheck={flag("color")} hasValue={draft.color !== null} onConfirm={onConfirm}>
+      <Field field="colors" needsCheck={flag("colors")} hasValue={draft.colors !== null} onConfirm={onConfirm}>
+        <Text style={type.caption}>
+          Pick up to {MAX_COLORS}. The first one you pick is the main color{draft.colors ? ` (${colorLabel(draft.colors[0]!)})` : ""}.
+        </Text>
         <View style={styles.chips}>
           {COLOR_OPTIONS.map((c) => (
-            <Chip key={c} role="radio" label={colorLabel(c)} selected={draft.color === c} onPress={() => onChoose("color", c)} />
+            <Chip key={c} label={colorLabel(c)} selected={draft.colors?.includes(c) ?? false} onPress={() => onChoose("colors", toggleColor(draft.colors, c))} />
           ))}
         </View>
       </Field>
 
-      <Field field="season" needsCheck={flag("season")} hasValue={draft.season !== null} onConfirm={onConfirm}>
+      <Field field="seasons" needsCheck={flag("seasons")} hasValue={draft.seasons !== null} onConfirm={onConfirm}>
+        <Text style={type.caption}>Pick every season it suits, or All seasons.</Text>
         <View style={styles.chips}>
           {SEASON_OPTIONS.map((s) => (
-            <Chip key={s} role="radio" label={SEASON_LABELS[s]} selected={draft.season === s} onPress={() => onChoose("season", s)} />
+            <Chip key={s} label={SEASON_LABELS[s]} selected={draft.seasons?.includes(s) ?? false} onPress={() => onChoose("seasons", toggleSeason(draft.seasons, s))} />
           ))}
         </View>
       </Field>

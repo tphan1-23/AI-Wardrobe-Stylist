@@ -75,7 +75,7 @@ const rpc = (w: Who, fn: string, args: object = {}) => call(`/rest/v1/rpc/${fn}`
 async function addGarment(w: Who, type: string, path: string): Promise<string | null> {
   const r = await call("/rest/v1/garments", {
     token: w.token,
-    json: { owner_id: w.uid, image_path: path, type, color: "white", season: "all", warmth: 2, status: "clean" },
+    json: { owner_id: w.uid, image_path: path, type, colors: ["white"], seasons: ["all"], warmth: 2, status: "clean" },
     headers: { prefer: "return=representation" },
   });
   if (r.status !== 201 || !r.body[0]?.id) return null;
@@ -140,7 +140,7 @@ async function main() {
   check(del.status >= 400 || (Array.isArray(del.body) && del.body.length === 0), "B's attempt to delete A's garment removed nothing", `HTTP ${del.status}`);
   const still = await call(`/rest/v1/garments?select=status&id=eq.${gid}`, { token: a.token });
   check(still.body[0]?.status === "clean", "A's garment is still there and still clean");
-  const forged = await call("/rest/v1/garments", { token: b.token, json: { owner_id: a.uid, image_path: pathA, type: "shirt", color: "red", season: "all", warmth: 2 } });
+  const forged = await call("/rest/v1/garments", { token: b.token, json: { owner_id: a.uid, image_path: pathA, type: "shirt", colors: ["red"], seasons: ["all"], warmth: 2 } });
   check(forged.status === 403 || forged.status === 401, "B cannot create a garment in A's name", `HTTP ${forged.status}`);
   const foreignUpload = await call(`/storage/v1/object/garments/${a.uid}/${randomUUID()}.png`, { token: b.token, raw: PIXEL, mime: "image/png" });
   check(foreignUpload.status >= 400 && foreignUpload.status < 500, "B cannot upload into A's photo folder", `HTTP ${foreignUpload.status}`);

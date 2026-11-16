@@ -100,7 +100,7 @@ async function main() {
   };
 
   console.log("3. Security rules reject what they should");
-  const forged = await call("/rest/v1/garments", { token, json: { owner_id: randomUUID(), image_path: "x/y.jpg", type: "jeans", color: "blue", season: "all", warmth: 3 } });
+  const forged = await call("/rest/v1/garments", { token, json: { owner_id: randomUUID(), image_path: "x/y.jpg", type: "jeans", colors: ["blue"], seasons: ["all"], warmth: 3 } });
   check(forged.status === 403 || forged.status === 401, "cannot insert a garment owned by someone else", `HTTP ${forged.status}`);
   const foreignUpload = await call(`/storage/v1/object/garments/${randomUUID()}/x.png`, { token, raw: Buffer.from("x"), mime: "image/png" });
   check(foreignUpload.status >= 400 && foreignUpload.status < 500, "cannot upload into someone else's photo folder", `HTTP ${foreignUpload.status}`);
@@ -117,9 +117,9 @@ async function main() {
     const up = await call(`/storage/v1/object/garments/${path}`, { token, raw: readFileSync(join(dir, file)), mime: MIME[extname(file).toLowerCase()] });
     if (!check(up.status === 200, `uploaded photo #${i + 1}`, `HTTP ${up.status}`)) continue;
     const tagged = await call("/functions/v1/analyze-garment", { token, json: { image_path: path } });
-    if (!check(tagged.status === 200 && !!tagged.body.tags?.type, `tagged photo #${i + 1}`, tagged.status === 200 ? `${tagged.body.tags.type}/${tagged.body.tags.color}` : `HTTP ${tagged.status} ${JSON.stringify(tagged.body).slice(0, 120)}`)) continue;
+    if (!check(tagged.status === 200 && !!tagged.body.tags?.type, `tagged photo #${i + 1}`, tagged.status === 200 ? `${tagged.body.tags.type}/${tagged.body.tags.colors}` : `HTTP ${tagged.status} ${JSON.stringify(tagged.body).slice(0, 120)}`)) continue;
     const t = tagged.body.tags;
-    const row = { owner_id: uid, image_path: path, type: t.type, color: t.color ?? "multicolor", season: t.season ?? "all", warmth: t.warmth ?? 3, status: "clean" };
+    const row = { owner_id: uid, image_path: path, type: t.type, colors: t.colors ?? ["multicolor"], seasons: t.seasons ?? ["all"], warmth: t.warmth ?? 3, status: "clean" };
     const ins = await call("/rest/v1/garments", { token, json: row, headers: { prefer: "return=representation" } });
     if (check(ins.status === 201 && !!ins.body[0]?.id, `saved garment #${i + 1}`, `HTTP ${ins.status}`)) made.push({ id: ins.body[0].id, path, type: t.type });
   }

@@ -11,15 +11,18 @@ interface Props {
   // Design offset (56 onboarding, 72 log in, 20 tab screens); see screenTopPadding.
   top?: number;
   titleStyle?: "display" | "title";
+  // Turned off while a finger drags something inside the screen (the crop frame), so the page does not scroll with it.
+  scrollEnabled?: boolean;
 }
 
-export function Screen({ children, title, subtitle, top = 56, titleStyle = "display" }: Props) {
+export function Screen({ children, title, subtitle, top = 56, titleStyle = "display", scrollEnabled = true }: Props) {
   const insets = useSafeAreaInsets();
   const paddingTop = screenTopPadding(top, insets.top);
   return (
     <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <ScrollView
         contentContainerStyle={[styles.content, { paddingTop }]}
+        scrollEnabled={scrollEnabled}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >

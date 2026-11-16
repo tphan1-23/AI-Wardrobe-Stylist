@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   COLOR_CHOICES,
   MAX_PHOTO_BYTES,
+  SLOW_ANALYSIS_MS,
   SEASON_CHOICES,
   TYPE_CHOICES,
   WARMTH_CHOICES,
@@ -32,7 +33,7 @@ import { GENERIC_ERROR } from "../frontend/src/services/errors.ts";
 const bytes = (n: number) => new ArrayBuffer(n);
 const photo = { data: bytes(10), extension: "JPG" };
 const analysis = (over: Partial<AnalyzeGarmentResponse> = {}): AnalyzeGarmentResponse => ({
-  tags: { type: "jeans", color: "blue", season: "all", warmth: 3 },
+  tags: { type: "jeans", colors: ["blue"], seasons: ["all"], warmth: 3 },
   confidence: {},
   needs_review: [],
   warnings: [],
@@ -84,22 +85,22 @@ describe("photo helpers", () => {
 
 describe("reviewFromAnalysis", () => {
   it("keeps valid tags and lists what the AI flagged", () => {
-    const state = reviewFromAnalysis("u/p.jpg", analysis({ needs_review: ["season"], warnings: ["blurry"] }));
-    expect(state).toMatchObject({ photoPath: "u/p.jpg", needsReview: ["season"], confirmed: [], manual: false, warnings: ["blurry"] });
-    expect(state.tags).toEqual({ type: "jeans", color: "blue", season: "all", warmth: 3 });
+    const state = reviewFromAnalysis("u/p.jpg", analysis({ needs_review: ["seasons"], warnings: ["blurry"] }));
+    expect(state).toMatchObject({ photoPath: "u/p.jpg", needsReview: ["seasons"], confirmed: [], manual: false, warnings: ["blurry"] });
+    expect(state.tags).toEqual({ type: "jeans", colors: ["blue"], seasons: ["all"], warmth: 3 });
   });
 
   it("drops invalid values and flags them even when the AI did not", () => {
-    const bad = analysis({ tags: { type: "spaceship", color: "blue", season: "monsoon", warmth: 9 } as never });
+    const bad = analysis({ tags: { type: "spaceship", colors: ["blue"], seasons: ["monsoon"], warmth: 9 } as never });
     const state = reviewFromAnalysis("u/p.jpg", bad);
-    expect(state.tags).toEqual({ color: "blue" });
-    expect(state.needsReview).toEqual(["type", "season", "warmth"]);
+    expect(state.tags).toEqual({ colors: ["blue"] });
+    expect(state.needsReview).toEqual(["type", "seasons", "warmth"]);
   });
 
   it("ignores unknown flagged field names and tolerates missing arrays", () => {
     const odd = { tags: {}, confidence: {}, needs_review: ["mood"] } as unknown as AnalyzeGarmentResponse;
     const state = reviewFromAnalysis("u/p.jpg", odd);
-    expect(state.needsReview).toEqual(["type", "color", "season", "warmth"]);
+    expect(state.needsReview).toEqual(["type", "colors", "seasons", "warmth"]);
     expect(state.warnings).toEqual([]);
     const noTags = { confidence: {} } as unknown as AnalyzeGarmentResponse;
     expect(reviewFromAnalysis("u/p.jpg", noTags).tags).toEqual({});
@@ -107,16 +108,16 @@ describe("reviewFromAnalysis", () => {
 });
 
 describe("review editing", () => {
-  const flagged = () => reviewFromAnalysis("u/p.jpg", analysis({ needs_review: ["season", "color"] }));
+  const flagged = () => reviewFromAnalysis("u/p.jpg", analysis({ needs_review: ["seasons", "colors"] }));
 
   it("requires every flagged field to be confirmed before saving", () => {
     let state = flagged();
-    expect(unconfirmedFields(state)).toEqual(["color", "season"]);
-    expect(validateReview(state)).toContain("Check the color, season");
-    state = confirmTag(state, "color");
-    expect(validateReview(state)).toContain("Check the season");
-    state = setTag(state, "season", "winter"); // editing counts as confirming
-    expect(state.tags.season).toBe("winter");
+    expect(unconfirmedFields(state)).toEqual(["colors", "seasons"]);
+    expect(validateReview(state)).toContain("Check the colors, seasons");
+    state = confirmTag(state, "colors");
+    expect(validateReview(state)).toContain("Check the seasons");
+    state = setTag(state, "seasons", ["winter", "fall"]); // editing counts as confirming
+    expect(state.tags.seasons).toEqual(["winter", "fall"]);
     expect(validateReview(state)).toBeNull();
   });
 
@@ -128,19 +129,19 @@ describe("review editing", () => {
   it("cannot confirm a field that has no value, and a repeated confirm changes nothing", () => {
     const empty = manualReview("u/p.jpg", "AI down");
     expect(confirmTag(empty, "type")).toBe(empty);
-    const state = confirmTag(flagged(), "color");
-    expect(confirmTag(state, "color")).toBe(state);
+    const state = confirmTag(flagged(), "colors");
+    expect(confirmTag(state, "colors")).toBe(state);
   });
 
   it("ignores values outside the tag schema", () => {
     const state = flagged();
-    expect(setTag(state, "color", "chartreuse" as never)).toBe(state);
+    expect(setTag(state, "colors", ["chartreuse"] as never)).toBe(state);
     expect(setTag(state, "warmth", 0 as never)).toBe(state);
   });
 
   it("reports missing fields before unconfirmed ones", () => {
     const manual = manualReview("u/p.jpg", "AI down");
-    expect(validateReview(manual)).toBe("Choose the type, color, season, warmth.");
+    expect(validateReview(manual)).toBe("Choose the type, colors, seasons, warmth.");
     expect(manual.manual).toBe(true);
     expect(manual.warnings).toEqual(["AI down"]);
   });
@@ -148,8 +149,8 @@ describe("review editing", () => {
   it("a manual review is saveable once every field is chosen", () => {
     let state = manualReview("u/p.jpg", "AI down");
     state = setTag(state, "type", "hoodie");
-    state = setTag(state, "color", "gray");
-    state = setTag(state, "season", "fall");
+    state = setTag(state, "colors", ["gray"]);
+    state = setTag(state, "seasons", ["fall"]);
     state = setTag(state, "warmth", 4);
     expect(validateReview(state)).toBeNull();
   });
@@ -164,6 +165,47 @@ describe("addPhoto", () => {
     expect(gateway.uploadPhoto).toHaveBeenCalledWith("u-1/id-1.jpg", photo.data, "image/jpeg");
     expect(gateway.analyze).toHaveBeenCalledWith("u-1/id-1.jpg");
     expect(result).toMatchObject({ ok: true, value: { photoPath: "u-1/id-1.jpg", manual: false } });
+  });
+
+  describe("when the AI is slow and the person chooses to type the tags", () => {
+    it("stops waiting for a slow AI and keeps the uploaded photo", async () => {
+      let answer: (value: Awaited<ReturnType<AddGateway["analyze"]>>) => void = () => {};
+      const gateway = fakeGateway({ analyze: vi.fn(() => new Promise((resolve) => { answer = resolve as typeof answer; })) as never });
+      let giveUp: () => void = () => {};
+      const typeYourself = new Promise<void>((resolve) => { giveUp = resolve; });
+
+      const pending = addPhoto(gateway, "u-1", photo, newId, typeYourself);
+      await vi.waitFor(() => expect(gateway.analyze).toHaveBeenCalled());
+      giveUp();
+
+      const result = await pending;
+      expect(result).toMatchObject({ ok: true, value: { photoPath: "u-1/id-1.jpg", manual: true, tags: {}, needsReview: ["type", "colors", "seasons", "warmth"] } });
+      expect(gateway.removePhoto).not.toHaveBeenCalled();
+      answer({ data: analysis(), error: null }); // a late answer changes nothing and does not throw
+    });
+
+    it("does not even ask the AI when the person gave up while the photo was still uploading", async () => {
+      let finishUpload: () => void = () => {};
+      const gateway = fakeGateway({
+        uploadPhoto: vi.fn(() => new Promise((resolve) => { finishUpload = () => resolve({ data: {}, error: null }); })) as never,
+      });
+      const pending = addPhoto(gateway, "u-1", photo, newId, Promise.resolve());
+      await vi.waitFor(() => expect(gateway.uploadPhoto).toHaveBeenCalled());
+      await Promise.resolve();
+      finishUpload();
+      expect(await pending).toMatchObject({ ok: true, value: { manual: true } });
+      expect(gateway.analyze).not.toHaveBeenCalled();
+    });
+
+    it("still uses the AI answer when it arrives before the person gives up", async () => {
+      const gateway = fakeGateway();
+      const result = await addPhoto(gateway, "u-1", photo, newId, new Promise<void>(() => {}));
+      expect(result).toMatchObject({ ok: true, value: { manual: false } });
+    });
+
+    it("offers the choice after about six seconds", () => {
+      expect(SLOW_ANALYSIS_MS).toBe(6000);
+    });
   });
 
   it("rejects a bad photo without uploading", async () => {
@@ -217,14 +259,14 @@ describe("saveGarment", () => {
     const gateway = fakeGateway();
     expect(await saveGarment(gateway, "u-1", ready())).toEqual({ ok: true, value: true });
     expect(gateway.insertGarment).toHaveBeenCalledWith({
-      owner_id: "u-1", image_path: "u-1/p.jpg", type: "jeans", color: "blue", season: "all", warmth: 3,
+      owner_id: "u-1", image_path: "u-1/p.jpg", type: "jeans", colors: ["blue"], seasons: ["all"], warmth: 3,
     });
   });
 
   it("refuses to save until the review is complete", async () => {
     const gateway = fakeGateway();
-    const flagged = reviewFromAnalysis("u-1/p.jpg", analysis({ needs_review: ["color"] }));
-    expect(await saveGarment(gateway, "u-1", flagged)).toMatchObject({ ok: false, error: expect.stringContaining("color") });
+    const flagged = reviewFromAnalysis("u-1/p.jpg", analysis({ needs_review: ["colors"] }));
+    expect(await saveGarment(gateway, "u-1", flagged)).toMatchObject({ ok: false, error: expect.stringContaining("colors") });
     expect(gateway.insertGarment).not.toHaveBeenCalled();
   });
 
@@ -280,12 +322,12 @@ describe("supabaseAddGateway", () => {
     expect((await g.uploadPhoto("u/p.jpg", bytes(1), "image/jpeg")).error).toBeNull();
     expect((await g.removePhoto("u/p.jpg")).error).toBeNull();
     expect((await g.analyze("u/p.jpg")).data?.tags.type).toBe("jeans");
-    expect((await g.insertGarment({ owner_id: "u", image_path: "u/p.jpg", type: "jeans", color: "blue", season: "all", warmth: 3 })).error).toBeNull();
+    expect((await g.insertGarment({ owner_id: "u", image_path: "u/p.jpg", type: "jeans", colors: ["blue"], seasons: ["all"], warmth: 3 })).error).toBeNull();
     expect(calls).toEqual([
       ["upload", "garments", "u/p.jpg", { contentType: "image/jpeg", upsert: false }],
       ["remove", "garments", ["u/p.jpg"]],
       ["invoke", "analyze-garment", { image_path: "u/p.jpg" }],
-      ["insert", "garments", { owner_id: "u", image_path: "u/p.jpg", type: "jeans", color: "blue", season: "all", warmth: 3 }],
+      ["insert", "garments", { owner_id: "u", image_path: "u/p.jpg", type: "jeans", colors: ["blue"], seasons: ["all"], warmth: 3 }],
     ]);
   });
 
@@ -293,7 +335,7 @@ describe("supabaseAddGateway", () => {
     const { client } = fakeClient({ upload: { data: null, error: { message: "nope" } }, insert: { data: null, error: { message: "denied" } } });
     const g = supabaseAddGateway(client);
     expect((await g.uploadPhoto("p", bytes(1), "image/png")).error).toEqual({ message: "nope" });
-    expect((await g.insertGarment({ owner_id: "u", image_path: "p", type: "jeans", color: "blue", season: "all", warmth: 3 })).error).toEqual({ message: "denied" });
+    expect((await g.insertGarment({ owner_id: "u", image_path: "p", type: "jeans", colors: ["blue"], seasons: ["all"], warmth: 3 })).error).toEqual({ message: "denied" });
   });
 
   it("keeps the HTTP status when the function fails", async () => {

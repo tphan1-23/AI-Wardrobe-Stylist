@@ -1,6 +1,6 @@
 // Turns untrusted vision-model output into the fixed tag schema. Never throws;
 // anything it cannot map is left out and flagged for the review screen.
-import { isColor, isGarmentType, isSeason, isWarmth } from "./tag-schema.ts";
+import { MAX_COLORS, isColor, isGarmentType, isSeason, isWarmth, normalizeSeasons, type Color, type Season } from "./tag-schema.ts";
 import type { AnalyzeGarmentResponse, CropBox, GarmentTags } from "./types.ts";
 
 export const LOW_CONFIDENCE = 0.6;
@@ -12,7 +12,7 @@ const TYPE_SYNONYMS: Record<string, string> = {
   button_up: "shirt", button_down: "shirt", dress_shirt: "shirt", polo: "shirt", polo_shirt: "shirt", top: "shirt",
   jumper: "sweater", pullover: "sweater", cardigan: "sweater", knit: "sweater", sweatshirt: "hoodie", hoody: "hoodie",
   denim: "jeans", pants: "trousers", slacks: "trousers", chinos: "trousers", dress_pants: "trousers",
-  short: "shorts", tights: "leggings", joggers: "sweatpants", track_pants: "sweatpants",
+  short: "shorts", stockings: "tights", pantyhose: "tights", hosiery: "tights", fleece_tights: "tights", thermal_tights: "tights", joggers: "sweatpants", track_pants: "sweatpants",
   sneaker: "sneakers", trainers: "sneakers", running_shoes: "sneakers", athletic_shoes: "sneakers",
   boot: "boots", sandal: "sandals", flip_flops: "sandals", loafers: "dress_shoes", oxfords: "dress_shoes",
   heels: "dress_shoes", dress_shoe: "dress_shoes", gown: "dress", blazer: "jacket", parka: "coat", overcoat: "coat",
@@ -62,13 +62,27 @@ export function extractJson(text: string): unknown {
   }
 }
 
-function resolveSeason(value: unknown, warnings: string[]): string | undefined {
-  if (!Array.isArray(value)) return resolve(value, SEASON_SYNONYMS, isSeason);
-  const seasons = [...new Set(value.map((v) => resolve(v, SEASON_SYNONYMS, isSeason)).filter((v): v is string => !!v))];
-  if (seasons.length === 0) return undefined;
-  if (seasons.length >= 3 || seasons.includes("all")) return "all";
-  if (seasons.length > 1) warnings.push(`multiple seasons (${seasons.join(", ")}); using ${seasons[0]}`);
-  return seasons[0];
+// A single value or a list, in the model's own order, with unrecognized entries dropped and repeats removed.
+function resolveList(value: unknown, synonyms: Record<string, string>, isValid: (v: unknown) => boolean): string[] {
+  const items = Array.isArray(value) ? value : [value];
+  return [...new Set(items.map((v) => resolve(v, synonyms, isValid)).filter((v): v is string => !!v))];
+}
+
+// Up to MAX_COLORS colors, main color first. Extra colors are dropped with a warning.
+function resolveColors(value: unknown, warnings: string[]): Color[] | undefined {
+  const colors = resolveList(value, COLOR_SYNONYMS, isColor) as Color[];
+  if (colors.length === 0) return undefined;
+  if (colors.length > MAX_COLORS) {
+    warnings.push(`more than ${MAX_COLORS} colors (${colors.join(", ")}); keeping the first ${MAX_COLORS}`);
+    return colors.slice(0, MAX_COLORS);
+  }
+  return colors;
+}
+
+// One or more seasons; "all" (or all four seasons) becomes ["all"].
+function resolveSeasons(value: unknown): Season[] | undefined {
+  const seasons = resolveList(value, SEASON_SYNONYMS, isSeason) as Season[];
+  return seasons.length === 0 ? undefined : normalizeSeasons(seasons);
 }
 
 function resolveWarmth(value: unknown): number | undefined {
@@ -122,18 +136,22 @@ export function validateTags(input: unknown): AnalyzeGarmentResponse {
   const tags: Partial<GarmentTags> = {};
   const type = resolve(obj?.type, TYPE_SYNONYMS, isGarmentType);
   if (type !== undefined) tags.type = type as GarmentTags["type"];
-  const color = resolve(obj?.color, COLOR_SYNONYMS, isColor);
-  if (color !== undefined) tags.color = color as GarmentTags["color"];
-  const season = resolveSeason(obj?.season, warnings);
-  if (season !== undefined) tags.season = season as GarmentTags["season"];
+  // The prompt asks for "colors" and "seasons"; an answer in the older single-value keys is still understood.
+  const rawColors = obj?.colors ?? obj?.color;
+  const rawSeasons = obj?.seasons ?? obj?.season;
+  const colors = resolveColors(rawColors, warnings);
+  if (colors !== undefined) tags.colors = colors;
+  const seasons = resolveSeasons(rawSeasons);
+  if (seasons !== undefined) tags.seasons = seasons;
   const warmth = resolveWarmth(obj?.warmth);
   if (warmth !== undefined) tags.warmth = warmth as GarmentTags["warmth"];
 
   const confidence: AnalyzeGarmentResponse["confidence"] = {};
   const needsReview: (keyof GarmentTags)[] = [];
-  for (const field of ["type", "color", "season", "warmth"] as const) {
+  const answered: Record<keyof GarmentTags, unknown> = { type: obj?.type, colors: rawColors, seasons: rawSeasons, warmth: obj?.warmth };
+  for (const field of ["type", "colors", "seasons", "warmth"] as const) {
     if (tags[field] === undefined) {
-      if (obj !== undefined && obj[field] !== undefined) warnings.push(`unrecognized ${field}: ${JSON.stringify(obj[field])}`);
+      if (answered[field] !== undefined) warnings.push(`unrecognized ${field}: ${JSON.stringify(answered[field])}`);
       needsReview.push(field);
       continue;
     }

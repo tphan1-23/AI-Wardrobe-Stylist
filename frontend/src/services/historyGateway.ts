@@ -66,7 +66,7 @@ export function supabaseHistoryGateway(client: HistoryClientLike): HistoryGatewa
     },
     async loadGarments(ids) {
       return typed<GarmentRow[]>(
-        await client.from("garments").select("id, type, color, season, warmth, status, image_path").in("id", ids),
+        await client.from("garments").select("id, type, colors, seasons, warmth, status, image_path").in("id", ids),
       );
     },
     signPhotos(paths) {

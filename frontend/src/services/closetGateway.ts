@@ -49,7 +49,7 @@ export function supabaseClosetGateway(client: ClosetClientLike): ClosetGateway {
       return typed<ClosetRow[]>(
         await client
           .from("garments")
-          .select("id, owner_id, type, color, season, warmth, status, favorite, image_path, created_at")
+          .select("id, owner_id, type, colors, seasons, warmth, status, favorite, image_path, created_at")
           .order("created_at", { ascending: false }),
       );
     },

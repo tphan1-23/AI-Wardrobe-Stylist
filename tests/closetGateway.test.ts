@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import type { GarmentChanges } from "../frontend/src/services/closet.ts";
 import { supabaseClosetGateway, type ClosetClientLike } from "../frontend/src/services/closetGateway.ts";
 import { GARMENT_BUCKET, PHOTO_LINK_SECONDS, SIGN_BATCH_SIZE, signPhotoUrls } from "../frontend/src/services/storage.ts";
 
@@ -37,7 +38,7 @@ describe("loadGarments", () => {
     expect(await supabaseClosetGateway(client).loadGarments()).toEqual({ data: rows, error: null });
     expect(ops).toEqual([
       ["from", "garments"],
-      ["select", "id, owner_id, type, color, season, warmth, status, favorite, image_path, created_at"],
+      ["select", "id, owner_id, type, colors, seasons, warmth, status, favorite, image_path, created_at"],
       ["order", "created_at", { ascending: false }],
     ]);
   });
@@ -51,7 +52,7 @@ describe("loadGarments", () => {
 describe("updateGarment", () => {
   it("changes only the chosen garment and asks for the changed row back", async () => {
     const { client, ops } = fakeClient({ data: [{ id: "g-1" }], error: null });
-    const changes = { type: "jeans", color: "blue", season: "all", warmth: 3, status: "dirty" } as const;
+    const changes = { type: "jeans", colors: ["blue"], seasons: ["all"], warmth: 3, status: "dirty" } as GarmentChanges;
     const result = await supabaseClosetGateway(client).updateGarment("g-1", changes);
     expect(result.error).toBeNull();
     expect(ops).toEqual([["from", "garments"], ["update", changes], ["eq", "id", "g-1"], ["select", "id"]]);
@@ -59,7 +60,7 @@ describe("updateGarment", () => {
 
   it("reports a refused update (zero rows changed) as a failure, not a success", async () => {
     const { client } = fakeClient({ data: [], error: null });
-    const changes = { type: "jeans", color: "blue", season: "all", warmth: 3, status: "clean" } as const;
+    const changes = { type: "jeans", colors: ["blue"], seasons: ["all"], warmth: 3, status: "clean" } as GarmentChanges;
     expect(await supabaseClosetGateway(client).updateGarment("someone-elses", changes)).toEqual({
       data: null,
       error: { message: "garment not found or not yours" },
@@ -67,7 +68,7 @@ describe("updateGarment", () => {
   });
 
   it("passes on a database error, and treats a non-list answer as a failure", async () => {
-    const changes = { type: "jeans", color: "blue", season: "all", warmth: 3, status: "clean" } as const;
+    const changes = { type: "jeans", colors: ["blue"], seasons: ["all"], warmth: 3, status: "clean" } as GarmentChanges;
     const failing = fakeClient({ data: null, error: { message: "boom" } });
     expect(await supabaseClosetGateway(failing.client).updateGarment("g", changes)).toEqual({ data: null, error: { message: "boom" } });
     const odd = fakeClient({ data: null, error: null });

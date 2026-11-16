@@ -38,7 +38,7 @@ async function one<T>(query: Query): Promise<T | null> {
   return (data ?? null) as T | null;
 }
 
-const GARMENT_COLUMNS = "id, owner_id, image_path, type, color, season, warmth, status, last_worn_date";
+const GARMENT_COLUMNS = "id, owner_id, image_path, type, colors, seasons, warmth, status, last_worn_date";
 
 export function generateOutfitDeps(db: Db, getWeather: (location: string) => Promise<WeatherSnapshot>): GenerateOutfitDeps {
   return {

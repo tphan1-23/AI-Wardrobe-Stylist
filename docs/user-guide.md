@@ -33,7 +33,7 @@ Shows today's outfit: **a top and a bottom, or a dress, plus shoes**, with their
 **Layers.** When it is cool (about 15°C / 59°F or below, a little sooner if you told the quiz you run cold) or raining, the
 app adds a **layer** on top: a jacket or coat, or a hoodie or sweater worn over a lighter top. In the rain it prefers a
 jacket or coat. Over a dress it only uses a jacket or coat. On a warm dry day there is no layer. If you have no clean
-jacket or coat, the outfit simply goes without one. The pieces are listed from the outer layer down to the shoes.
+jacket or coat, the outfit simply goes without one. When it is cold (about 12°C or below) and the outfit has a skirt, shorts or a dress, it adds your **tights** if you have a clean pair. The app also tries to keep outfits looking right: it avoids a thick hoodie under a jacket (a light one is fine), too many bright colors at once, and mixing very casual with very dressy pieces. The pieces are listed from the outer layer down to the shoes.
 
 - **✓ Wear this** marks the outfit as worn today and counts as a thumbs up. The clothes go to the laundry (shown as
   dirty in the Closet), except the shoes and any jacket or coat, which are not washed after every wear.
@@ -62,7 +62,7 @@ Adds one garment per photo.
 2. **Wait a few seconds** while the AI reads the photo, then **crop**. If the AI found the garment, the crop frame
    already sits around it (just the item, without the background): tap **Use cropped photo**, drag the frame to adjust it,
    or tap **Use full photo** to keep everything. If it did not find the garment, the frame starts around the whole picture.
-3. **Review the tags.** The AI proposes type, color, season and warmth. Anything it was unsure about is boxed with
+3. **Review the tags.** The AI proposes type, colors (up to 3, the first is the main one), seasons (one or several) and warmth. Anything it was unsure about is boxed with
    "Check this"; fix it or tap **Looks right**. You must check every boxed field before saving.
 4. **Confirm and save.** The garment appears in your Closet.
 
@@ -81,6 +81,7 @@ Your profile, location and (optionally) your household.
   last member leaves, the household is deleted.
 - **Change** next to Location updates where the weather comes from.
 - **Log out** is at the bottom.
+- **Delete account and data** (a plain link under Log out) removes your account, every garment and photo, your quiz answers, history and favorites, and your household if you were its last member. You type DELETE to confirm. It cannot be undone.
 
 ## 3. Tips
 

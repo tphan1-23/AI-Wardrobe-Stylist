@@ -1,6 +1,7 @@
 import "react-native-url-polyfill/auto";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createClient } from "@supabase/supabase-js";
+import { supabaseAccountGateway, type AccountClientLike } from "./accountGateway";
 import { supabaseAddGateway, type AddClientLike } from "./addGateway";
 import { supabaseClosetGateway, type ClosetClientLike } from "./closetGateway";
 import { supabaseHistoryGateway, type HistoryClientLike } from "./historyGateway";
@@ -27,6 +28,7 @@ export const supabase = createClient(url, anonKey, {
 
 // supabase-js's generic query types are too deep for TypeScript to check against
 // the small SupabaseLike interface, so the cast lives here, in one place.
+export const accountGateway = supabaseAccountGateway(supabase as unknown as AccountClientLike);
 export const gateway = supabaseGateway(supabase as unknown as SupabaseLike);
 export const todayGateway = supabaseTodayGateway(supabase as unknown as TodayClientLike);
 export const addGateway = supabaseAddGateway(supabase as unknown as AddClientLike);
