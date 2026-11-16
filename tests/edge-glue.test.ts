@@ -129,6 +129,8 @@ function fakeDb(replies: Record<string, Reply> = {}, download?: Download) {
         update: (v) => (calls.push(["update", v]), q),
         eq: (c, v) => (calls.push(["eq", c, v]), q),
         in: (c, v) => (calls.push(["in", c, v]), q),
+        order: (c, o) => (calls.push(["order", c, o]), q),
+        limit: (count) => (calls.push(["limit", count]), q),
         is: (c, v) => (calls.push(["is", c, v]), q),
         maybeSingle: () => (calls.push(["maybeSingle"]), q),
         single: () => (calls.push(["single"]), q),
@@ -177,6 +179,15 @@ describe("generateOutfitDeps queries", () => {
     expect(await generateOutfitDeps(f.db, weather).getSuggestionGarmentIds(USER, ["s1", "s2"])).toEqual([["a", "b"], ["c"]]);
     expect(f.calls).toContainEqual(["eq", "user_id", USER]);
     expect(f.calls).toContainEqual(["in", "id", ["s1", "s2"]]);
+  });
+
+  it("reads the newest Style Swipe ideas of this user, for variety", async () => {
+    const f = fakeDb({ suggestions: { data: [{ garment_ids: ["a"] }, { garment_ids: ["b", "c"] }] } });
+    expect(await generateOutfitDeps(f.db, weather).getRecentExploreGarmentIds!(USER, 30)).toEqual([["a"], ["b", "c"]]);
+    expect(f.calls).toContainEqual(["eq", "user_id", USER]);
+    expect(f.calls).toContainEqual(["eq", "kind", "explore"]);
+    expect(f.calls).toContainEqual(["order", "created_at", { ascending: false }]);
+    expect(f.calls).toContainEqual(["limit", 30]);
   });
 
   it("saves a suggestion and returns its id, or fails loudly", async () => {

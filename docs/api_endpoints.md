@@ -89,6 +89,8 @@ below, or it is raining. In the rain a jacket or coat gets a small bonus. A hood
 With a layer, the top or dress underneath may be one warmth step lighter. If no clean layer fits, or every outfit with one was
 rejected, the answer is an outfit without a layer.
 
+**Style Swipe (`purpose: "explore"`, D29).** The weather is ignored: no layer or tights are required, and the reasoning is a plain style idea, not a forecast. Ideas are spread over the whole closet (a random seed per request, a penalty for pieces in the last 30 ideas and this deck). For both Style Swipe and a re-roll (`exclude_suggestion_ids`), an outfit that keeps all but one piece of the most recent one is strongly avoided, so the next outfit looks different.
+
 **Style rules (D28).** After the weather, preference and repeat scores, three soft rules take a little off an outfit: a thick top (warmth 4 or more) under a jacket or coat (-0.20, not when it is freezing), more than two accent colors (-0.08 each), and a casual piece with a dressy one (-0.12). They only break ties between comparable outfits and never stop one when nothing else is available. See `_shared/style.ts`.
 
 **`incomplete`.** `missing_slots` lists what is missing from `top`, `bottom`, `shoes`. A dress stands in for `top` and `bottom`, so
