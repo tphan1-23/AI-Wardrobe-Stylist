@@ -25,6 +25,8 @@ export type HandlerResult<T> = { ok: true; body: T } | { ok: false; status: Hand
 export const fail = (status: HandlerStatus, error: string) => ({ ok: false, status, error }) as const;
 
 export const MAX_EXCLUDED_SUGGESTIONS = 50;
+// How many recent Style Swipe ideas count as "already shown" for variety.
+export const RECENT_EXPLORE_IDEAS = 30;
 
 function isRealDate(value: unknown): value is ISODate {
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
@@ -44,6 +46,10 @@ export interface GenerateOutfitDeps {
   getWeather(location: string): Promise<WeatherSnapshot>;
   // Garment ids of earlier suggestions of this user (for re-roll exclusion).
   getSuggestionGarmentIds(userId: UUID, suggestionIds: UUID[]): Promise<UUID[][]>;
+  // Garment ids of the user's most recent Style Swipe ideas (any session), so a new deck does not start where the last one did.
+  getRecentExploreGarmentIds?(userId: UUID, limit: number): Promise<UUID[][]>;
+  // A number between 0 and 1 (Math.random in production): it varies the ideas from request to request.
+  random?(): number;
   // `kind` is only set for explore ideas (today's suggestions use the column default).
   saveSuggestion(row: { user_id: UUID; date: ISODate; garment_ids: UUID[]; kind?: "explore" }): Promise<UUID>;
 }
@@ -72,10 +78,13 @@ export async function handleGenerateOutfit(
     return fail(502, "weather is unavailable right now");
   }
 
-  const [garments, preferences, excludedOutfits] = await Promise.all([
+  const [garments, preferences, excludedOutfits, recentExplore] = await Promise.all([
     deps.getOwnGarments(userId),
     deps.getPreferences(userId),
     exclude.length > 0 ? deps.getSuggestionGarmentIds(userId, exclude) : Promise.resolve([]),
+    purpose === "explore" && deps.getRecentExploreGarmentIds
+      ? deps.getRecentExploreGarmentIds(userId, RECENT_EXPLORE_IDEAS)
+      : Promise.resolve([]),
   ]);
 
   const result = scoreOutfit({
@@ -86,6 +95,12 @@ export async function handleGenerateOutfit(
     date: request.date,
     excludedOutfits,
     includeDirty: purpose === "explore",
+    // The outfits just shown, newest first: a new one should not be the last one with a single piece swapped.
+    recent: [...[...excludedOutfits].reverse(), ...recentExplore].slice(0, 3),
+    // Style Swipe is about taste, not the weather, and should not keep showing the same pieces.
+    ...(purpose === "explore"
+      ? { explore: { seed: Math.floor((deps.random?.() ?? Math.random()) * 2 ** 31), shown: [...recentExplore, ...excludedOutfits] } }
+      : {}),
   });
   if (result.status !== "ok") return { ok: true, body: { ...result, weather } };
 

@@ -356,9 +356,11 @@ describe("full loop through the handlers", () => {
     const secondHalf = redSuggestions.slice(Math.floor(redSuggestions.length / 2)).filter(Boolean).length;
     expect(b.state.prefs.find((p) => p.tag === "type:t_shirt")).toBeDefined();
     expect(secondHalf).toBeLessThanOrEqual(firstHalf);
-    // Observed pattern "..RR.RR........." : at most 4 early rejections, then red stops for good.
+    // Observed pattern "..R.R.R.R......." (since D28 a re-roll must differ from the rejected outfit in at least two pieces,
+    // so a rejected red outfit is followed by a different one, not by red with another bottom): at most 4 rejections,
+    // then red stops for good.
     expect(redSuggestions.filter(Boolean).length).toBeLessThanOrEqual(4);
-    expect(redSuggestions.slice(-8).some(Boolean)).toBe(false);
+    expect(redSuggestions.slice(-6).some(Boolean)).toBe(false);
   });
 });
 

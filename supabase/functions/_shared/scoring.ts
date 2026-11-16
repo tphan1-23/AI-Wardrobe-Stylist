@@ -62,6 +62,55 @@ export interface OutfitInput {
   excludedOutfits?: UUID[][];
   // Style Swipe ideas (purpose "explore") are only for training the AI, so laundry status is ignored.
   includeDirty?: boolean;
+  // The outfits shown just before this one, newest first (the rejected ones on a re-roll, the ideas already swiped in Style
+  // Swipe). The new outfit is pushed to differ from them: see SIMILAR_* below. Optional, and only a nudge.
+  recent?: UUID[][];
+  // Style Swipe is about taste, not today's weather: with this set, temperature, season, rain and "when to add a layer"
+  // play no part, layers and tights are simply allowed when they look good, and the ideas are spread over the whole
+  // closet instead of coming back to the same few pieces (see VARIETY_* below).
+  explore?: {
+    // Different for every request, so two decks do not start the same way. The engine stays deterministic for a seed.
+    seed: number;
+    // Garment ids of the ideas already shown (this deck and recent ones): a piece shown before is less likely to come back.
+    shown: UUID[][];
+  };
+}
+
+// How much explore mode spreads ideas out. A random nudge per garment (0 up to VARIETY_JITTER) so the best piece does not
+// win every time, and a penalty for each earlier idea a piece was already in (at most VARIETY_MAX_REPEATS counted).
+export const VARIETY_JITTER = 0.2;
+export const VARIETY_REPEAT_PENALTY = 0.12;
+export const VARIETY_MAX_REPEATS = 4;
+
+// "Looks the same as the last one" is more than the exact same outfit: an outfit that keeps all but one piece of the previous
+// one (or half of them, or fewer) reads as the same outfit with one swap. Such an outfit loses SIMILAR_PENALTY, which is
+// enough to pick almost anything else, but not a ban (a tiny closet still gets an answer). Beyond that every piece shared
+// with a recent outfit costs OVERLAP_PENALTY, counted less the older that outfit is.
+export const SIMILAR_PENALTY = 0.5;
+export const OVERLAP_PENALTY = 0.08;
+export const RECENT_WEIGHTS = [1, 0.5, 0.25] as const;
+
+// How much a set of garment ids looks like the outfits shown just before (0 = not at all).
+export function similarityPenalty(ids: readonly UUID[], recent: readonly (readonly UUID[])[]): number {
+  let penalty = 0;
+  recent.slice(0, RECENT_WEIGHTS.length).forEach((previous, index) => {
+    const shared = ids.filter((id) => previous.includes(id)).length;
+    if (shared === 0) return;
+    const different = ids.length - shared;
+    // The newest outfit only: it has to differ in at least half of its pieces (rounded up).
+    if (index === 0 && different < Math.ceil(ids.length / 2)) penalty += SIMILAR_PENALTY;
+    penalty += OVERLAP_PENALTY * RECENT_WEIGHTS[index]! * shared;
+  });
+  return penalty;
+}
+
+// A small deterministic number between 0 and 1 for a garment and a seed (FNV-1a over the id, mixed with the seed).
+export function jitterOf(id: string, seed: number): number {
+  let h = (2166136261 ^ (seed >>> 0)) >>> 0;
+  for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619) >>> 0;
+  h = Math.imul(h ^ (h >>> 15), 2246822507) >>> 0;
+  h = Math.imul(h ^ (h >>> 13), 3266489909) >>> 0;
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
 }
 
 export function garmentTags(g: Pick<Garment, "type" | "colors" | "seasons">): string[] {
@@ -137,8 +186,12 @@ export function scoreOutfit(input: OutfitInput): OutfitResult {
   const targetWithTights = Math.max(1, target - WARMTH_DROP_WITH_TIGHTS);
   const season = seasonOf(date);
   const weights = new Map(input.preferences.map((p) => [p.tag, p.weight]));
-  const reason = layerReason(weather, input.tempComfort);
-  const coldLegs = legsCold(weather, input.tempComfort);
+  const explore = input.explore;
+  // In explore mode the weather decides nothing: no required layer, no required tights.
+  const reason = explore ? null : layerReason(weather, input.tempComfort);
+  const coldLegs = explore ? false : legsCold(weather, input.tempComfort);
+  const timesShown = new Map<UUID, number>();
+  for (const ids of explore?.shown ?? []) for (const id of ids) timesShown.set(id, (timesShown.get(id) ?? 0) + 1);
 
   const tops: ScoredGarment[] = [];
   const bottoms: ScoredGarment[] = [];
@@ -151,6 +204,17 @@ export function scoreOutfit(input: OutfitInput): OutfitResult {
   const score = (garment: Garment, goal: number, bonus = 0): number => {
     const preference = preferenceScore(garment, weights);
     const repeat = repeatPenalty(garment, date);
+    if (explore) {
+      // Taste only: a constant stands in for the weather term, "worn recently" does not matter for an idea, and a nudge
+      // plus a penalty for pieces already shown spread the ideas over the closet.
+      const shown = Math.min(timesShown.get(garment.id) ?? 0, VARIETY_MAX_REPEATS);
+      return (
+        WEIGHTS.weather * 0.5 +
+        WEIGHTS.preference * preference +
+        VARIETY_JITTER * jitterOf(garment.id, explore.seed) -
+        VARIETY_REPEAT_PENALTY * shown
+      );
+    }
     return (
       WEIGHTS.weather * (weatherFit(garment, goal, season, weather) + bonus) +
       WEIGHTS.preference * preference -
@@ -176,7 +240,7 @@ export function scoreOutfit(input: OutfitInput): OutfitResult {
     if (role === "top") {
       tops.push(scored(garment, plain, lighter));
       // A hoodie or sweater can also be the layer, but only when it is cool (not merely wet).
-      if (isOverTop(garment.type) && (reason === "cool" || reason === "cool and wet")) {
+      if (isOverTop(garment.type) && (explore || reason === "cool" || reason === "cool and wet")) {
         overTops.push(scored(garment, plain, plain));
       }
     } else if (role === "bottom") bottoms.push(scored(garment, plain, plain, withTights));
@@ -216,7 +280,7 @@ export function scoreOutfit(input: OutfitInput): OutfitResult {
   const outerList = best15(outerwear);
   const overList = best15(overTops);
   // Tights only matter when it is cold enough for bare legs to need them, and only the best few are tried.
-  const tightsList = coldLegs ? [...tights].sort(byBest).slice(0, MAX_TIGHTS_CANDIDATES) : [];
+  const tightsList = coldLegs || explore ? [...tights].sort(byBest).slice(0, MAX_TIGHTS_CANDIDATES) : [];
 
   const excluded = new Set((input.excludedOutfits ?? []).map(outfitKey));
   interface Candidate {
@@ -247,7 +311,10 @@ export function scoreOutfit(input: OutfitInput): OutfitResult {
       layer: layer?.garment,
       targetWarmth: target,
     });
-    const value = points.reduce((a, b) => a + b, 0) / points.length - penalty;
+    const value =
+      points.reduce((a, b) => a + b, 0) / points.length -
+      penalty -
+      similarityPenalty(pieces.map((p) => p.garment.id), input.recent ?? []);
     const candidate: Candidate = { outfit, items, layer, tights: tightsPiece, score: value, key };
     const better = (current: Candidate | null) =>
       current === null || value > current.score || (value === current.score && key < current.key);
@@ -258,15 +325,17 @@ export function scoreOutfit(input: OutfitInput): OutfitResult {
 
   // Bare legs in the cold get tights when there are any: a skirt, shorts or dress is only offered with a pair. With no
   // tights in the closet nothing changes: they are offered on their own and the warmth score decides.
-  const coldBareLegs = tightsList.length > 0;
+  const coldBareLegs = coldLegs && tightsList.length > 0;
 
-  const layers = reason === null ? [] : [...outerList, ...overList];
+  // In explore mode a layer or tights are optional: they are simply part of the idea when that scores better.
+  const layers = reason === null && !explore ? [] : [...outerList, ...overList];
   for (const shoe of shoeList) {
     // Top + bottom + shoes, with a layer when the weather calls for one, and tights under a skirt or shorts when it is cold.
     for (const t of topList) {
       for (const b of bottomList) {
         const bare = showsLegs(b.garment.type);
-        const tightsOptions: (ScoredGarment | null)[] = bare && coldBareLegs ? tightsList : [null];
+        const tightsOptions: (ScoredGarment | null)[] =
+          bare && coldBareLegs ? tightsList : bare && explore ? [null, ...tightsList] : [null];
         for (const tp of tightsOptions) {
           // Tights make a skirt or shorts one step lighter; without them it is scored as it is.
           const bottomScore = tp ? b.scoreWithTights : b.score;
@@ -284,13 +353,13 @@ export function scoreOutfit(input: OutfitInput): OutfitResult {
     }
     // Dress + shoes: a dress stands in for the top and the bottom. Only jackets and coats go over a dress.
     for (const d of dressList) {
-      const tightsOptions: (ScoredGarment | null)[] = coldBareLegs ? tightsList : [null];
+      const tightsOptions: (ScoredGarment | null)[] = coldBareLegs ? tightsList : explore ? [null, ...tightsList] : [null];
       for (const tp of tightsOptions) {
         const dressScore = tp ? d.scoreWithTights : d.score;
         const tightsPoints = tp ? [tp.score] : [];
         const base: Outfit = { dress: d.garment.id, shoes: shoe.garment.id, ...(tp ? { tights: tp.garment.id } : {}) };
         offer(base, [d, shoe], null, tp, [dressScore, shoe.score, ...tightsPoints]);
-        if (reason === null) continue;
+        if (reason === null && !explore) continue;
         for (const l of outerList) {
           offer({ ...base, layer: l.garment.id }, [d, shoe], l, tp, [dressScore, shoe.score, l.score, ...tightsPoints]);
         }
@@ -299,7 +368,10 @@ export function scoreOutfit(input: OutfitInput): OutfitResult {
   }
 
   // When the weather calls for a layer and one fits, the outfit has it; otherwise it goes without.
-  const winner = (bestLayered ?? bestPlain) as Candidate | null;
+  // Explore mode has no call for a layer, so the better of the two simply wins.
+  const layered = bestLayered as Candidate | null;
+  const plain = bestPlain as Candidate | null;
+  const winner = explore ? (layered && (!plain || layered.score > plain.score) ? layered : plain ?? layered) : layered ?? plain;
   if (winner === null) {
     return { status: "exhausted", reasoning: "Every available combination was already rejected." };
   }
@@ -308,8 +380,16 @@ export function scoreOutfit(input: OutfitInput): OutfitResult {
     status: "ok",
     outfit: winner.outfit,
     score: Math.round(winner.score * 1000) / 1000,
-    reasoning: explain(winner.items, weather, winner.layer && reason ? { piece: winner.layer, reason } : null, winner.tights, target),
+    reasoning: explore
+      ? exploreReasoning(winner.items, winner.layer, winner.tights)
+      : explain(winner.items, weather, winner.layer && reason ? { piece: winner.layer, reason } : null, winner.tights, target),
   };
+}
+
+// What an idea says about itself: a style idea, not a forecast.
+function exploreReasoning(items: ScoredGarment[], layer: ScoredGarment | null, tightsPiece: ScoredGarment | null): string {
+  const shown = [...items, ...(layer ? [layer] : []), ...(tightsPiece ? [tightsPiece] : [])];
+  return `A style idea: ${shown.map((i) => `${i.garment.colors[0]} ${i.garment.type.replace("_", " ")}`).join(", ")}.`;
 }
 
 function explain(

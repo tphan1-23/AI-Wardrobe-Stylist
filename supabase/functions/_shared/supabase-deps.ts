@@ -15,6 +15,8 @@ export interface Query extends PromiseLike<Reply> {
   eq(column: string, value: unknown): Query;
   in(column: string, values: unknown[]): Query;
   is(column: string, value: null): Query;
+  order(column: string, options?: { ascending: boolean }): Query;
+  limit(count: number): Query;
   maybeSingle(): Query;
   single(): Query;
 }
@@ -49,6 +51,12 @@ export function generateOutfitDeps(db: Db, getWeather: (location: string) => Pro
     async getSuggestionGarmentIds(userId, suggestionIds) {
       const found = await rows<{ garment_ids: UUID[] }>(
         db.from("suggestions").select("garment_ids").eq("user_id", userId).in("id", suggestionIds),
+      );
+      return found.map((s) => s.garment_ids);
+    },
+    async getRecentExploreGarmentIds(userId, limit) {
+      const found = await rows<{ garment_ids: UUID[] }>(
+        db.from("suggestions").select("garment_ids").eq("user_id", userId).eq("kind", "explore").order("created_at", { ascending: false }).limit(limit),
       );
       return found.map((s) => s.garment_ids);
     },

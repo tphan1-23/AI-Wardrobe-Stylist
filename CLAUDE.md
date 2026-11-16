@@ -20,7 +20,7 @@ Shared agent context file for this repo (course deliverable: "repo setup w/ shar
 - **Tech lead:** Manuel (owns this file, contracts/schema, review standards, integration).
 - **AI logic is owned by Manuel + Claude:** vision-tagging prompt/schema/accuracy, outfit scoring, preference learning, quiz mapping, tuning, evaluation and their tests. Keep it in pure, well-tested modules behind agreed contracts; log every prompt/weight change with before/after metrics in `brain/AI Logic Ownership.md`. Manuel reviews all of it and Thanh reviews PRs — never self-merge.
 - **Thanh owns product/plumbing:** migrations + RLS, auth, households, UI, weather client, deletion flows, CI/CD + deploy.
-- Decisions D1–D28 are in the decisions note and override anything older in `docs/` (e.g. personal closets with optional households for sharing (D18, replaces D1's household-scoped garments), per-user location, outfits of top+bottom+shoes or dress+shoes plus an optional layer (D25), several colors and seasons per garment (D26), account deletion (D27), tights under bare legs and soft style rules (D28), review-and-edit tagging). `docs/` still needs updating to match.
+- Decisions D1–D29 are in the decisions note and override anything older in `docs/` (e.g. personal closets with optional households for sharing (D18, replaces D1's household-scoped garments), per-user location, outfits of top+bottom+shoes or dress+shoes plus an optional layer (D25), several colors and seasons per garment (D26), account deletion (D27), tights under bare legs and soft style rules (D28), a weather-free, varied Style Swipe (D29), review-and-edit tagging). `docs/` still needs updating to match.
 
 ## What this project is
 
